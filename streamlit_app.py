@@ -89,7 +89,6 @@ def calcular_sla_simples(data_entrada, data_saida, prazo_sla, valor_mensalidade,
     return dias_uteis, status, desconto, dias_excedente
 
 def gerar_pdf_sla_simples(cliente, placa, tipo_servico, dias_uteis_manut, prazo_sla, dias_excedente, valor_mensalidade, desconto):
-    # CORREÇÃO: Removido o "io." que causava o NameError
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
     largura, altura = letter
@@ -115,9 +114,8 @@ def limpar_dados_comparativos():
     for key in keys_to_clear:
         if key in st.session_state: del st.session_state[key]
 def limpar_dados_simples():
-    keys_to_clear = ["resultado_sla", "pesquisa_cliente"]
-    for key in keys_to_clear:
-        if key in st.session_state: del st.session_state[key]
+    st.session_state.resultado_sla = None
+    st.session_state.pesquisa_cliente = ""
 def logout():
     for key in st.session_state.keys(): del st.session_state[key]
 
@@ -164,6 +162,7 @@ elif st.session_state.tela == "home":
 
 # --- TELA DA CALCULADORA COMPARATIVA ---
 elif st.session_state.tela == "calc_comparativa":
+    # (código da calculadora comparativa - sem alterações)
     renderizar_sidebar()
     st.title("📊 Calculadora Comparativa de Cenários")
     if "cenarios" not in st.session_state: st.session_state.cenarios = []
@@ -220,16 +219,13 @@ elif st.session_state.tela == "calc_comparativa":
                         for peca in st.session_state.pecas_atuais:
                             col_peca_nome, col_peca_valor = st.columns([3, 1]); col_peca_nome.write(peca['nome']); col_peca_valor.write(formatar_moeda(peca['valor']))
                     else: st.info("Nenhuma peça adicionada na coluna da direita.")
-
                 submitted = st.form_submit_button(f"➡️ Calcular Cenário {len(st.session_state.cenarios) + 1}", use_container_width=True, type="primary")
                 if submitted:
                     if cliente_info:
                         if entrada >= saida: st.error("A data de saída deve ser posterior à de entrada.")
                         else:
                             cenario = calcular_cenario_comparativo(cliente_info["cliente"], placa.upper(), entrada, saida, feriados, servico, st.session_state.pecas_atuais, cliente_info["mensalidade"])
-                            st.session_state.cenarios.append(cenario)
-                            st.session_state.pecas_atuais = []
-                            st.rerun()
+                            st.session_state.cenarios.append(cenario); st.session_state.pecas_atuais = []; st.rerun()
                     else: st.error("Placa inválida ou não encontrada para submeter.")
         
         with col_pecas:
@@ -240,7 +236,6 @@ elif st.session_state.tela == "calc_comparativa":
                 if nome_peca and valor_peca > 0:
                     st.session_state.pecas_atuais.append({"nome": nome_peca, "valor": valor_peca}); st.rerun()
                 else: st.warning("Preencha o nome e o valor da peça.")
-
             if st.session_state.pecas_atuais:
                 st.markdown("---"); st.write("**Peças adicionadas:**")
                 opcoes_pecas = [f"{p['nome']} - {formatar_moeda(p['valor'])}" for p in st.session_state.pecas_atuais]
@@ -251,7 +246,7 @@ elif st.session_state.tela == "calc_comparativa":
                         st.session_state.pecas_atuais = [p for p in st.session_state.pecas_atuais if p['nome'] not in nomes_para_remover]; st.rerun()
                     else: st.warning("⚠️ Nenhuma peça foi selecionada.")
 
-# --- NOVA TELA DA CALCULADORA SIMPLES ---
+# --- TELA DA CALCULADORA SIMPLES ---
 elif st.session_state.tela == "calc_simples":
     renderizar_sidebar()
     st.title("🖩 Calculadora de SLA Simples")
@@ -261,46 +256,7 @@ elif st.session_state.tela == "calc_simples":
     df_base = carregar_base()
     if df_base is None: st.error("❌ Arquivo 'Base De Clientes Faturamento.xlsx' não encontrado."); st.stop()
     
-    st.subheader("1. Consulta de Cliente ou Placa")
-    buscar_cliente = st.radio("Deseja procurar o cliente pelo nome?", ("Não", "Sim"), horizontal=True)
-
-    placa_selecionada = ""
-    if buscar_cliente == "Sim":
-        pesquisa = st.text_input("🔍 Pesquise o nome do cliente:", st.session_state.pesquisa_cliente)
-        if pesquisa:
-            df_filtrado = df_base[df_base["CLIENTE"].str.contains(pesquisa, case=False, na=False)]
-            st.dataframe(df_filtrado[["CLIENTE", "PLACA", "VALOR MENSALIDADE"]])
-            placa_selecionada = st.selectbox("Selecione a placa:", df_filtrado["PLACA"].tolist())
-    else:
-        placa_selecionada = st.text_input("📌 Digite a PLACA do ativo:")
-
-    if placa_selecionada:
-        registro = df_base[df_base["PLACA"].astype(str).str.upper() == str(placa_selecionada).strip().upper()]
-        if registro.empty: st.error("❌ Placa não encontrada!")
-        else:
-            registro = registro.iloc[0]
-            cliente, valor_mensalidade = registro["CLIENTE"], registro["VALOR MENSALIDADE"]
-            st.info(f"**Cliente:** {cliente} | **Placa:** {placa_selecionada} | **Mensalidade:** {formatar_moeda(valor_mensalidade)}")
-            
-            st.markdown("---"); st.subheader("2. Detalhes do Serviço")
-            sla_opcoes = {"Preventiva": 2, "Corretiva": 3, "Preventiva + Corretiva": 5, "Motor": 15}
-            tipo_sla_selecionado = st.selectbox("⚙️ Escolha o tipo de SLA:", [f"{k}: {v} dias úteis" for k, v in sla_opcoes.items()])
-            prazo_sla = sla_opcoes[tipo_sla_selecionado.split(":")[0]]
-
-            col1, col2 = st.columns(2)
-            data_entrada = col1.date_input("📅 Data de entrada na oficina", datetime.today())
-            data_saida = col2.date_input("📅 Data de saída da oficina", datetime.today())
-
-            feriados = st.number_input("🗓️ Quantos feriados no período?", min_value=0, step=1)
-
-            if st.button("Calcular SLA", use_container_width=True, type="primary"):
-                dias, status, desconto, dias_excedente = calcular_sla_simples(data_entrada, data_saida, prazo_sla, valor_mensalidade, feriados)
-                st.session_state.resultado_sla = {
-                    "cliente": cliente, "placa": placa_selecionada, "tipo_servico": tipo_sla_selecionado.split(":")[0],
-                    "dias": dias, "prazo_sla": prazo_sla, "dias_excedente": dias_excedente,
-                    "valor_mensalidade": valor_mensalidade, "desconto": desconto
-                }
-
+    # Mostra o resultado ou o formulário de busca
     if st.session_state.resultado_sla:
         st.markdown("---"); st.header("✅ Resultado do Cálculo")
         r = st.session_state.resultado_sla
@@ -319,3 +275,44 @@ elif st.session_state.tela == "calc_simples":
             label="📥 Baixar resultado em PDF", data=pdf_buffer,
             file_name=f"SLA_{r['placa']}.pdf", mime="application/pdf", use_container_width=True
         )
+        # NOVO: Botão para iniciar um novo cálculo
+        st.button("🔄 Iniciar Novo Cálculo", on_click=limpar_dados_simples, use_container_width=True, type="primary")
+    else:
+        st.subheader("1. Consulta de Cliente ou Placa")
+        buscar_cliente = st.radio("Deseja procurar o cliente pelo nome?", ("Não", "Sim"), horizontal=True)
+        placa_selecionada = ""
+        if buscar_cliente == "Sim":
+            pesquisa = st.text_input("🔍 Pesquise o nome do cliente:", key="pesquisa_cliente")
+            if pesquisa:
+                df_filtrado = df_base[df_base["CLIENTE"].str.contains(pesquisa, case=False, na=False)]
+                st.dataframe(df_filtrado[["CLIENTE", "PLACA", "VALOR MENSALIDADE"]])
+                placa_selecionada = st.selectbox("Selecione a placa:", df_filtrado["PLACA"].tolist())
+        else:
+            placa_selecionada = st.text_input("📌 Digite a PLACA do ativo:")
+
+        if placa_selecionada:
+            registro = df_base[df_base["PLACA"].astype(str).str.upper() == str(placa_selecionada).strip().upper()]
+            if registro.empty: st.error("❌ Placa não encontrada!")
+            else:
+                registro = registro.iloc[0]
+                cliente, valor_mensalidade = registro["CLIENTE"], registro["VALOR MENSALIDADE"]
+                st.info(f"**Cliente:** {cliente} | **Placa:** {placa_selecionada} | **Mensalidade:** {formatar_moeda(valor_mensalidade)}")
+                
+                st.markdown("---"); st.subheader("2. Detalhes do Serviço")
+                sla_opcoes = {"Preventiva": 2, "Corretiva": 3, "Preventiva + Corretiva": 5, "Motor": 15}
+                tipo_sla_selecionado = st.selectbox("⚙️ Escolha o tipo de SLA:", [f"{k}: {v} dias úteis" for k, v in sla_opcoes.items()])
+                prazo_sla = sla_opcoes[tipo_sla_selecionado.split(":")[0]]
+
+                col1, col2 = st.columns(2)
+                data_entrada = col1.date_input("📅 Data de entrada na oficina", datetime.today())
+                data_saida = col2.date_input("📅 Data de saída da oficina", datetime.today())
+                feriados = st.number_input("🗓️ Quantos feriados no período?", min_value=0, step=1)
+
+                if st.button("Calcular SLA", use_container_width=True, type="primary"):
+                    dias, status, desconto, dias_excedente = calcular_sla_simples(data_entrada, data_saida, prazo_sla, valor_mensalidade, feriados)
+                    st.session_state.resultado_sla = {
+                        "cliente": cliente, "placa": placa_selecionada, "tipo_servico": tipo_sla_selecionado.split(":")[0],
+                        "dias": dias, "prazo_sla": prazo_sla, "dias_excedente": dias_excedente,
+                        "valor_mensalidade": valor_mensalidade, "desconto": desconto
+                    }
+                    st.rerun()
