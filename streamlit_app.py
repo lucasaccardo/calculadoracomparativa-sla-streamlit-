@@ -8,7 +8,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 
-# --- CONFIGURAÇÃO DA PÁGINA E TEMA ---
+# --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title="Calculadora SLA | Vamos",
     page_icon="🚛",
@@ -23,20 +23,6 @@ def carregar_base():
         return pd.read_excel("Base De Clientes Faturamento.xlsx")
     except FileNotFoundError:
         return None
-
-def buscar_placa(df_base):
-    placa_digitada = st.session_state.input_placa.strip().upper()
-    if not placa_digitada:
-        st.session_state.cliente_info = None
-        return
-    cliente_row = df_base[df_base["PLACA"].astype(str).str.upper() == placa_digitada]
-    if not cliente_row.empty:
-        st.session_state.cliente_info = {
-            "cliente": cliente_row.iloc[0]["CLIENTE"],
-            "mensalidade": moeda_para_float(cliente_row.iloc[0]["VALOR MENSALIDADE"])
-        }
-    else:
-        st.session_state.cliente_info = None
 
 def calcular_dias_uteis(data_inicio, data_fim, feriados=0):
     dias = 0; data_atual = data_inicio + timedelta(days=1)
@@ -94,22 +80,16 @@ def gerar_pdf(df_cenarios, melhor_cenario):
     doc.build(elementos); buffer.seek(0)
     return buffer
 
-# --- FUNÇÕES DE NAVEGAÇÃO E AÇÕES DO MENU ---
 def ir_para_home(): st.session_state.tela = "home"
 def ir_para_calculadora(): st.session_state.tela = "calculadora"
 def limpar_dados():
-    st.session_state.cenarios = []; st.session_state.pecas_atuais = []
-    st.session_state.cliente_info = None; st.session_state.input_placa = ""
-    st.session_state.estado_calculo = "adicionando"
+    keys_to_clear = ["cenarios", "pecas_atuais", "cliente_info", "input_placa", "estado_calculo", "mostrar_comparativo"]
+    for key in keys_to_clear:
+        if key in st.session_state:
+            del st.session_state[key]
 
 def logout():
     for key in st.session_state.keys(): del st.session_state[key]
-
-def adicionar_peca_callback():
-    if st.session_state.nome_peca_input and st.session_state.valor_peca_input > 0:
-        st.session_state.pecas_atuais.append({"nome": st.session_state.nome_peca_input, "valor": st.session_state.valor_peca_input})
-        st.session_state.nome_peca_input = ""; st.session_state.valor_peca_input = 0.0
-    else: st.warning("Preencha o nome e o valor da peça.")
 
 def renderizar_sidebar():
     with st.sidebar:
@@ -123,9 +103,7 @@ def renderizar_sidebar():
 if "tela" not in st.session_state: st.session_state.tela = "login"
 if "cenarios" not in st.session_state: st.session_state.cenarios = []
 if "pecas_atuais" not in st.session_state: st.session_state.pecas_atuais = []
-if "cliente_info" not in st.session_state: st.session_state.cliente_info = None
-if "input_placa" not in st.session_state: st.session_state.input_placa = ""
-if "estado_calculo" not in st.session_state: st.session_state.estado_calculo = "adicionando"
+if "mostrar_comparativo" not in st.session_state: st.session_state.mostrar_comparativo = False
 
 # --- LÓGICA DE RENDERIZAÇÃO DAS TELAS ---
 if st.session_state.tela == "login":
@@ -153,75 +131,85 @@ elif st.session_state.tela == "calculadora":
     df_base = carregar_base()
     if df_base is None: st.error("❌ Arquivo 'Base De Clientes Faturamento.xlsx' não encontrado."); st.stop()
     
+    # --- SEÇÃO DE RESULTADOS E COMPARAÇÃO ---
     if st.session_state.cenarios:
         st.markdown("---"); st.header("📈 Cenários Calculados")
         df_cenarios = pd.DataFrame(st.session_state.cenarios)
         st.table(df_cenarios.drop(columns=["Detalhe Peças"]))
-        if len(st.session_state.cenarios) >= 2 and st.session_state.estado_calculo != "comparando":
-            if st.button("🏆 Comparar Cenários", type="primary", use_container_width=True):
-                st.session_state.estado_calculo = "comparando"
-                st.rerun() # CORREÇÃO: Usar rerun aqui para mudar de estado é aceitável e necessário
-
-    if st.session_state.estado_calculo == "comparando":
+        if len(st.session_state.cenarios) >= 2:
+            if st.button("🏆 Comparar Cenários", type="primary"):
+                st.session_state.mostrar_comparativo = True
+    
+    if st.session_state.mostrar_comparativo:
         st.header("Análise Comparativa Final")
         df_cenarios = pd.DataFrame(st.session_state.cenarios)
         melhor = df_cenarios.loc[df_cenarios["Total Final (R$)"].apply(moeda_para_float).idxmin()]
         st.success(f"🏆 Melhor cenário: **{melhor['Serviço']}** | Placa **{melhor['Placa']}** | Total Final: **{melhor['Total Final (R$)']}**")
         pdf_buffer = gerar_pdf(df_cenarios, melhor)
-        st.download_button("📥 Baixar Relatório PDF", pdf_buffer, "comparacao_cenarios_sla.pdf", "application/pdf", use_container_width=True)
-        if st.button("➕ Adicionar outro Cenário", use_container_width=True):
-            st.session_state.estado_calculo = "adicionando"
-            st.rerun() # CORREÇÃO: Usar rerun aqui para mudar de estado é aceitável e necessário
+        st.download_button("📥 Baixar Relatório PDF", pdf_buffer, "comparacao_cenarios_sla.pdf", "application/pdf")
+
+    # --- SEÇÃO DE ADICIONAR CENÁRIO ---
+    st.markdown("---")
+    st.header(f"📝 Preencher Dados para o Cenário {len(st.session_state.cenarios) + 1}")
     
-    if st.session_state.estado_calculo == "adicionando":
-        st.markdown("---")
-        st.header(f"📝 Preencher Dados para o Cenário {len(st.session_state.cenarios) + 1}")
-        
-        with st.expander("🔍 Consultar Clientes e Placas"):
-            df_display = df_base[['CLIENTE', 'PLACA', 'VALOR MENSALIDADE']].copy()
-            df_display['VALOR MENSALIDADE'] = df_display['VALOR MENSALIDADE'].apply(formatar_moeda)
-            st.dataframe(df_display, use_container_width=True, hide_index=True)
+    with st.expander("🔍 Consultar Clientes e Placas"):
+        df_display = df_base[['CLIENTE', 'PLACA', 'VALOR MENSALIDADE']].copy()
+        df_display['VALOR MENSALIDADE'] = df_display['VALOR MENSALIDADE'].apply(formatar_moeda)
+        st.dataframe(df_display, use_container_width=True, hide_index=True)
 
-        col_form, col_pecas = st.columns([2, 1])
-        with col_form:
-            st.subheader("1. Buscar Veículo")
-            st.text_input("Digite a placa e tecle Enter ou clique fora:", key="input_placa", on_change=buscar_placa, args=(df_base,))
+    col_form, col_pecas = st.columns([2, 1])
+    with col_form:
+        # LÓGICA DE BUSCA DE PLACA SIMPLIFICADA E ESTÁVEL
+        placa = st.text_input("1. Digite a placa e tecle Enter")
+        cliente_info = None
+        if placa:
+            placa_upper = placa.strip().upper()
+            cliente_row = df_base[df_base["PLACA"].astype(str).str.upper() == placa_upper]
+            if not cliente_row.empty:
+                cliente_info = {
+                    "cliente": cliente_row.iloc[0]["CLIENTE"],
+                    "mensalidade": moeda_para_float(cliente_row.iloc[0]["VALOR MENSALIDADE"])
+                }
+                st.info(f"✅ **Cliente:** {cliente_info['cliente']} | **Mensalidade:** {formatar_moeda(cliente_info['mensalidade'])}")
+            else:
+                st.warning("❌ Placa não encontrada.")
+
+        with st.form(key=f"form_cenario_{len(st.session_state.cenarios)}", clear_on_submit=True):
+            st.subheader("2. Detalhes do Serviço")
+            subcol1, subcol2 = st.columns(2)
+            entrada = subcol1.date_input("📅 Data de entrada:", datetime.now())
+            saida = subcol2.date_input("📅 Data de saída:", datetime.now() + timedelta(days=5))
+            feriados = subcol1.number_input("📌 Feriados no período:", min_value=0, step=1)
+            servico = subcol2.selectbox("🛠️ Tipo de serviço:", ["Preventiva – 2 dias úteis", "Corretiva – 3 dias úteis", "Preventiva + Corretiva – 5 dias úteis", "Motor – 15 dias úteis"])
             
-            if st.session_state.cliente_info:
-                st.info(f"✅ **Cliente:** {st.session_state.cliente_info['cliente']} | **Mensalidade:** {formatar_moeda(st.session_state.cliente_info['mensalidade'])}")
-                with st.form(key=f"form_cenario_{len(st.session_state.cenarios)}"):
-                    st.subheader("2. Detalhes do Serviço")
-                    subcol1, subcol2 = st.columns(2)
-                    entrada = subcol1.date_input("📅 Data de entrada:", datetime.now())
-                    saida = subcol2.date_input("📅 Data de saída:", datetime.now() + timedelta(days=5))
-                    feriados = subcol1.number_input("📌 Feriados no período:", min_value=0, step=1)
-                    servico = subcol2.selectbox("🛠️ Tipo de serviço:", ["Preventiva – 2 dias úteis", "Corretiva – 3 dias úteis", "Preventiva + Corretiva – 5 dias úteis", "Motor – 15 dias úteis"])
-                    
-                    if st.form_submit_button(f"➡️ Calcular Cenário {len(st.session_state.cenarios) + 1}", use_container_width=True, type="primary"):
-                        cliente, mensalidade = st.session_state.cliente_info["cliente"], st.session_state.cliente_info["mensalidade"]
-                        if entrada >= saida: st.error("A data de saída deve ser posterior à de entrada.")
-                        else:
-                            cenario = calcular_cenario(cliente, st.session_state.input_placa.upper(), entrada, saida, feriados, servico, st.session_state.pecas_atuais, mensalidade)
-                            st.session_state.cenarios.append(cenario)
-                            limpar_parcial = {"pecas_atuais": [], "cliente_info": None, "input_placa": ""}
-                            for key, value in limpar_parcial.items(): st.session_state[key] = value
-                            # CORREÇÃO: Removido st.rerun() que causava o erro
-            
-            elif st.session_state.input_placa: st.warning("❌ Placa não encontrada.")
+            submitted = st.form_submit_button(f"➡️ Calcular Cenário {len(st.session_state.cenarios) + 1}", use_container_width=True, type="primary")
+            if submitted:
+                if cliente_info:
+                    if entrada >= saida: st.error("A data de saída deve ser posterior à de entrada.")
+                    else:
+                        cenario = calcular_cenario(cliente_info["cliente"], placa.upper(), entrada, saida, feriados, servico, st.session_state.pecas_atuais, cliente_info["mensalidade"])
+                        st.session_state.cenarios.append(cenario)
+                        st.session_state.pecas_atuais = [] # Limpa apenas as peças
+                        st.rerun()
+                else: st.error("Placa inválida ou não encontrada para submeter.")
+    
+    with col_pecas:
+        st.subheader("3. Gerenciar Peças")
+        nome_peca = st.text_input("Nome da Peça", key="nome_peca_input")
+        valor_peca = st.number_input("Valor (R$)", min_value=0.0, step=0.01, format="%.2f", key="valor_peca_input")
+        if st.button("➕ Adicionar Peça", use_container_width=True):
+            if nome_peca and valor_peca > 0:
+                st.session_state.pecas_atuais.append({"nome": nome_peca, "valor": valor_peca})
+                st.rerun()
+            else: st.warning("Preencha o nome e o valor da peça.")
 
-        with col_pecas:
-            st.subheader("3. Gerenciar Peças")
-            st.text_input("Nome da Peça", label_visibility="collapsed", placeholder="Nome da Peça", key="nome_peca_input")
-            st.number_input("Valor (R$)", min_value=0.0, step=0.01, format="%.2f", label_visibility="collapsed", key="valor_peca_input")
-            st.button("➕ Adicionar Peça", on_click=adicionar_peca_callback, use_container_width=True)
-
-            if st.session_state.pecas_atuais:
-                st.markdown("---"); st.write("**Peças adicionadas:**")
-                opcoes_pecas = [f"{p['nome']} - {formatar_moeda(p['valor'])}" for p in st.session_state.pecas_atuais]
-                pecas_para_remover = st.multiselect("Selecione para remover:", options=opcoes_pecas, label_visibility="collapsed")
-                if st.button("🗑️ Remover Selecionadas", type="secondary", use_container_width=True):
-                    if pecas_para_remover:
-                        nomes_para_remover = [item.split(' - ')[0] for item in pecas_para_remover]
-                        st.session_state.pecas_atuais = [p for p in st.session_state.pecas_atuais if p['nome'] not in nomes_para_remover]
-                        # CORREÇÃO: Removido st.rerun() que pode causar erros
-                    else: st.warning("⚠️ Nenhuma peça foi selecionada.")
+        if st.session_state.pecas_atuais:
+            st.markdown("---"); st.write("**Peças adicionadas:**")
+            opcoes_pecas = [f"{p['nome']} - {formatar_moeda(p['valor'])}" for p in st.session_state.pecas_atuais]
+            pecas_para_remover = st.multiselect("Selecione para remover:", options=opcoes_pecas)
+            if st.button("🗑️ Remover Selecionadas", type="secondary", use_container_width=True):
+                if pecas_para_remover:
+                    nomes_para_remover = [item.split(' - ')[0] for item in pecas_para_remover]
+                    st.session_state.pecas_atuais = [p for p in st.session_state.pecas_atuais if p['nome'] not in nomes_para_remover]
+                    st.rerun()
+                else: st.warning("⚠️ Nenhuma peça foi selecionada.")
