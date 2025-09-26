@@ -20,29 +20,29 @@ st.set_page_config(
     initial_sidebar_state="auto"
 )
 
-# --- FUNÇÕES DE GERENCIAMENTO DE USUÁRIOS E SEGURANÇA ---
+# --- FUNÇÕES DE GERENCIAMENTO DE USUÁRIOS (LÓGICA CORRIGIDA) ---
 def hash_password(password):
-    """Criptografa a senha usando SHA-256."""
     return hashlib.sha256(password.encode()).hexdigest()
 
 def check_password(hashed_password, user_password):
-    """Verifica se a senha fornecida corresponde à senha criptografada."""
     return hashed_password == hash_password(user_password)
 
 @st.cache_data
 def load_user_db():
     """Carrega o banco de dados de usuários de um arquivo CSV."""
-    if not os.path.exists("users.csv") or os.path.getsize("users.csv") == 0:
-        # Cria o arquivo com o administrador inicial se não existir ou estiver vazio
+    if os.path.exists("users.csv") and os.path.getsize("users.csv") > 0:
+        # Se o arquivo existe e tem conteúdo, simplesmente o leia
+        return pd.read_csv("users.csv")
+    else:
+        # Se o arquivo não existe ou está vazio, crie o admin, salve e retorne o dataframe criado
         admin_user = {"username": ["lucas.sureira"], "password": [hash_password("Brasil@@2609")], "role": ["admin"]}
         df_users = pd.DataFrame(admin_user)
         df_users.to_csv("users.csv", index=False)
-    return pd.read_csv("users.csv")
+        return df_users
 
 def save_user_db(df_users):
-    """Salva o DataFrame de usuários no arquivo CSV."""
     df_users.to_csv("users.csv", index=False)
-    st.cache_data.clear() # Limpa o cache para recarregar os dados na próxima vez
+    st.cache_data.clear()
 
 # --- FUNÇÕES AUXILIARES COMUNS ---
 @st.cache_data
@@ -223,6 +223,9 @@ elif st.session_state.tela == "admin_users":
     st.subheader("Usuários Existentes")
     st.dataframe(df_users[["username", "role"]], use_container_width=True)
 
+# O restante do código para as outras telas (calc_comparativa, calc_simples) continua o mesmo das versões anteriores
+# ... (Cole aqui o código completo das telas 'calc_comparativa' e 'calc_simples' da versão anterior)
+# --- TELA DA CALCULADORA COMPARATIVA ---
 elif st.session_state.tela == "calc_comparativa":
     renderizar_sidebar()
     st.title("📊 Calculadora Comparativa de Cenários")
@@ -307,6 +310,7 @@ elif st.session_state.tela == "calc_comparativa":
                         st.session_state.pecas_atuais = [p for p in st.session_state.pecas_atuais if p['nome'] not in nomes_para_remover]; st.rerun()
                     else: st.warning("⚠️ Nenhuma peça foi selecionada.")
 
+# --- TELA DA CALCULADORA SIMPLES ---
 elif st.session_state.tela == "calc_simples":
     renderizar_sidebar()
     st.title("🖩 Calculadora de SLA Simples")
