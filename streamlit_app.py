@@ -80,17 +80,14 @@ def gerar_pdf(df_cenarios, melhor_cenario):
     doc.build(elementos); buffer.seek(0)
     return buffer
 
-# --- FUNÇÕES DE NAVEGAÇÃO E AÇÕES DO MENU ---
 def ir_para_home(): st.session_state.tela = "home"
 def ir_para_calculadora(): st.session_state.tela = "calculadora"
 
-# CORREÇÃO: Lógica de limpeza ajustada para funcionar corretamente
+# CORREÇÃO DEFINITIVA: A função agora limpa apenas os dados dos cenários, sem tocar no estado dos widgets.
 def limpar_dados():
     st.session_state.cenarios = []
     st.session_state.pecas_atuais = []
     st.session_state.mostrar_comparativo = False
-    # Limpa a chave do widget de placa para zerar o campo de texto
-    st.session_state.input_placa = ""
 
 def logout():
     for key in st.session_state.keys(): del st.session_state[key]
@@ -108,7 +105,6 @@ if "tela" not in st.session_state: st.session_state.tela = "login"
 if "cenarios" not in st.session_state: st.session_state.cenarios = []
 if "pecas_atuais" not in st.session_state: st.session_state.pecas_atuais = []
 if "mostrar_comparativo" not in st.session_state: st.session_state.mostrar_comparativo = False
-if "input_placa" not in st.session_state: st.session_state.input_placa = ""
 
 # --- LÓGICA DE RENDERIZAÇÃO DAS TELAS ---
 if st.session_state.tela == "login":
@@ -152,8 +148,6 @@ elif st.session_state.tela == "calculadora":
         st.success(f"🏆 Melhor cenário: **{melhor['Serviço']}** | Placa **{melhor['Placa']}** | Total Final: **{melhor['Total Final (R$)']}**")
         pdf_buffer = gerar_pdf(df_cenarios, melhor)
         st.download_button("📥 Baixar Relatório PDF", pdf_buffer, "comparacao_cenarios_sla.pdf", "application/pdf")
-        
-        # NOVO: Botão para reiniciar o cálculo diretamente da tela de comparação
         st.button("🔄 Reiniciar e Fazer Nova Comparação", on_click=limpar_dados, use_container_width=True, type="primary")
 
     else:
@@ -167,7 +161,8 @@ elif st.session_state.tela == "calculadora":
 
         col_form, col_pecas = st.columns([2, 1])
         with col_form:
-            placa = st.text_input("1. Digite a placa e tecle Enter", key="input_placa")
+            # CORREÇÃO DEFINITIVA: Removido o parâmetro 'key' do st.text_input para evitar conflitos de estado.
+            placa = st.text_input("1. Digite a placa e tecle Enter")
             cliente_info = None
             if placa:
                 placa_upper = placa.strip().upper()
@@ -199,7 +194,6 @@ elif st.session_state.tela == "calculadora":
                             cenario = calcular_cenario(cliente_info["cliente"], placa.upper(), entrada, saida, feriados, servico, st.session_state.pecas_atuais, cliente_info["mensalidade"])
                             st.session_state.cenarios.append(cenario)
                             st.session_state.pecas_atuais = []
-                            st.session_state.input_placa = ""
                             st.rerun()
                     else: st.error("Placa inválida ou não encontrada para submeter.")
         
