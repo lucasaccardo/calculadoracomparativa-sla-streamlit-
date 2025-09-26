@@ -94,7 +94,7 @@ def gerar_pdf(df_cenarios, melhor_cenario):
     doc.build(elementos); buffer.seek(0)
     return buffer
 
-# --- FUNÇÕES DE CALLBACK PARA AÇÕES ---
+# --- FUNÇÕES DE NAVEGAÇÃO E AÇÕES DO MENU ---
 def ir_para_home(): st.session_state.tela = "home"
 def ir_para_calculadora(): st.session_state.tela = "calculadora"
 def limpar_dados():
@@ -105,15 +105,11 @@ def limpar_dados():
 def logout():
     for key in st.session_state.keys(): del st.session_state[key]
 
-# --- NOVA FUNÇÃO DE CALLBACK PARA ADICIONAR PEÇA ---
 def adicionar_peca_callback():
     if st.session_state.nome_peca_input and st.session_state.valor_peca_input > 0:
         st.session_state.pecas_atuais.append({"nome": st.session_state.nome_peca_input, "valor": st.session_state.valor_peca_input})
-        # Limpa os campos após adicionar
-        st.session_state.nome_peca_input = ""
-        st.session_state.valor_peca_input = 0.0
-    else:
-        st.warning("Preencha o nome e o valor da peça.")
+        st.session_state.nome_peca_input = ""; st.session_state.valor_peca_input = 0.0
+    else: st.warning("Preencha o nome e o valor da peça.")
 
 def renderizar_sidebar():
     with st.sidebar:
@@ -161,10 +157,11 @@ elif st.session_state.tela == "calculadora":
         st.markdown("---"); st.header("📈 Cenários Calculados")
         df_cenarios = pd.DataFrame(st.session_state.cenarios)
         st.table(df_cenarios.drop(columns=["Detalhe Peças"]))
-        if len(st.session_state.cenarios) >= 2:
+        if len(st.session_state.cenarios) >= 2 and st.session_state.estado_calculo != "comparando":
             if st.button("🏆 Comparar Cenários", type="primary", use_container_width=True):
                 st.session_state.estado_calculo = "comparando"
-    
+                st.rerun() # CORREÇÃO: Usar rerun aqui para mudar de estado é aceitável e necessário
+
     if st.session_state.estado_calculo == "comparando":
         st.header("Análise Comparativa Final")
         df_cenarios = pd.DataFrame(st.session_state.cenarios)
@@ -173,7 +170,8 @@ elif st.session_state.tela == "calculadora":
         pdf_buffer = gerar_pdf(df_cenarios, melhor)
         st.download_button("📥 Baixar Relatório PDF", pdf_buffer, "comparacao_cenarios_sla.pdf", "application/pdf", use_container_width=True)
         if st.button("➕ Adicionar outro Cenário", use_container_width=True):
-            st.session_state.estado_calculo = "adicionando"; st.rerun()
+            st.session_state.estado_calculo = "adicionando"
+            st.rerun() # CORREÇÃO: Usar rerun aqui para mudar de estado é aceitável e necessário
     
     if st.session_state.estado_calculo == "adicionando":
         st.markdown("---")
@@ -191,7 +189,6 @@ elif st.session_state.tela == "calculadora":
             
             if st.session_state.cliente_info:
                 st.info(f"✅ **Cliente:** {st.session_state.cliente_info['cliente']} | **Mensalidade:** {formatar_moeda(st.session_state.cliente_info['mensalidade'])}")
-                
                 with st.form(key=f"form_cenario_{len(st.session_state.cenarios)}"):
                     st.subheader("2. Detalhes do Serviço")
                     subcol1, subcol2 = st.columns(2)
@@ -200,12 +197,6 @@ elif st.session_state.tela == "calculadora":
                     feriados = subcol1.number_input("📌 Feriados no período:", min_value=0, step=1)
                     servico = subcol2.selectbox("🛠️ Tipo de serviço:", ["Preventiva – 2 dias úteis", "Corretiva – 3 dias úteis", "Preventiva + Corretiva – 5 dias úteis", "Motor – 15 dias úteis"])
                     
-                    if st.session_state.pecas_atuais:
-                        with st.expander("Verificar peças que serão incluídas"):
-                             for p in st.session_state.pecas_atuais:
-                                st.markdown(f"- `{p['nome']}`: `{formatar_moeda(p['valor'])}`")
-
-                    st.markdown("---")
                     if st.form_submit_button(f"➡️ Calcular Cenário {len(st.session_state.cenarios) + 1}", use_container_width=True, type="primary"):
                         cliente, mensalidade = st.session_state.cliente_info["cliente"], st.session_state.cliente_info["mensalidade"]
                         if entrada >= saida: st.error("A data de saída deve ser posterior à de entrada.")
@@ -214,17 +205,14 @@ elif st.session_state.tela == "calculadora":
                             st.session_state.cenarios.append(cenario)
                             limpar_parcial = {"pecas_atuais": [], "cliente_info": None, "input_placa": ""}
                             for key, value in limpar_parcial.items(): st.session_state[key] = value
-                            st.rerun()
+                            # CORREÇÃO: Removido st.rerun() que causava o erro
             
-            elif st.session_state.input_placa:
-                st.warning("❌ Placa não encontrada. Verifique a digitação ou consulte a lista acima.")
+            elif st.session_state.input_placa: st.warning("❌ Placa não encontrada.")
 
         with col_pecas:
             st.subheader("3. Gerenciar Peças")
             st.text_input("Nome da Peça", label_visibility="collapsed", placeholder="Nome da Peça", key="nome_peca_input")
             st.number_input("Valor (R$)", min_value=0.0, step=0.01, format="%.2f", label_visibility="collapsed", key="valor_peca_input")
-            
-            # --- BOTÃO DE ADICIONAR PEÇA ATUALIZADO COM CALLBACK ---
             st.button("➕ Adicionar Peça", on_click=adicionar_peca_callback, use_container_width=True)
 
             if st.session_state.pecas_atuais:
@@ -235,5 +223,5 @@ elif st.session_state.tela == "calculadora":
                     if pecas_para_remover:
                         nomes_para_remover = [item.split(' - ')[0] for item in pecas_para_remover]
                         st.session_state.pecas_atuais = [p for p in st.session_state.pecas_atuais if p['nome'] not in nomes_para_remover]
-                        st.success("✅ Peças removidas!"); st.rerun()
+                        # CORREÇÃO: Removido st.rerun() que pode causar erros
                     else: st.warning("⚠️ Nenhuma peça foi selecionada.")
