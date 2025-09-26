@@ -2,11 +2,13 @@
 
 import streamlit as st
 import pandas as pd
+import numpy as np
 from datetime import datetime, timedelta
 from io import BytesIO
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.pdfgen import canvas
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -16,24 +18,13 @@ st.set_page_config(
     initial_sidebar_state="auto"
 )
 
-# --- Funções Auxiliares ---
+# --- FUNÇÕES AUXILIARES COMUNS ---
 @st.cache_data
 def carregar_base():
     try:
         return pd.read_excel("Base De Clientes Faturamento.xlsx")
     except FileNotFoundError:
         return None
-
-def calcular_dias_uteis(data_inicio, data_fim, feriados=0):
-    dias = 0; data_atual = data_inicio + timedelta(days=1)
-    while data_atual <= data_fim:
-        if data_atual.weekday() < 5: dias += 1
-        data_atual += timedelta(days=1)
-    return max(dias - feriados, 0)
-
-def obter_sla(servico):
-    sla_dict = {"Preventiva – 2 dias úteis": 2, "Corretiva – 3 dias úteis": 3, "Preventiva + Corretiva – 5 dias úteis": 5, "Motor – 15 dias úteis": 15}
-    return sla_dict.get(servico, 0)
 
 def formatar_moeda(valor):
     return f"R${valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -45,9 +36,14 @@ def moeda_para_float(valor_str):
         return float(valor_str)
     return 0.0
 
-def calcular_cenario(cliente, placa, entrada, saida, feriados, servico, pecas, mensalidade):
-    sla_dias = obter_sla(servico)
-    dias_uteis = calcular_dias_uteis(entrada, saida, feriados)
+# --- FUNÇÕES DA "CALCULADORA COMPARATIVA" ---
+def calcular_cenario_comparativo(cliente, placa, entrada, saida, feriados, servico, pecas, mensalidade):
+    dias = np.busday_count(entrada.strftime('%Y-%m-%d'), (saida + timedelta(days=1)).strftime('%Y-%m-%d'))
+    dias_uteis = max(dias - feriados, 0)
+    
+    sla_dict = {"Preventiva – 2 dias úteis": 2, "Corretiva – 3 dias úteis": 3, "Preventiva + Corretiva – 5 dias úteis": 5, "Motor – 15 dias úteis": 15}
+    sla_dias = sla_dict.get(servico, 0)
+    
     excedente = max(0, dias_uteis - sla_dias)
     desconto = (mensalidade / 30) * excedente if excedente > 0 else 0
     total_pecas = sum(p["valor"] for p in pecas)
@@ -60,7 +56,7 @@ def calcular_cenario(cliente, placa, entrada, saida, feriados, servico, pecas, m
         "Total Final (R$)": formatar_moeda(round(total_final, 2)), "Detalhe Peças": pecas
     }
 
-def gerar_pdf(df_cenarios, melhor_cenario):
+def gerar_pdf_comparativo(df_cenarios, melhor_cenario):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=30, rightMargin=30, topMargin=30, bottomMargin=30)
     elementos, styles = [], getSampleStyleSheet()
@@ -80,14 +76,47 @@ def gerar_pdf(df_cenarios, melhor_cenario):
     doc.build(elementos); buffer.seek(0)
     return buffer
 
-def ir_para_home(): st.session_state.tela = "home"
-def ir_para_calculadora(): st.session_state.tela = "calculadora"
-def limpar_dados():
-    keys_to_clear = ["cenarios", "pecas_atuais", "cliente_info", "input_placa", "estado_calculo", "mostrar_comparativo"]
-    for key in keys_to_clear:
-        if key in st.session_state:
-            del st.session_state[key]
+# --- FUNÇÕES DA "CALCULADORA SLA SIMPLES" ---
+def calcular_sla_simples(data_entrada, data_saida, prazo_sla, valor_mensalidade, feriados=0):
+    dias = np.busday_count(data_entrada.strftime('%Y-%m-%d'), (data_saida + timedelta(days=1)).strftime('%Y-%m-%d'))
+    dias_uteis = max(dias - feriados, 0)
+    
+    if dias_uteis <= prazo_sla:
+        status, desconto, dias_excedente = "Dentro do SLA", 0, 0
+    else:
+        status, dias_excedente = "Fora do SLA", dias_uteis - prazo_sla
+        desconto = (valor_mensalidade / 30) * dias_excedente
+    return dias_uteis, status, desconto, dias_excedente
 
+def gerar_pdf_sla_simples(cliente, placa, tipo_servico, dias_uteis_manut, prazo_sla, dias_excedente, valor_mensalidade, desconto):
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    largura, altura = letter
+    c.setFont("Helvetica-Bold", 14); c.drawString(50, altura - 50, "Resultado SLA - Vamos Locação")
+    c.setFont("Helvetica", 12); y = altura - 80
+    text_lines = [
+        f"Cliente: {cliente}", f"Placa: {placa}", f"Tipo de serviço: {tipo_servico}",
+        f"Dias úteis da manutenção: {dias_uteis_manut} dias", f"Prazo SLA: {prazo_sla} dias",
+        f"Dias excedido de SLA: {dias_excedente} dias", f"Valor Mensalidade: {formatar_moeda(valor_mensalidade)}",
+        f"Valor do desconto: {formatar_moeda(desconto)}"
+    ]
+    for line in text_lines:
+        c.drawString(50, y, line); y -= 20
+    c.showPage(); c.save(); buffer.seek(0)
+    return buffer
+
+# --- FUNÇÕES DE NAVEGAÇÃO E ESTADO ---
+def ir_para_home(): st.session_state.tela = "home"
+def ir_para_calc_comparativa(): st.session_state.tela = "calc_comparativa"
+def ir_para_calc_simples(): st.session_state.tela = "calc_simples"
+def limpar_dados_comparativos():
+    keys_to_clear = ["cenarios", "pecas_atuais", "mostrar_comparativo"]
+    for key in keys_to_clear:
+        if key in st.session_state: del st.session_state[key]
+def limpar_dados_simples():
+    keys_to_clear = ["resultado_sla", "pesquisa_cliente"]
+    for key in keys_to_clear:
+        if key in st.session_state: del st.session_state[key]
 def logout():
     for key in st.session_state.keys(): del st.session_state[key]
 
@@ -95,25 +124,24 @@ def renderizar_sidebar():
     with st.sidebar:
         st.header("Menu de Navegação")
         st.button("🏠 Voltar para Home", on_click=ir_para_home, use_container_width=True)
-        if st.session_state.tela == "calculadora":
-            # ALTERAÇÃO: Texto do botão alterado conforme solicitado
-            st.button("🔄 Reiniciar Comparação", on_click=limpar_dados, use_container_width=True)
+        if st.session_state.tela == "calc_comparativa":
+            st.button("🔄 Limpar Comparação", on_click=limpar_dados_comparativos, use_container_width=True)
+        if st.session_state.tela == "calc_simples":
+            st.button("🔄 Limpar Cálculo", on_click=limpar_dados_simples, use_container_width=True)
         st.button("🚪 Sair (Logout)", on_click=logout, use_container_width=True, type="secondary")
 
-# Inicialização do session_state
+# --- INICIALIZAÇÃO DO SESSION STATE ---
 if "tela" not in st.session_state: st.session_state.tela = "login"
-if "cenarios" not in st.session_state: st.session_state.cenarios = []
-if "pecas_atuais" not in st.session_state: st.session_state.pecas_atuais = []
-if "mostrar_comparativo" not in st.session_state: st.session_state.mostrar_comparativo = False
 
 # --- LÓGICA DE RENDERIZAÇÃO DAS TELAS ---
 if st.session_state.tela == "login":
+    # ... (código de login sem alterações) ...
     try: st.image("logo.png", width=200)
     except: st.header("🚛 Vamos Locação")
-    st.title("Calculadora Comparativa"); st.write("Faça o login para acessar a ferramenta.")
+    st.title("Plataforma de Calculadoras SLA"); st.write("Faça o login para acessar as ferramentas.")
     with st.form("login_form"):
-        usuario = st.text_input("👤 **Usuário**", label_visibility="collapsed", placeholder="Usuário")
-        senha = st.text_input("🔑 **Senha**", type="password", label_visibility="collapsed", placeholder="Senha")
+        usuario = st.text_input("Usuário", label_visibility="collapsed", placeholder="Usuário")
+        senha = st.text_input("Senha", type="password", label_visibility="collapsed", placeholder="Senha")
         if st.form_submit_button("Entrar 🚀"):
             if usuario == "calculadorasla" and senha == "Vamos@@sla":
                 st.session_state.logado = True; st.session_state.tela = "home"; st.rerun()
@@ -121,13 +149,27 @@ if st.session_state.tela == "login":
 
 elif st.session_state.tela == "home":
     renderizar_sidebar()
-    st.title("🏠 Home"); st.write("### Bem-vindo à Calculadora Comparativa de SLA!")
-    st.write("Esta ferramenta ajuda a calcular e comparar diferentes cenários de custos baseados nos SLAs de serviço.")
-    if st.button("🖩 Acessar Calculadora", on_click=ir_para_calculadora, type="primary"): pass
+    st.title("🏠 Home"); st.write("### Bem-vindo à Plataforma de Calculadoras SLA!")
+    st.write("Selecione abaixo a ferramenta que deseja utilizar.")
+    st.markdown("---")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("📊 Calculadora Comparativa de SLA")
+        st.write("Calcule e compare múltiplos cenários para encontrar a opção com o menor custo final.")
+        st.button("Acessar Calculadora Comparativa", on_click=ir_para_calc_comparativa, use_container_width=True)
+    with col2:
+        st.subheader("🖩 Calculadora de SLA Simples")
+        st.write("Calcule rapidamente o desconto de SLA para um único serviço ou veículo.")
+        st.button("Acessar Calculadora Simples", on_click=ir_para_calc_simples, use_container_width=True)
 
-elif st.session_state.tela == "calculadora":
+# --- TELA DA CALCULADORA COMPARATIVA ---
+elif st.session_state.tela == "calc_comparativa":
+    # ... (código da calculadora comparativa que já funcionava) ...
     renderizar_sidebar()
     st.title("📊 Calculadora Comparativa de Cenários")
+    if "cenarios" not in st.session_state: st.session_state.cenarios = []
+    if "pecas_atuais" not in st.session_state: st.session_state.pecas_atuais = []
+    if "mostrar_comparativo" not in st.session_state: st.session_state.mostrar_comparativo = False
     
     df_base = carregar_base()
     if df_base is None: st.error("❌ Arquivo 'Base De Clientes Faturamento.xlsx' não encontrado."); st.stop()
@@ -138,30 +180,25 @@ elif st.session_state.tela == "calculadora":
         st.table(df_cenarios.drop(columns=["Detalhe Peças"]))
         if len(st.session_state.cenarios) >= 2 and not st.session_state.mostrar_comparativo:
             if st.button("🏆 Comparar Cenários", type="primary"):
-                st.session_state.mostrar_comparativo = True
-                st.rerun()
+                st.session_state.mostrar_comparativo = True; st.rerun()
 
     if st.session_state.mostrar_comparativo:
         st.header("Análise Comparativa Final")
         df_cenarios = pd.DataFrame(st.session_state.cenarios)
         melhor = df_cenarios.loc[df_cenarios["Total Final (R$)"].apply(moeda_para_float).idxmin()]
         st.success(f"🏆 Melhor cenário: **{melhor['Serviço']}** | Placa **{melhor['Placa']}** | Total Final: **{melhor['Total Final (R$)']}**")
-        pdf_buffer = gerar_pdf(df_cenarios, melhor)
+        pdf_buffer = gerar_pdf_comparativo(df_cenarios, melhor)
         st.download_button("📥 Baixar Relatório PDF", pdf_buffer, "comparacao_cenarios_sla.pdf", "application/pdf")
-        st.button("🔄 Reiniciar e Fazer Nova Comparação", on_click=limpar_dados, use_container_width=True, type="primary")
+        st.button("🔄 Reiniciar Comparação", on_click=limpar_dados_comparativos, use_container_width=True, type="primary")
 
     else:
-        st.markdown("---")
-        st.header(f"📝 Preencher Dados para o Cenário {len(st.session_state.cenarios) + 1}")
-        
+        st.markdown("---"); st.header(f"📝 Preencher Dados para o Cenário {len(st.session_state.cenarios) + 1}")
         with st.expander("🔍 Consultar Clientes e Placas"):
             df_display = df_base[['CLIENTE', 'PLACA', 'VALOR MENSALIDADE']].copy()
-            df_display['VALOR MENSALidade'] = df_display['VALOR MENSALIDADE'].apply(formatar_moeda)
+            df_display['VALOR MENSALIDADE'] = df_display['VALOR MENSALIDADE'].apply(formatar_moeda)
             st.dataframe(df_display, use_container_width=True, hide_index=True)
-
         col_form, col_pecas = st.columns([2, 1])
         with col_form:
-            # CORREÇÃO: Removido o parâmetro 'key' para evitar conflitos de estado
             placa = st.text_input("1. Digite a placa e tecle Enter")
             cliente_info = None
             if placa:
@@ -179,7 +216,6 @@ elif st.session_state.tela == "calculadora":
                 saida = subcol2.date_input("📅 Data de saída:", datetime.now() + timedelta(days=5))
                 feriados = subcol1.number_input("📌 Feriados no período:", min_value=0, step=1)
                 servico = subcol2.selectbox("🛠️ Tipo de serviço:", ["Preventiva – 2 dias úteis", "Corretiva – 3 dias úteis", "Preventiva + Corretiva – 5 dias úteis", "Motor – 15 dias úteis"])
-                
                 with st.expander("Verificar Peças Adicionadas"):
                     if st.session_state.pecas_atuais:
                         for peca in st.session_state.pecas_atuais:
@@ -191,7 +227,7 @@ elif st.session_state.tela == "calculadora":
                     if cliente_info:
                         if entrada >= saida: st.error("A data de saída deve ser posterior à de entrada.")
                         else:
-                            cenario = calcular_cenario(cliente_info["cliente"], placa.upper(), entrada, saida, feriados, servico, st.session_state.pecas_atuais, cliente_info["mensalidade"])
+                            cenario = calcular_cenario_comparativo(cliente_info["cliente"], placa.upper(), entrada, saida, feriados, servico, st.session_state.pecas_atuais, cliente_info["mensalidade"])
                             st.session_state.cenarios.append(cenario)
                             st.session_state.pecas_atuais = []
                             st.rerun()
@@ -215,3 +251,72 @@ elif st.session_state.tela == "calculadora":
                         nomes_para_remover = [item.split(' - ')[0] for item in pecas_para_remover]
                         st.session_state.pecas_atuais = [p for p in st.session_state.pecas_atuais if p['nome'] not in nomes_para_remover]; st.rerun()
                     else: st.warning("⚠️ Nenhuma peça foi selecionada.")
+
+# --- NOVA TELA DA CALCULADORA SIMPLES ---
+elif st.session_state.tela == "calc_simples":
+    renderizar_sidebar()
+    st.title("🖩 Calculadora de SLA Simples")
+    if "resultado_sla" not in st.session_state: st.session_state.resultado_sla = None
+    if "pesquisa_cliente" not in st.session_state: st.session_state.pesquisa_cliente = ""
+
+    df_base = carregar_base()
+    if df_base is None: st.error("❌ Arquivo 'Base De Clientes Faturamento.xlsx' não encontrado."); st.stop()
+    
+    st.subheader("1. Consulta de Cliente ou Placa")
+    buscar_cliente = st.radio("Deseja procurar o cliente pelo nome?", ("Não", "Sim"), horizontal=True)
+
+    placa_selecionada = ""
+    if buscar_cliente == "Sim":
+        pesquisa = st.text_input("🔍 Pesquise o nome do cliente:", st.session_state.pesquisa_cliente)
+        if pesquisa:
+            df_filtrado = df_base[df_base["CLIENTE"].str.contains(pesquisa, case=False, na=False)]
+            st.dataframe(df_filtrado[["CLIENTE", "PLACA", "VALOR MENSALIDADE"]])
+            placa_selecionada = st.selectbox("Selecione a placa:", df_filtrado["PLACA"].tolist())
+    else:
+        placa_selecionada = st.text_input("📌 Digite a PLACA do ativo:")
+
+    if placa_selecionada:
+        registro = df_base[df_base["PLACA"].astype(str).str.upper() == str(placa_selecionada).strip().upper()]
+        if registro.empty: st.error("❌ Placa não encontrada!")
+        else:
+            registro = registro.iloc[0]
+            cliente, valor_mensalidade = registro["CLIENTE"], registro["VALOR MENSALIDADE"]
+            st.info(f"**Cliente:** {cliente} | **Placa:** {placa_selecionada} | **Mensalidade:** {formatar_moeda(valor_mensalidade)}")
+            
+            st.markdown("---"); st.subheader("2. Detalhes do Serviço")
+            sla_opcoes = {"Preventiva": 2, "Corretiva": 3, "Preventiva + Corretiva": 5, "Motor": 15}
+            tipo_sla_selecionado = st.selectbox("⚙️ Escolha o tipo de SLA:", [f"{k}: {v} dias úteis" for k, v in sla_opcoes.items()])
+            prazo_sla = sla_opcoes[tipo_sla_selecionado.split(":")[0]]
+
+            col1, col2 = st.columns(2)
+            data_entrada = col1.date_input("📅 Data de entrada na oficina", datetime.today())
+            data_saida = col2.date_input("📅 Data de saída da oficina", datetime.today())
+
+            feriados = st.number_input("🗓️ Quantos feriados no período?", min_value=0, step=1)
+
+            if st.button("Calcular SLA", use_container_width=True, type="primary"):
+                dias, status, desconto, dias_excedente = calcular_sla_simples(data_entrada, data_saida, prazo_sla, valor_mensalidade, feriados)
+                st.session_state.resultado_sla = {
+                    "cliente": cliente, "placa": placa_selecionada, "tipo_servico": tipo_sla_selecionado.split(":")[0],
+                    "dias": dias, "prazo_sla": prazo_sla, "dias_excedente": dias_excedente,
+                    "valor_mensalidade": valor_mensalidade, "desconto": desconto
+                }
+
+    if st.session_state.resultado_sla:
+        st.markdown("---"); st.header("✅ Resultado do Cálculo")
+        r = st.session_state.resultado_sla
+        st.metric(label="Status", value=r["dias_excedente"] > 0 and "Fora do SLA" or "Dentro do SLA")
+        st.metric(label="Valor do Desconto", value=formatar_moeda(r['desconto']))
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Dias Úteis na Manutenção", f"{r['dias']} dias")
+        col2.metric("Prazo SLA", f"{r['prazo_sla']} dias")
+        col3.metric("Dias Excedentes", f"{r['dias_excedente']} dias")
+        
+        pdf_buffer = gerar_pdf_sla_simples(
+            r['cliente'], r['placa'], r['tipo_servico'], r['dias'], r['prazo_sla'], 
+            r['dias_excedente'], r['valor_mensalidade'], r['desconto']
+        )
+        st.download_button(
+            label="📥 Baixar resultado em PDF", data=pdf_buffer,
+            file_name=f"SLA_{r['placa']}.pdf", mime="application/pdf", use_container_width=True
+        )
