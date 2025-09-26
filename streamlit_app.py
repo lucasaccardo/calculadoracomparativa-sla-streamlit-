@@ -223,10 +223,9 @@ elif st.session_state.tela == "admin_users":
     st.subheader("Usuários Existentes")
     st.dataframe(df_users[["username", "role"]], use_container_width=True)
 
-# O restante do código para as outras telas (calc_comparativa, calc_simples) continua o mesmo das versões anteriores
-# ... (Cole aqui o código completo das telas 'calc_comparativa' e 'calc_simples' da versão anterior)
 # --- TELA DA CALCULADORA COMPARATIVA ---
 elif st.session_state.tela == "calc_comparativa":
+    # ... (código da calculadora comparativa) ...
     renderizar_sidebar()
     st.title("📊 Calculadora Comparativa de Cenários")
     if "cenarios" not in st.session_state: st.session_state.cenarios = []
