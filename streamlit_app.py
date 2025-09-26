@@ -20,12 +20,9 @@ st.set_page_config(
 @st.cache_data
 def carregar_base():
     try:
-        # Caminho do arquivo simplificado (sem a pasta src/)
         return pd.read_excel("Base De Clientes Faturamento.xlsx")
     except FileNotFoundError:
         return None
-
-# ... (O RESTANTE DO CÓDIGO É EXATAMENTE O MESMO) ...
 
 def calcular_dias_uteis(data_inicio, data_fim, feriados=0):
     dias = 0
@@ -101,14 +98,11 @@ if "pecas_atuais" not in st.session_state: st.session_state.pecas_atuais = []
 
 if st.session_state.tela == "login":
     try:
-        # Caminho do logo simplificado
         st.image("logo.png", width=200)
     except:
         st.header("🚛 Vamos Locação")
-
     st.title("Calculadora Comparativa")
     st.write("Faça o login para acessar a ferramenta.")
-
     with st.form("login_form"):
         usuario = st.text_input("👤 **Usuário**", label_visibility="collapsed", placeholder="Usuário")
         senha = st.text_input("🔑 **Senha**", type="password", label_visibility="collapsed", placeholder="Senha")
@@ -141,8 +135,33 @@ elif st.session_state.tela == "calculadora":
                 st.success(f"🏆 Melhor cenário: **{melhor['Serviço']}** | Placa **{melhor['Placa']}** | Total Final: **{melhor['Total Final (R$)']}**")
                 pdf_buffer = gerar_pdf(df_cenarios, melhor)
                 st.download_button("📥 Baixar Relatório PDF", pdf_buffer, "comparacao_cenarios_sla.pdf", "application/pdf")
+    
+    st.markdown("---")
+    
+    # --- SEÇÃO DE PEÇAS (MOVEMOS PARA FORA DO FORMULÁRIO) ---
+    st.subheader("⚙️ Adicionar Peças (Opcional)")
+    st.write("Adicione aqui todas as peças necessárias antes de preencher o formulário do cenário abaixo.")
+    
+    col_p1, col_p2, col_p3 = st.columns([0.5, 0.3, 0.2])
+    nome_peca = col_p1.text_input("Nome da Peça")
+    valor_peca = col_p2.number_input("Valor (R$)", min_value=0.0, step=0.01, format="%.2f")
+    if col_p3.button("➕ Adicionar Peça"):
+        if nome_peca and valor_peca > 0:
+            st.session_state.pecas_atuais.append({"nome": nome_peca, "valor": valor_peca})
+        else:
+            st.warning("Preencha o nome e o valor da peça.")
+
+    if st.session_state.pecas_atuais:
+        st.write("Peças a serem incluídas no próximo cenário:")
+        for i, p in enumerate(st.session_state.pecas_atuais):
+            st.markdown(f"- `{p['nome']}`: `{formatar_moeda(p['valor'])}`")
+        if st.button("🗑️ Limpar Lista de Peças", type="secondary"):
+            st.session_state.pecas_atuais = []
+            st.rerun()
 
     st.markdown("---")
+    
+    # --- FORMULÁRIO PRINCIPAL ---
     st.subheader(f"➕ Adicionar Cenário {len(st.session_state.cenarios) + 1}")
     with st.form(key=f"form_cenario_{len(st.session_state.cenarios)}", clear_on_submit=True):
         placa = st.text_input("🔍 **Digite a placa do veículo:**")
@@ -153,28 +172,27 @@ elif st.session_state.tela == "calculadora":
         else:
             cliente, mensalidade = None, 0
             if placa: st.warning("❌ Placa não encontrada.")
-
+        
         col1, col2 = st.columns(2)
         entrada = col1.date_input("📅 **Data de entrada:**", datetime.now())
         saida = col2.date_input("📅 **Data de saída:**", datetime.now() + timedelta(days=5))
         feriados = col1.number_input("📌 **Feriados no período:**", min_value=0, step=1)
         servico = col2.selectbox("🛠️ **Tipo de serviço:**", ["Preventiva – 2 dias úteis", "Corretiva – 3 dias úteis", "Preventiva + Corretiva – 5 dias úteis", "Motor – 15 dias úteis"])
+        
+        # Apenas mostra as peças que já foram adicionadas
+        if st.session_state.pecas_atuais:
+            with st.expander("Verificar peças que serão incluídas neste cenário"):
+                 for p in st.session_state.pecas_atuais:
+                    st.markdown(f"- `{p['nome']}`: `{formatar_moeda(p['valor'])}`")
 
-        with st.expander("Adicionar Peças (Opcional)"):
-            if 'pecas_atuais' not in st.session_state: st.session_state.pecas_atuais = []
-            col_p1, col_p2 = st.columns([3, 2]); nome_peca = col_p1.text_input("Nome da Peça"); valor_peca = col_p2.number_input("Valor (R$)", 0.0, step=0.01, format="%.2f")
-            if st.button("Adicionar Peça"):
-                if nome_peca and valor_peca > 0: st.session_state.pecas_atuais.append({"nome": nome_peca, "valor": valor_peca})
-                else: st.warning("Preencha o nome e o valor da peça.")
-            if st.session_state.pecas_atuais:
-                st.write("Peças a serem incluídas:"); [st.markdown(f"- `{p['nome']}`: `{formatar_moeda(p['valor'])}`") for p in st.session_state.pecas_atuais]
-
+        # Único botão de submissão dentro do formulário
         if st.form_submit_button("✅ Calcular e Adicionar Cenário"):
             if not cliente: st.error("Placa inválida.")
             elif entrada >= saida: st.error("A data de saída deve ser posterior à de entrada.")
             else:
                 cenario = calcular_cenario(cliente, placa.upper(), entrada, saida, feriados, servico, st.session_state.pecas_atuais, mensalidade)
-                st.session_state.cenarios.append(cenario); st.session_state.pecas_atuais = []
+                st.session_state.cenarios.append(cenario)
+                st.session_state.pecas_atuais = [] # Limpa a lista de peças para o próximo cenário
                 st.success(f"Cenário {len(st.session_state.cenarios)} adicionado!"); st.rerun()
 
     st.sidebar.button("🏠 Ir para Home", on_click=ir_para_home, use_container_width=True)
