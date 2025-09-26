@@ -9,6 +9,8 @@ from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.pdfgen import canvas
+import hashlib
+import os
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -17,6 +19,30 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="auto"
 )
+
+# --- FUNÇÕES DE GERENCIAMENTO DE USUÁRIOS E SEGURANÇA ---
+def hash_password(password):
+    """Criptografa a senha usando SHA-256."""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def check_password(hashed_password, user_password):
+    """Verifica se a senha fornecida corresponde à senha criptografada."""
+    return hashed_password == hash_password(user_password)
+
+@st.cache_data
+def load_user_db():
+    """Carrega o banco de dados de usuários de um arquivo CSV."""
+    if not os.path.exists("users.csv") or os.path.getsize("users.csv") == 0:
+        # Cria o arquivo com o administrador inicial se não existir ou estiver vazio
+        admin_user = {"username": ["lucas.sureira"], "password": [hash_password("Brasil@@2609")], "role": ["admin"]}
+        df_users = pd.DataFrame(admin_user)
+        df_users.to_csv("users.csv", index=False)
+    return pd.read_csv("users.csv")
+
+def save_user_db(df_users):
+    """Salva o DataFrame de usuários no arquivo CSV."""
+    df_users.to_csv("users.csv", index=False)
+    st.cache_data.clear() # Limpa o cache para recarregar os dados na próxima vez
 
 # --- FUNÇÕES AUXILIARES COMUNS ---
 @st.cache_data
@@ -40,10 +66,8 @@ def moeda_para_float(valor_str):
 def calcular_cenario_comparativo(cliente, placa, entrada, saida, feriados, servico, pecas, mensalidade):
     dias = np.busday_count(entrada.strftime('%Y-%m-%d'), (saida + timedelta(days=1)).strftime('%Y-%m-%d'))
     dias_uteis = max(dias - feriados, 0)
-    
     sla_dict = {"Preventiva – 2 dias úteis": 2, "Corretiva – 3 dias úteis": 3, "Preventiva + Corretiva – 5 dias úteis": 5, "Motor – 15 dias úteis": 15}
     sla_dias = sla_dict.get(servico, 0)
-    
     excedente = max(0, dias_uteis - sla_dias)
     desconto = (mensalidade / 30) * excedente if excedente > 0 else 0
     total_pecas = sum(p["valor"] for p in pecas)
@@ -80,11 +104,10 @@ def gerar_pdf_comparativo(df_cenarios, melhor_cenario):
 def calcular_sla_simples(data_entrada, data_saida, prazo_sla, valor_mensalidade, feriados=0):
     dias = np.busday_count(data_entrada.strftime('%Y-%m-%d'), (data_saida + timedelta(days=1)).strftime('%Y-%m-%d'))
     dias_uteis = max(dias - feriados, 0)
-    
     if dias_uteis <= prazo_sla:
         status, desconto, dias_excedente = "Dentro do SLA", 0, 0
     else:
-        status, dias_excedente = "Fora do SLA", dias_uteis - prazo_sla
+        status, dias_excedente = "Fora do SLA", dias_uteis - sla_dias
         desconto = (valor_mensalidade / 30) * dias_excedente
     return dias_uteis, status, desconto, dias_excedente
 
@@ -109,19 +132,23 @@ def gerar_pdf_sla_simples(cliente, placa, tipo_servico, dias_uteis_manut, prazo_
 def ir_para_home(): st.session_state.tela = "home"
 def ir_para_calc_comparativa(): st.session_state.tela = "calc_comparativa"
 def ir_para_calc_simples(): st.session_state.tela = "calc_simples"
+def ir_para_admin(): st.session_state.tela = "admin_users"
 def limpar_dados_comparativos():
     keys_to_clear = ["cenarios", "pecas_atuais", "mostrar_comparativo"]
     for key in keys_to_clear:
         if key in st.session_state: del st.session_state[key]
 def limpar_dados_simples():
-    st.session_state.resultado_sla = None
-    st.session_state.pesquisa_cliente = ""
+    keys_to_clear = ["resultado_sla", "pesquisa_cliente"]
+    for key in keys_to_clear:
+        if key in st.session_state: del st.session_state[key]
 def logout():
-    for key in st.session_state.keys(): del st.session_state[key]
+    for key in list(st.session_state.keys()): del st.session_state[key]
 
 def renderizar_sidebar():
     with st.sidebar:
         st.header("Menu de Navegação")
+        if st.session_state.get("role") == "admin":
+            st.button("👤 Gerenciar Usuários", on_click=ir_para_admin, use_container_width=True)
         st.button("🏠 Voltar para Home", on_click=ir_para_home, use_container_width=True)
         if st.session_state.tela == "calc_comparativa":
             st.button("🔄 Limpar Comparação", on_click=limpar_dados_comparativos, use_container_width=True)
@@ -138,16 +165,23 @@ if st.session_state.tela == "login":
     except: st.header("🚛 Vamos Locação")
     st.title("Plataforma de Calculadoras SLA"); st.write("Faça o login para acessar as ferramentas.")
     with st.form("login_form"):
-        usuario = st.text_input("Usuário", label_visibility="collapsed", placeholder="Usuário")
-        senha = st.text_input("Senha", type="password", label_visibility="collapsed", placeholder="Senha")
+        username = st.text_input("Usuário", label_visibility="collapsed", placeholder="Usuário")
+        password = st.text_input("Senha", type="password", label_visibility="collapsed", placeholder="Senha")
         if st.form_submit_button("Entrar 🚀"):
-            if usuario == "calculadorasla" and senha == "Vamos@@sla":
-                st.session_state.logado = True; st.session_state.tela = "home"; st.rerun()
-            else: st.error("❌ Usuário ou senha incorretos.")
+            df_users = load_user_db()
+            user_data = df_users[df_users["username"] == username]
+            if not user_data.empty and check_password(user_data.iloc[0]["password"], password):
+                st.session_state.logado = True
+                st.session_state.tela = "home"
+                st.session_state.username = user_data.iloc[0]["username"]
+                st.session_state.role = user_data.iloc[0]["role"]
+                st.rerun()
+            else:
+                st.error("❌ Usuário ou senha incorretos.")
 
 elif st.session_state.tela == "home":
     renderizar_sidebar()
-    st.title("🏠 Home"); st.write("### Bem-vindo à Plataforma de Calculadoras SLA!")
+    st.title(f"🏠 Home"); st.write(f"### Bem-vindo, {st.session_state.username}!")
     st.write("Selecione abaixo a ferramenta que deseja utilizar.")
     st.markdown("---")
     col1, col2 = st.columns(2)
@@ -160,9 +194,36 @@ elif st.session_state.tela == "home":
         st.write("Calcule rapidamente o desconto de SLA para um único serviço ou veículo.")
         st.button("Acessar Calculadora Simples", on_click=ir_para_calc_simples, use_container_width=True)
 
-# --- TELA DA CALCULADORA COMPARATIVA ---
+elif st.session_state.tela == "admin_users":
+    renderizar_sidebar()
+    st.title("👤 Gerenciamento de Usuários")
+    df_users = load_user_db()
+
+    st.subheader("Adicionar Novo Usuário")
+    with st.form("add_user_form", clear_on_submit=True):
+        new_username = st.text_input("Novo Usuário")
+        new_password = st.text_input("Nova Senha", type="password")
+        new_role = st.selectbox("Tipo de Acesso", ["user", "admin"])
+        if st.form_submit_button("Adicionar Usuário"):
+            if new_username in df_users["username"].values:
+                st.error("Este nome de usuário já existe.")
+            elif not new_username or not new_password:
+                st.error("Usuário e senha não podem estar em branco.")
+            else:
+                new_user_data = pd.DataFrame({
+                    "username": [new_username],
+                    "password": [hash_password(new_password)],
+                    "role": [new_role]
+                })
+                df_users = pd.concat([df_users, new_user_data], ignore_index=True)
+                save_user_db(df_users)
+                st.success(f"Usuário '{new_username}' adicionado com sucesso!")
+    
+    st.markdown("---")
+    st.subheader("Usuários Existentes")
+    st.dataframe(df_users[["username", "role"]], use_container_width=True)
+
 elif st.session_state.tela == "calc_comparativa":
-    # (código da calculadora comparativa - sem alterações)
     renderizar_sidebar()
     st.title("📊 Calculadora Comparativa de Cenários")
     if "cenarios" not in st.session_state: st.session_state.cenarios = []
@@ -246,7 +307,6 @@ elif st.session_state.tela == "calc_comparativa":
                         st.session_state.pecas_atuais = [p for p in st.session_state.pecas_atuais if p['nome'] not in nomes_para_remover]; st.rerun()
                     else: st.warning("⚠️ Nenhuma peça foi selecionada.")
 
-# --- TELA DA CALCULADORA SIMPLES ---
 elif st.session_state.tela == "calc_simples":
     renderizar_sidebar()
     st.title("🖩 Calculadora de SLA Simples")
@@ -256,7 +316,6 @@ elif st.session_state.tela == "calc_simples":
     df_base = carregar_base()
     if df_base is None: st.error("❌ Arquivo 'Base De Clientes Faturamento.xlsx' não encontrado."); st.stop()
     
-    # Mostra o resultado ou o formulário de busca
     if st.session_state.resultado_sla:
         st.markdown("---"); st.header("✅ Resultado do Cálculo")
         r = st.session_state.resultado_sla
@@ -275,7 +334,6 @@ elif st.session_state.tela == "calc_simples":
             label="📥 Baixar resultado em PDF", data=pdf_buffer,
             file_name=f"SLA_{r['placa']}.pdf", mime="application/pdf", use_container_width=True
         )
-        # NOVO: Botão para iniciar um novo cálculo
         st.button("🔄 Iniciar Novo Cálculo", on_click=limpar_dados_simples, use_container_width=True, type="primary")
     else:
         st.subheader("1. Consulta de Cliente ou Placa")
