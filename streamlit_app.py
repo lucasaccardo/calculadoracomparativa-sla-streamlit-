@@ -82,12 +82,11 @@ def gerar_pdf(df_cenarios, melhor_cenario):
 
 def ir_para_home(): st.session_state.tela = "home"
 def ir_para_calculadora(): st.session_state.tela = "calculadora"
-
-# CORREÇÃO DEFINITIVA: A função agora limpa apenas os dados dos cenários, sem tocar no estado dos widgets.
 def limpar_dados():
-    st.session_state.cenarios = []
-    st.session_state.pecas_atuais = []
-    st.session_state.mostrar_comparativo = False
+    keys_to_clear = ["cenarios", "pecas_atuais", "cliente_info", "input_placa", "estado_calculo", "mostrar_comparativo"]
+    for key in keys_to_clear:
+        if key in st.session_state:
+            del st.session_state[key]
 
 def logout():
     for key in st.session_state.keys(): del st.session_state[key]
@@ -97,7 +96,8 @@ def renderizar_sidebar():
         st.header("Menu de Navegação")
         st.button("🏠 Voltar para Home", on_click=ir_para_home, use_container_width=True)
         if st.session_state.tela == "calculadora":
-            st.button("🔄 Limpar e Novo Cálculo", on_click=limpar_dados, use_container_width=True)
+            # ALTERAÇÃO: Texto do botão alterado conforme solicitado
+            st.button("🔄 Reiniciar Comparação", on_click=limpar_dados, use_container_width=True)
         st.button("🚪 Sair (Logout)", on_click=logout, use_container_width=True, type="secondary")
 
 # Inicialização do session_state
@@ -156,12 +156,12 @@ elif st.session_state.tela == "calculadora":
         
         with st.expander("🔍 Consultar Clientes e Placas"):
             df_display = df_base[['CLIENTE', 'PLACA', 'VALOR MENSALIDADE']].copy()
-            df_display['VALOR MENSALIDADE'] = df_display['VALOR MENSALIDADE'].apply(formatar_moeda)
+            df_display['VALOR MENSALidade'] = df_display['VALOR MENSALIDADE'].apply(formatar_moeda)
             st.dataframe(df_display, use_container_width=True, hide_index=True)
 
         col_form, col_pecas = st.columns([2, 1])
         with col_form:
-            # CORREÇÃO DEFINITIVA: Removido o parâmetro 'key' do st.text_input para evitar conflitos de estado.
+            # CORREÇÃO: Removido o parâmetro 'key' para evitar conflitos de estado
             placa = st.text_input("1. Digite a placa e tecle Enter")
             cliente_info = None
             if placa:
