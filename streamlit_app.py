@@ -89,7 +89,8 @@ def calcular_sla_simples(data_entrada, data_saida, prazo_sla, valor_mensalidade,
     return dias_uteis, status, desconto, dias_excedente
 
 def gerar_pdf_sla_simples(cliente, placa, tipo_servico, dias_uteis_manut, prazo_sla, dias_excedente, valor_mensalidade, desconto):
-    buffer = io.BytesIO()
+    # CORREÇÃO: Removido o "io." que causava o NameError
+    buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
     largura, altura = letter
     c.setFont("Helvetica-Bold", 14); c.drawString(50, altura - 50, "Resultado SLA - Vamos Locação")
@@ -135,7 +136,6 @@ if "tela" not in st.session_state: st.session_state.tela = "login"
 
 # --- LÓGICA DE RENDERIZAÇÃO DAS TELAS ---
 if st.session_state.tela == "login":
-    # ... (código de login sem alterações) ...
     try: st.image("logo.png", width=200)
     except: st.header("🚛 Vamos Locação")
     st.title("Plataforma de Calculadoras SLA"); st.write("Faça o login para acessar as ferramentas.")
@@ -164,7 +164,6 @@ elif st.session_state.tela == "home":
 
 # --- TELA DA CALCULADORA COMPARATIVA ---
 elif st.session_state.tela == "calc_comparativa":
-    # ... (código da calculadora comparativa que já funcionava) ...
     renderizar_sidebar()
     st.title("📊 Calculadora Comparativa de Cenários")
     if "cenarios" not in st.session_state: st.session_state.cenarios = []
@@ -305,7 +304,7 @@ elif st.session_state.tela == "calc_simples":
     if st.session_state.resultado_sla:
         st.markdown("---"); st.header("✅ Resultado do Cálculo")
         r = st.session_state.resultado_sla
-        st.metric(label="Status", value=r["dias_excedente"] > 0 and "Fora do SLA" or "Dentro do SLA")
+        st.metric(label="Status", value="Fora do SLA" if r["dias_excedente"] > 0 else "Dentro do SLA")
         st.metric(label="Valor do Desconto", value=formatar_moeda(r['desconto']))
         col1, col2, col3 = st.columns(3)
         col1.metric("Dias Úteis na Manutenção", f"{r['dias']} dias")
