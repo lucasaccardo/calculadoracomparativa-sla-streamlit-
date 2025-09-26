@@ -11,6 +11,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.pdfgen import canvas
 import hashlib
 import os
+import base64
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -20,7 +21,42 @@ st.set_page_config(
     initial_sidebar_state="auto"
 )
 
-# --- FUNÇÕES DE GERENCIAMENTO DE USUÁRIOS (LÓGICA CORRIGIDA) ---
+# --- NOVO: FUNÇÃO PARA APLICAR O FUNDO E CSS ---
+def aplicar_estilos():
+    try:
+        with open("background.jpg", "rb") as f:
+            data = f.read()
+        bg_image_base64 = base64.b64encode(data).decode()
+        st.markdown(
+            f"""
+            <style>
+            .stApp {{
+                background-image: url(data:image/jpeg;base64,{bg_image_base64});
+                background-size: cover;
+                background-repeat: no-repeat;
+                background-attachment: fixed;
+            }}
+            /* Adiciona um fundo escuro semi-transparente aos containers para melhor legibilidade */
+            [data-testid="stVerticalBlock"], [data-testid="stForm"] {{
+                background-color: rgba(13, 17, 23, 0.85); /* Fundo escuro com 85% de opacidade */
+                padding: 25px;
+                border-radius: 10px;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }}
+            /* Centraliza a logo na tela de login */
+            .login-logo {{
+                display: flex;
+                justify-content: center;
+                margin-bottom: 20px;
+            }}
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+    except FileNotFoundError:
+        pass # Se não encontrar a imagem, não aplica estilo customizado
+
+# --- FUNÇÕES DE GERENCIAMENTO DE USUÁRIOS ---
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
@@ -29,12 +65,9 @@ def check_password(hashed_password, user_password):
 
 @st.cache_data
 def load_user_db():
-    """Carrega o banco de dados de usuários de um arquivo CSV."""
     if os.path.exists("users.csv") and os.path.getsize("users.csv") > 0:
-        # Se o arquivo existe e tem conteúdo, simplesmente o leia
         return pd.read_csv("users.csv")
     else:
-        # Se o arquivo não existe ou está vazio, crie o admin, salve e retorne o dataframe criado
         admin_user = {"username": ["lucas.sureira"], "password": [hash_password("Brasil@@2609")], "role": ["admin"]}
         df_users = pd.DataFrame(admin_user)
         df_users.to_csv("users.csv", index=False)
@@ -47,10 +80,8 @@ def save_user_db(df_users):
 # --- FUNÇÕES AUXILIARES COMUNS ---
 @st.cache_data
 def carregar_base():
-    try:
-        return pd.read_excel("Base De Clientes Faturamento.xlsx")
-    except FileNotFoundError:
-        return None
+    try: return pd.read_excel("Base De Clientes Faturamento.xlsx")
+    except FileNotFoundError: return None
 
 def formatar_moeda(valor):
     return f"R${valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -62,7 +93,7 @@ def moeda_para_float(valor_str):
         return float(valor_str)
     return 0.0
 
-# --- FUNÇÕES DA "CALCULADORA COMPARATIVA" ---
+# --- FUNÇÕES DAS CALCULADORAS ---
 def calcular_cenario_comparativo(cliente, placa, entrada, saida, feriados, servico, pecas, mensalidade):
     dias = np.busday_count(entrada.strftime('%Y-%m-%d'), (saida + timedelta(days=1)).strftime('%Y-%m-%d'))
     dias_uteis = max(dias - feriados, 0)
@@ -72,13 +103,7 @@ def calcular_cenario_comparativo(cliente, placa, entrada, saida, feriados, servi
     desconto = (mensalidade / 30) * excedente if excedente > 0 else 0
     total_pecas = sum(p["valor"] for p in pecas)
     total_final = (mensalidade - desconto) + total_pecas
-    return {
-        "Cliente": cliente, "Placa": placa, "Data Entrada": entrada.strftime("%d/%m/%Y"),
-        "Data Saída": saida.strftime("%d/%m/%Y"), "Serviço": servico, "Dias Úteis": dias_uteis,
-        "SLA (dias)": sla_dias, "Excedente": excedente, "Mensalidade": formatar_moeda(mensalidade),
-        "Desconto": formatar_moeda(round(desconto, 2)), "Peças (R$)": formatar_moeda(round(total_pecas, 2)),
-        "Total Final (R$)": formatar_moeda(round(total_final, 2)), "Detalhe Peças": pecas
-    }
+    return {"Cliente": cliente, "Placa": placa, "Data Entrada": entrada.strftime("%d/%m/%Y"), "Data Saída": saida.strftime("%d/%m/%Y"), "Serviço": servico, "Dias Úteis": dias_uteis, "SLA (dias)": sla_dias, "Excedente": excedente, "Mensalidade": formatar_moeda(mensalidade), "Desconto": formatar_moeda(round(desconto, 2)), "Peças (R$)": formatar_moeda(round(total_pecas, 2)), "Total Final (R$)": formatar_moeda(round(total_final, 2)), "Detalhe Peças": pecas}
 
 def gerar_pdf_comparativo(df_cenarios, melhor_cenario):
     buffer = BytesIO()
@@ -100,7 +125,6 @@ def gerar_pdf_comparativo(df_cenarios, melhor_cenario):
     doc.build(elementos); buffer.seek(0)
     return buffer
 
-# --- FUNÇÕES DA "CALCULADORA SLA SIMPLES" ---
 def calcular_sla_simples(data_entrada, data_saida, prazo_sla, valor_mensalidade, feriados=0):
     dias = np.busday_count(data_entrada.strftime('%Y-%m-%d'), (data_saida + timedelta(days=1)).strftime('%Y-%m-%d'))
     dias_uteis = max(dias - feriados, 0)
@@ -117,18 +141,12 @@ def gerar_pdf_sla_simples(cliente, placa, tipo_servico, dias_uteis_manut, prazo_
     largura, altura = letter
     c.setFont("Helvetica-Bold", 14); c.drawString(50, altura - 50, "Resultado SLA - Vamos Locação")
     c.setFont("Helvetica", 12); y = altura - 80
-    text_lines = [
-        f"Cliente: {cliente}", f"Placa: {placa}", f"Tipo de serviço: {tipo_servico}",
-        f"Dias úteis da manutenção: {dias_uteis_manut} dias", f"Prazo SLA: {prazo_sla} dias",
-        f"Dias excedido de SLA: {dias_excedente} dias", f"Valor Mensalidade: {formatar_moeda(valor_mensalidade)}",
-        f"Valor do desconto: {formatar_moeda(desconto)}"
-    ]
+    text_lines = [f"Cliente: {cliente}", f"Placa: {placa}", f"Tipo de serviço: {tipo_servico}", f"Dias úteis da manutenção: {dias_uteis_manut} dias", f"Prazo SLA: {prazo_sla} dias", f"Dias excedido de SLA: {dias_excedente} dias", f"Valor Mensalidade: {formatar_moeda(valor_mensalidade)}", f"Valor do desconto: {formatar_moeda(desconto)}"]
     for line in text_lines:
         c.drawString(50, y, line); y -= 20
     c.showPage(); c.save(); buffer.seek(0)
     return buffer
 
-# --- FUNÇÕES DE NAVEGAÇÃO E ESTADO ---
 def ir_para_home(): st.session_state.tela = "home"
 def ir_para_calc_comparativa(): st.session_state.tela = "calc_comparativa"
 def ir_para_calc_simples(): st.session_state.tela = "calc_simples"
@@ -146,6 +164,8 @@ def logout():
 
 def renderizar_sidebar():
     with st.sidebar:
+        try: st.image("logo_sidebar.png", width=100)
+        except: pass
         st.header("Menu de Navegação")
         if st.session_state.get("role") == "admin":
             st.button("👤 Gerenciar Usuários", on_click=ir_para_admin, use_container_width=True)
@@ -156,28 +176,33 @@ def renderizar_sidebar():
             st.button("🔄 Limpar Cálculo", on_click=limpar_dados_simples, use_container_width=True)
         st.button("🚪 Sair (Logout)", on_click=logout, use_container_width=True, type="secondary")
 
-# --- INICIALIZAÇÃO DO SESSION STATE ---
 if "tela" not in st.session_state: st.session_state.tela = "login"
 
-# --- LÓGICA DE RENDERIZAÇÃO DAS TELAS ---
+aplicar_estilos()
+
 if st.session_state.tela == "login":
-    try: st.image("logo.png", width=200)
-    except: st.header("🚛 Vamos Locação")
-    st.title("Plataforma de Calculadoras SLA"); st.write("Faça o login para acessar as ferramentas.")
-    with st.form("login_form"):
-        username = st.text_input("Usuário", label_visibility="collapsed", placeholder="Usuário")
-        password = st.text_input("Senha", type="password", label_visibility="collapsed", placeholder="Senha")
-        if st.form_submit_button("Entrar 🚀"):
-            df_users = load_user_db()
-            user_data = df_users[df_users["username"] == username]
-            if not user_data.empty and check_password(user_data.iloc[0]["password"], password):
-                st.session_state.logado = True
-                st.session_state.tela = "home"
-                st.session_state.username = user_data.iloc[0]["username"]
-                st.session_state.role = user_data.iloc[0]["role"]
-                st.rerun()
-            else:
-                st.error("❌ Usuário ou senha incorretos.")
+    st.markdown("<div class='login-logo'>", unsafe_allow_html=True)
+    try:
+        st.image("logo.png", width=300)
+    except:
+        st.header("🚛 Vamos Locação")
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.title("Plataforma de Calculadoras SLA", anchor=False)
+    
+    col1, col2, col3 = st.columns([1, 1.5, 1])
+    with col2:
+        with st.form("login_form"):
+            username = st.text_input("Usuário", label_visibility="collapsed", placeholder="Usuário")
+            password = st.text_input("Senha", type="password", label_visibility="collapsed", placeholder="Senha")
+            if st.form_submit_button("Entrar 🚀"):
+                df_users = load_user_db()
+                user_data = df_users[df_users["username"] == username]
+                if not user_data.empty and check_password(user_data.iloc[0]["password"], password):
+                    st.session_state.logado = True; st.session_state.tela = "home"
+                    st.session_state.username = user_data.iloc[0]["username"]; st.session_state.role = user_data.iloc[0]["role"]
+                    st.rerun()
+                else:
+                    st.error("❌ Usuário ou senha incorretos.")
 
 elif st.session_state.tela == "home":
     renderizar_sidebar()
@@ -194,37 +219,29 @@ elif st.session_state.tela == "home":
         st.write("Calcule rapidamente o desconto de SLA para um único serviço ou veículo.")
         st.button("Acessar Calculadora Simples", on_click=ir_para_calc_simples, use_container_width=True)
 
+# O restante do código das calculadoras e do admin continua o mesmo
 elif st.session_state.tela == "admin_users":
     renderizar_sidebar()
     st.title("👤 Gerenciamento de Usuários")
     df_users = load_user_db()
-
     st.subheader("Adicionar Novo Usuário")
     with st.form("add_user_form", clear_on_submit=True):
         new_username = st.text_input("Novo Usuário")
         new_password = st.text_input("Nova Senha", type="password")
         new_role = st.selectbox("Tipo de Acesso", ["user", "admin"])
         if st.form_submit_button("Adicionar Usuário"):
-            if new_username in df_users["username"].values:
-                st.error("Este nome de usuário já existe.")
-            elif not new_username or not new_password:
-                st.error("Usuário e senha não podem estar em branco.")
+            if new_username in df_users["username"].values: st.error("Este nome de usuário já existe.")
+            elif not new_username or not new_password: st.error("Usuário e senha não podem estar em branco.")
             else:
-                new_user_data = pd.DataFrame({
-                    "username": [new_username],
-                    "password": [hash_password(new_password)],
-                    "role": [new_role]
-                })
+                new_user_data = pd.DataFrame({"username": [new_username], "password": [hash_password(new_password)], "role": [new_role]})
                 df_users = pd.concat([df_users, new_user_data], ignore_index=True)
                 save_user_db(df_users)
                 st.success(f"Usuário '{new_username}' adicionado com sucesso!")
-    
     st.markdown("---")
     st.subheader("Usuários Existentes")
     st.dataframe(df_users[["username", "role"]], use_container_width=True)
 
 elif st.session_state.tela == "calc_comparativa":
-    # ... (código da calculadora comparativa) ...
     renderizar_sidebar()
     st.title("📊 Calculadora Comparativa de Cenários")
     if "cenarios" not in st.session_state: st.session_state.cenarios = []
@@ -250,7 +267,6 @@ elif st.session_state.tela == "calc_comparativa":
         pdf_buffer = gerar_pdf_comparativo(df_cenarios, melhor)
         st.download_button("📥 Baixar Relatório PDF", pdf_buffer, "comparacao_cenarios_sla.pdf", "application/pdf")
         st.button("🔄 Reiniciar Comparação", on_click=limpar_dados_comparativos, use_container_width=True, type="primary")
-
     else:
         st.markdown("---"); st.header(f"📝 Preencher Dados para o Cenário {len(st.session_state.cenarios) + 1}")
         with st.expander("🔍 Consultar Clientes e Placas"):
@@ -327,14 +343,8 @@ elif st.session_state.tela == "calc_simples":
         col2.metric("Prazo SLA", f"{r['prazo_sla']} dias")
         col3.metric("Dias Excedentes", f"{r['dias_excedente']} dias")
         
-        pdf_buffer = gerar_pdf_sla_simples(
-            r['cliente'], r['placa'], r['tipo_servico'], r['dias'], r['prazo_sla'], 
-            r['dias_excedente'], r['valor_mensalidade'], r['desconto']
-        )
-        st.download_button(
-            label="📥 Baixar resultado em PDF", data=pdf_buffer,
-            file_name=f"SLA_{r['placa']}.pdf", mime="application/pdf", use_container_width=True
-        )
+        pdf_buffer = gerar_pdf_sla_simples(r['cliente'], r['placa'], r['tipo_servico'], r['dias'], r['prazo_sla'], r['dias_excedente'], r['valor_mensalidade'], r['desconto'])
+        st.download_button(label="📥 Baixar resultado em PDF", data=pdf_buffer, file_name=f"SLA_{r['placa']}.pdf", mime="application/pdf", use_container_width=True)
         st.button("🔄 Iniciar Novo Cálculo", on_click=limpar_dados_simples, use_container_width=True, type="primary")
     else:
         st.subheader("1. Consulta de Cliente ou Placa")
@@ -356,7 +366,6 @@ elif st.session_state.tela == "calc_simples":
                 registro = registro.iloc[0]
                 cliente, valor_mensalidade = registro["CLIENTE"], registro["VALOR MENSALIDADE"]
                 st.info(f"**Cliente:** {cliente} | **Placa:** {placa_selecionada} | **Mensalidade:** {formatar_moeda(valor_mensalidade)}")
-                
                 st.markdown("---"); st.subheader("2. Detalhes do Serviço")
                 sla_opcoes = {"Preventiva": 2, "Corretiva": 3, "Preventiva + Corretiva": 5, "Motor": 15}
                 tipo_sla_selecionado = st.selectbox("⚙️ Escolha o tipo de SLA:", [f"{k}: {v} dias úteis" for k, v in sla_opcoes.items()])
@@ -369,9 +378,5 @@ elif st.session_state.tela == "calc_simples":
 
                 if st.button("Calcular SLA", use_container_width=True, type="primary"):
                     dias, status, desconto, dias_excedente = calcular_sla_simples(data_entrada, data_saida, prazo_sla, valor_mensalidade, feriados)
-                    st.session_state.resultado_sla = {
-                        "cliente": cliente, "placa": placa_selecionada, "tipo_servico": tipo_sla_selecionado.split(":")[0],
-                        "dias": dias, "prazo_sla": prazo_sla, "dias_excedente": dias_excedente,
-                        "valor_mensalidade": valor_mensalidade, "desconto": desconto
-                    }
+                    st.session_state.resultado_sla = {"cliente": cliente, "placa": placa_selecionada, "tipo_servico": tipo_sla_selecionado.split(":")[0], "dias": dias, "prazo_sla": prazo_sla, "dias_excedente": dias_excedente, "valor_mensalidade": valor_mensalidade, "desconto": desconto}
                     st.rerun()
