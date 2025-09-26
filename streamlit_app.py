@@ -16,7 +16,7 @@ st.set_page_config(
     initial_sidebar_state="auto"
 )
 
-# --- Funções Auxiliares (sem alterações) ---
+# --- Funções Auxiliares ---
 @st.cache_data
 def carregar_base():
     try:
@@ -94,6 +94,7 @@ def gerar_pdf(df_cenarios, melhor_cenario):
     doc.build(elementos); buffer.seek(0)
     return buffer
 
+# --- FUNÇÕES DE CALLBACK PARA AÇÕES ---
 def ir_para_home(): st.session_state.tela = "home"
 def ir_para_calculadora(): st.session_state.tela = "calculadora"
 def limpar_dados():
@@ -104,6 +105,16 @@ def limpar_dados():
 def logout():
     for key in st.session_state.keys(): del st.session_state[key]
 
+# --- NOVA FUNÇÃO DE CALLBACK PARA ADICIONAR PEÇA ---
+def adicionar_peca_callback():
+    if st.session_state.nome_peca_input and st.session_state.valor_peca_input > 0:
+        st.session_state.pecas_atuais.append({"nome": st.session_state.nome_peca_input, "valor": st.session_state.valor_peca_input})
+        # Limpa os campos após adicionar
+        st.session_state.nome_peca_input = ""
+        st.session_state.valor_peca_input = 0.0
+    else:
+        st.warning("Preencha o nome e o valor da peça.")
+
 def renderizar_sidebar():
     with st.sidebar:
         st.header("Menu de Navegação")
@@ -112,6 +123,7 @@ def renderizar_sidebar():
             st.button("🔄 Limpar e Novo Cálculo", on_click=limpar_dados, use_container_width=True)
         st.button("🚪 Sair (Logout)", on_click=logout, use_container_width=True, type="secondary")
 
+# Inicialização do session_state
 if "tela" not in st.session_state: st.session_state.tela = "login"
 if "cenarios" not in st.session_state: st.session_state.cenarios = []
 if "pecas_atuais" not in st.session_state: st.session_state.pecas_atuais = []
@@ -119,6 +131,7 @@ if "cliente_info" not in st.session_state: st.session_state.cliente_info = None
 if "input_placa" not in st.session_state: st.session_state.input_placa = ""
 if "estado_calculo" not in st.session_state: st.session_state.estado_calculo = "adicionando"
 
+# --- LÓGICA DE RENDERIZAÇÃO DAS TELAS ---
 if st.session_state.tela == "login":
     try: st.image("logo.png", width=200)
     except: st.header("🚛 Vamos Locação")
@@ -173,14 +186,12 @@ elif st.session_state.tela == "calculadora":
 
         col_form, col_pecas = st.columns([2, 1])
         with col_form:
-            # --- PASSO 1: BUSCA DA PLACA (FORA DO FORMULÁRIO) ---
             st.subheader("1. Buscar Veículo")
             st.text_input("Digite a placa e tecle Enter ou clique fora:", key="input_placa", on_change=buscar_placa, args=(df_base,))
             
             if st.session_state.cliente_info:
                 st.info(f"✅ **Cliente:** {st.session_state.cliente_info['cliente']} | **Mensalidade:** {formatar_moeda(st.session_state.cliente_info['mensalidade'])}")
                 
-                # --- PASSO 2: FORMULÁRIO DE DETALHES (SÓ APARECE APÓS ENCONTRAR A PLACA) ---
                 with st.form(key=f"form_cenario_{len(st.session_state.cenarios)}"):
                     st.subheader("2. Detalhes do Serviço")
                     subcol1, subcol2 = st.columns(2)
@@ -210,13 +221,11 @@ elif st.session_state.tela == "calculadora":
 
         with col_pecas:
             st.subheader("3. Gerenciar Peças")
-            nome_peca = st.text_input("Nome da Peça", label_visibility="collapsed", placeholder="Nome da Peça", key="nome_peca_input")
-            valor_peca = st.number_input("Valor (R$)", min_value=0.0, step=0.01, format="%.2f", label_visibility="collapsed", key="valor_peca_input")
-            if st.button("➕ Adicionar Peça", use_container_width=True):
-                if st.session_state.nome_peca_input and st.session_state.valor_peca_input > 0:
-                    st.session_state.pecas_atuais.append({"nome": st.session_state.nome_peca_input, "valor": st.session_state.valor_peca_input})
-                    st.session_state.nome_peca_input = ""; st.session_state.valor_peca_input = 0.0; st.rerun()
-                else: st.warning("Preencha o nome e o valor da peça.")
+            st.text_input("Nome da Peça", label_visibility="collapsed", placeholder="Nome da Peça", key="nome_peca_input")
+            st.number_input("Valor (R$)", min_value=0.0, step=0.01, format="%.2f", label_visibility="collapsed", key="valor_peca_input")
+            
+            # --- BOTÃO DE ADICIONAR PEÇA ATUALIZADO COM CALLBACK ---
+            st.button("➕ Adicionar Peça", on_click=adicionar_peca_callback, use_container_width=True)
 
             if st.session_state.pecas_atuais:
                 st.markdown("---"); st.write("**Peças adicionadas:**")
