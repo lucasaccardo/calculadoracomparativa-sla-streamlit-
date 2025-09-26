@@ -131,7 +131,6 @@ elif st.session_state.tela == "calculadora":
     df_base = carregar_base()
     if df_base is None: st.error("❌ Arquivo 'Base De Clientes Faturamento.xlsx' não encontrado."); st.stop()
     
-    # --- SEÇÃO DE RESULTADOS E COMPARAÇÃO ---
     if st.session_state.cenarios:
         st.markdown("---"); st.header("📈 Cenários Calculados")
         df_cenarios = pd.DataFrame(st.session_state.cenarios)
@@ -148,7 +147,6 @@ elif st.session_state.tela == "calculadora":
         pdf_buffer = gerar_pdf(df_cenarios, melhor)
         st.download_button("📥 Baixar Relatório PDF", pdf_buffer, "comparacao_cenarios_sla.pdf", "application/pdf")
 
-    # --- SEÇÃO DE ADICIONAR CENÁRIO ---
     st.markdown("---")
     st.header(f"📝 Preencher Dados para o Cenário {len(st.session_state.cenarios) + 1}")
     
@@ -159,7 +157,6 @@ elif st.session_state.tela == "calculadora":
 
     col_form, col_pecas = st.columns([2, 1])
     with col_form:
-        # LÓGICA DE BUSCA DE PLACA SIMPLIFICADA E ESTÁVEL
         placa = st.text_input("1. Digite a placa e tecle Enter")
         cliente_info = None
         if placa:
@@ -182,6 +179,16 @@ elif st.session_state.tela == "calculadora":
             feriados = subcol1.number_input("📌 Feriados no período:", min_value=0, step=1)
             servico = subcol2.selectbox("🛠️ Tipo de serviço:", ["Preventiva – 2 dias úteis", "Corretiva – 3 dias úteis", "Preventiva + Corretiva – 5 dias úteis", "Motor – 15 dias úteis"])
             
+            # --- NOVO: Adicionado expander para visualizar peças dentro do formulário ---
+            with st.expander("Verificar Peças Adicionadas"):
+                if st.session_state.pecas_atuais:
+                    for peca in st.session_state.pecas_atuais:
+                        col_peca_nome, col_peca_valor = st.columns([3, 1])
+                        col_peca_nome.write(peca['nome'])
+                        col_peca_valor.write(formatar_moeda(peca['valor']))
+                else:
+                    st.info("Nenhuma peça adicionada na coluna da direita.")
+
             submitted = st.form_submit_button(f"➡️ Calcular Cenário {len(st.session_state.cenarios) + 1}", use_container_width=True, type="primary")
             if submitted:
                 if cliente_info:
@@ -189,7 +196,7 @@ elif st.session_state.tela == "calculadora":
                     else:
                         cenario = calcular_cenario(cliente_info["cliente"], placa.upper(), entrada, saida, feriados, servico, st.session_state.pecas_atuais, cliente_info["mensalidade"])
                         st.session_state.cenarios.append(cenario)
-                        st.session_state.pecas_atuais = [] # Limpa apenas as peças
+                        st.session_state.pecas_atuais = []
                         st.rerun()
                 else: st.error("Placa inválida ou não encontrada para submeter.")
     
