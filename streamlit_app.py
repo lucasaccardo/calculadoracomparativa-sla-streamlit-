@@ -16,7 +16,7 @@ st.set_page_config(
     initial_sidebar_state="auto"
 )
 
-# --- Funções Auxiliares (sem alterações) ---
+# --- Funções Auxiliares ---
 @st.cache_data
 def carregar_base():
     try:
@@ -103,11 +103,8 @@ def limpar_dados():
     st.session_state.estado_calculo = "adicionando"
 
 def logout():
-    # Limpa todo o session_state para um logout seguro
     for key in st.session_state.keys():
         del st.session_state[key]
-    # CORREÇÃO: Removido st.rerun() que não é permitido em callbacks
-    # O Streamlit já faz o rerun automaticamente após o callback do botão.
 
 # --- FUNÇÃO PARA RENDERIZAR A SIDEBAR (MENU LATERAL) ---
 def renderizar_sidebar():
@@ -161,6 +158,7 @@ elif st.session_state.tela == "calculadora":
             if st.button("🏆 Comparar Cenários", type="primary", use_container_width=True):
                 st.session_state.estado_calculo = "comparando"
     
+    # --- SEÇÃO DE COMPARAÇÃO FINAL ---
     if st.session_state.estado_calculo == "comparando":
         st.header("Análise Comparativa Final")
         df_cenarios = pd.DataFrame(st.session_state.cenarios)
@@ -198,4 +196,36 @@ elif st.session_state.tela == "calculadora":
                 feriados = subcol1.number_input("📌 **Feriados no período:**", min_value=0, step=1)
                 servico = subcol2.selectbox("🛠️ **Tipo de serviço:**", ["Preventiva – 2 dias úteis", "Corretiva – 3 dias úteis", "Preventiva + Corretiva – 5 dias úteis", "Motor – 15 dias úteis"])
                 
-                if st.form
+                if st.form_submit_button(f"➡️ Calcular Cenário {len(st.session_state.cenarios) + 1}", use_container_width=True, type="primary"):
+                    if st.session_state.cliente_info:
+                        cliente, mensalidade = st.session_state.cliente_info["cliente"], st.session_state.cliente_info["mensalidade"]
+                        if entrada >= saida: st.error("A data de saída deve ser posterior à de entrada.")
+                        else:
+                            cenario = calcular_cenario(cliente, st.session_state.input_placa.upper(), entrada, saida, feriados, servico, st.session_state.pecas_atuais, mensalidade)
+                            st.session_state.cenarios.append(cenario)
+                            # Limpa dados parciais para o próximo cenário
+                            limpar_parcial = {"pecas_atuais": [], "cliente_info": None, "input_placa": ""}
+                            for key, value in limpar_parcial.items(): st.session_state[key] = value
+                            st.rerun()
+                    else: st.error("Placa inválida ou não encontrada.")
+
+        with col_pecas:
+            st.subheader("2. Gerenciar Peças")
+            nome_peca = st.text_input("Nome da Peça", label_visibility="collapsed", placeholder="Nome da Peça", key="nome_peca_input")
+            valor_peca = st.number_input("Valor (R$)", min_value=0.0, step=0.01, format="%.2f", label_visibility="collapsed", key="valor_peca_input")
+            if st.button("➕ Adicionar Peça", use_container_width=True):
+                if st.session_state.nome_peca_input and st.session_state.valor_peca_input > 0:
+                    st.session_state.pecas_atuais.append({"nome": st.session_state.nome_peca_input, "valor": st.session_state.valor_peca_input})
+                    st.session_state.nome_peca_input = ""; st.session_state.valor_peca_input = 0.0; st.rerun()
+                else: st.warning("Preencha o nome e o valor da peça.")
+
+            if st.session_state.pecas_atuais:
+                st.markdown("---"); st.write("**Peças adicionadas:**")
+                opcoes_pecas = [f"{p['nome']} - {formatar_moeda(p['valor'])}" for p in st.session_state.pecas_atuais]
+                pecas_para_remover = st.multiselect("Selecione para remover:", options=opcoes_pecas, label_visibility="collapsed")
+                if st.button("🗑️ Remover Selecionadas", type="secondary", use_container_width=True):
+                    if pecas_para_remover:
+                        nomes_para_remover = [item.split(' - ')[0] for item in pecas_para_remover]
+                        st.session_state.pecas_atuais = [p for p in st.session_state.pecas_atuais if p['nome'] not in nomes_para_remover]
+                        st.success("✅ Peças removidas!"); st.rerun()
+                    else: st.warning("⚠️ Nenhuma peça foi selecionada.")
