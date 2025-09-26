@@ -223,7 +223,6 @@ elif st.session_state.tela == "admin_users":
     st.subheader("Usuários Existentes")
     st.dataframe(df_users[["username", "role"]], use_container_width=True)
 
-# --- TELA DA CALCULADORA COMPARATIVA ---
 elif st.session_state.tela == "calc_comparativa":
     # ... (código da calculadora comparativa) ...
     renderizar_sidebar()
@@ -309,7 +308,6 @@ elif st.session_state.tela == "calc_comparativa":
                         st.session_state.pecas_atuais = [p for p in st.session_state.pecas_atuais if p['nome'] not in nomes_para_remover]; st.rerun()
                     else: st.warning("⚠️ Nenhuma peça foi selecionada.")
 
-# --- TELA DA CALCULADORA SIMPLES ---
 elif st.session_state.tela == "calc_simples":
     renderizar_sidebar()
     st.title("🖩 Calculadora de SLA Simples")
