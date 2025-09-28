@@ -71,15 +71,11 @@ def check_password(hashed_password, user_password):
 
 @st.cache_data
 def load_user_db():
-    try:
-        df = pd.read_csv("users.csv")
-        if df.empty: raise pd.errors.EmptyDataError
-        return df
-    except (FileNotFoundError, pd.errors.EmptyDataError):
-        admin_user = {
-            "username": ["lucas.sureira"], "password": [hash_password("Brasil@@2609")], "role": ["admin"],
-            "full_name": ["Administrador Principal"], "matricula": ["N/A"]
-        }
+    """Carrega o banco de dados de usuários de um arquivo CSV."""
+    if os.path.exists("users.csv") and os.path.getsize("users.csv") > 0:
+        return pd.read_csv("users.csv")
+    else:
+        admin_user = {"username": ["lucas.sureira"], "password": [hash_password("Brasil@@2609")], "role": ["admin"]}
         df_users = pd.DataFrame(admin_user)
         df_users.to_csv("users.csv", index=False)
         return df_users
@@ -94,6 +90,7 @@ def carregar_base():
     try: return pd.read_excel("Base De Clientes Faturamento.xlsx")
     except FileNotFoundError: return None
 
+# ... (O restante das suas funções continua aqui, exatamente como você enviou) ...
 def formatar_moeda(valor):
     return f"R${valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
@@ -104,7 +101,6 @@ def moeda_para_float(valor_str):
         return float(valor_str)
     return 0.0
 
-# --- FUNÇÕES DAS CALCULADORAS ---
 def calcular_cenario_comparativo(cliente, placa, entrada, saida, feriados, servico, pecas, mensalidade):
     dias = np.busday_count(entrada.strftime('%Y-%m-%d'), (saida + timedelta(days=1)).strftime('%Y-%m-%d'))
     dias_uteis = max(dias - feriados, 0)
@@ -191,14 +187,29 @@ if "tela" not in st.session_state: st.session_state.tela = "login"
 
 aplicar_estilos()
 
+# --- LÓGICA DE RENDERIZAÇÃO DAS TELAS ---
 if st.session_state.tela == "login":
-    st.markdown("<div class='login-container'>", unsafe_allow_html=True)
-    st.markdown("<div class='login-logo'>", unsafe_allow_html=True)
-    try: st.image("logo.png", width=300)
-    except: st.header("🚛 Vamos Locação")
+    # --- ALTERAÇÃO PARA CENTRALIZAR O CONTEÚDO DE LOGIN ---
+    st.markdown("""
+        <style>
+            .login-wrapper {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("<div class='login-wrapper'>", unsafe_allow_html=True)
+    try:
+        st.image("logo.png", width=300)
+    except:
+        st.header("🚛 Vamos Locação")
+    
+    st.title("Plataforma de Calculadoras SLA", anchor=False)
     st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("<h1 style='text-align: center;'>Plataforma de Calculadoras SLA</h1>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
         with st.form("login_form"):
@@ -211,12 +222,12 @@ if st.session_state.tela == "login":
                     st.session_state.logado = True; st.session_state.tela = "home"
                     st.session_state.username = user_data.iloc[0]["username"]; st.session_state.role = user_data.iloc[0]["role"]
                     st.rerun()
-                else: st.error("❌ Usuário ou senha incorretos.")
-
+                else:
+                    st.error("❌ Usuário ou senha incorretos.")
 else:
+    # O restante do código para as outras telas continua o mesmo
     renderizar_sidebar()
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
-    
     if st.session_state.tela == "home":
         st.title(f"🏠 Home"); st.write(f"### Bem-vindo, {st.session_state.username}!")
         st.write("Selecione abaixo a ferramenta que deseja utilizar.")
@@ -230,7 +241,6 @@ else:
             st.subheader("🖩 Calculadora de SLA Simples")
             st.write("Calcule rapidamente o desconto de SLA para um único serviço ou veículo.")
             st.button("Acessar Calculadora Simples", on_click=ir_para_calc_simples, use_container_width=True)
-    
     elif st.session_state.tela == "admin_users":
         st.title("👤 Gerenciamento de Usuários")
         df_users = load_user_db()
@@ -253,8 +263,6 @@ else:
         st.markdown("---")
         st.subheader("Usuários Existentes")
         st.dataframe(df_users[["username", "full_name", "matricula", "role"]], use_container_width=True)
-        
-        # --- ADICIONADO DE VOLTA: Seção para remover usuários ---
         st.markdown("---")
         with st.expander("⚠️ Remover Usuários Existentes"):
             usuarios_deletaveis = [user for user in df_users["username"] if user != st.session_state.username]
@@ -273,7 +281,6 @@ else:
                         st.rerun()
                     else:
                         st.warning("Nenhum usuário selecionado.")
-
     elif st.session_state.tela == "calc_comparativa":
         st.title("📊 Calculadora Comparativa de Cenários")
         if "cenarios" not in st.session_state: st.session_state.cenarios = []
@@ -350,7 +357,6 @@ else:
                             nomes_para_remover = [item.split(' - ')[0] for item in pecas_para_remover]
                             st.session_state.pecas_atuais = [p for p in st.session_state.pecas_atuais if p['nome'] not in nomes_para_remover]; st.rerun()
                         else: st.warning("⚠️ Nenhuma peça foi selecionada.")
-
     elif st.session_state.tela == "calc_simples":
         st.title("🖩 Calculadora de SLA Simples")
         if "resultado_sla" not in st.session_state: st.session_state.resultado_sla = None
@@ -400,5 +406,4 @@ else:
                         dias, status, desconto, dias_excedente = calcular_sla_simples(data_entrada, data_saida, prazo_sla, valor_mensalidade, feriados)
                         st.session_state.resultado_sla = {"cliente": cliente, "placa": placa_selecionada, "tipo_servico": tipo_sla_selecionado.split(":")[0], "dias": dias, "prazo_sla": prazo_sla, "dias_excedente": dias_excedente, "valor_mensalidade": valor_mensalidade, "desconto": desconto}
                         st.rerun()
-
     st.markdown("</div>", unsafe_allow_html=True)
