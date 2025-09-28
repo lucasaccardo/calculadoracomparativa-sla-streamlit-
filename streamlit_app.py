@@ -24,7 +24,6 @@ st.set_page_config(
 # --- FUNÇÃO PARA APLICAR O FUNDO E CSS ---
 def aplicar_estilos():
     try:
-        # CORREÇÃO: Alterado de "background.jpg" para "background.png" para corresponder ao seu novo arquivo
         with open("background.png", "rb") as f:
             data = f.read()
         bg_image_base64 = base64.b64encode(data).decode()
@@ -32,7 +31,6 @@ def aplicar_estilos():
             f"""
             <style>
             .stApp {{
-                /* CORREÇÃO: Alterado de "image/jpeg" para "image/png" */
                 background-image: url(data:image/png;base64,{bg_image_base64});
                 background-size: cover;
                 background-repeat: no-repeat;
@@ -137,7 +135,7 @@ def gerar_pdf_comparativo(df_cenarios, melhor_cenario):
     return buffer
 
 def calcular_sla_simples(data_entrada, data_saida, prazo_sla, valor_mensalidade, feriados=0):
-    dias = np.busday_count(data_entrada.strftime('%Y-%m-%d'), (data_saida + timedelta(days=1)).strftime('%Y-%m-%d'))
+    dias = np.busday_count(data_entrada.strftime('%Y-%m-%d'), (saida + timedelta(days=1)).strftime('%Y-%m-%d'))
     dias_uteis = max(dias - feriados, 0)
     if dias_uteis <= prazo_sla:
         status, desconto, dias_excedente = "Dentro do SLA", 0, 0
@@ -191,18 +189,18 @@ if "tela" not in st.session_state: st.session_state.tela = "login"
 
 aplicar_estilos()
 
-# --- LÓGICA DE RENDERIZAÇÃO DAS TELAS ---
-# ... (Todo o restante do código para as telas continua o mesmo) ...
-
 if st.session_state.tela == "login":
-    st.markdown("<div class='login-container'>", unsafe_allow_html=True)
-    st.markdown("<div class='login-logo'>", unsafe_allow_html=True)
-    try: st.image("logo.png", width=300)
-    except: st.header("🚛 Vamos Locação")
-    st.markdown("</div>", unsafe_allow_html=True)
-    st.title("Plataforma de Calculadoras SLA", anchor=False)
-    st.markdown("</div>", unsafe_allow_html=True)
-    
+    # --- LAYOUT ATUALIZADO PARA CENTRALIZAÇÃO ---
+    with st.container():
+        st.markdown("<div class='login-logo'>", unsafe_allow_html=True)
+        try:
+            st.image("logo.png", width=300)
+        except:
+            st.markdown("<h2 style='text-align: center;'>🚛 Vamos Locação</h2>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        st.markdown("<h1 style='text-align: center;'>Plataforma de Calculadoras SLA</h1>", unsafe_allow_html=True)
+
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
         with st.form("login_form"):
@@ -215,7 +213,8 @@ if st.session_state.tela == "login":
                     st.session_state.logado = True; st.session_state.tela = "home"
                     st.session_state.username = user_data.iloc[0]["username"]; st.session_state.role = user_data.iloc[0]["role"]
                     st.rerun()
-                else: st.error("❌ Usuário ou senha incorretos.")
+                else:
+                    st.error("❌ Usuário ou senha incorretos.")
 
 else:
     renderizar_sidebar()
