@@ -24,7 +24,6 @@ st.set_page_config(
 # --- FUNÇÃO PARA APLICAR O FUNDO E CSS ---
 def aplicar_estilos():
     try:
-        # CORREÇÃO: Alterado de "background.jpg" para "background.png" para corresponder ao seu novo arquivo
         with open("background.png", "rb") as f:
             data = f.read()
         bg_image_base64 = base64.b64encode(data).decode()
@@ -32,24 +31,20 @@ def aplicar_estilos():
             f"""
             <style>
             .stApp {{
-                /* CORREÇÃO: Alterado de "image/jpeg" para "image/png" */
                 background-image: url(data:image/png;base64,{bg_image_base64});
                 background-size: cover;
                 background-repeat: no-repeat;
                 background-attachment: fixed;
             }}
-            /* Container principal para as telas pós-login */
             .main-container, [data-testid="stForm"] {{
                 background-color: rgba(13, 17, 23, 0.85);
                 padding: 25px;
                 border-radius: 10px;
                 border: 1px solid rgba(255, 255, 255, 0.2);
             }}
-            /* REGRA CORINGA: Força TUDO dentro do container a ter texto branco */
             .main-container, .main-container * {{
                 color: white !important;
             }}
-            /* Títulos na tela de login */
             .login-container h1, .login-container h2 {{
                 color: white;
                 text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
@@ -76,10 +71,15 @@ def check_password(hashed_password, user_password):
 
 @st.cache_data
 def load_user_db():
-    if os.path.exists("users.csv") and os.path.getsize("users.csv") > 0:
-        return pd.read_csv("users.csv")
-    else:
-        admin_user = {"username": ["lucas.sureira"], "password": [hash_password("Brasil@@2609")], "role": ["admin"]}
+    try:
+        df = pd.read_csv("users.csv")
+        if df.empty: raise pd.errors.EmptyDataError
+        return df
+    except (FileNotFoundError, pd.errors.EmptyDataError):
+        admin_user = {
+            "username": ["lucas.sureira"], "password": [hash_password("Brasil@@2609")], "role": ["admin"],
+            "full_name": ["Administrador Principal"], "matricula": ["N/A"]
+        }
         df_users = pd.DataFrame(admin_user)
         df_users.to_csv("users.csv", index=False)
         return df_users
@@ -199,7 +199,6 @@ if st.session_state.tela == "login":
     st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("<h1 style='text-align: center;'>Plataforma de Calculadoras SLA</h1>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
-
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
         with st.form("login_form"):
@@ -254,7 +253,27 @@ else:
         st.markdown("---")
         st.subheader("Usuários Existentes")
         st.dataframe(df_users[["username", "full_name", "matricula", "role"]], use_container_width=True)
-    
+        
+        # --- ADICIONADO DE VOLTA: Seção para remover usuários ---
+        st.markdown("---")
+        with st.expander("⚠️ Remover Usuários Existentes"):
+            usuarios_deletaveis = [user for user in df_users["username"] if user != st.session_state.username]
+            if not usuarios_deletaveis:
+                st.info("Não há outros usuários para remover.")
+            else:
+                usuarios_para_remover = st.multiselect(
+                    "Selecione um ou mais usuários para remover:",
+                    options=usuarios_deletaveis
+                )
+                if st.button("Remover Usuários Selecionados", type="primary"):
+                    if usuarios_para_remover:
+                        df_users = df_users[~df_users["username"].isin(usuarios_para_remover)]
+                        save_user_db(df_users)
+                        st.success("Usuários removidos com sucesso!")
+                        st.rerun()
+                    else:
+                        st.warning("Nenhum usuário selecionado.")
+
     elif st.session_state.tela == "calc_comparativa":
         st.title("📊 Calculadora Comparativa de Cenários")
         if "cenarios" not in st.session_state: st.session_state.cenarios = []
