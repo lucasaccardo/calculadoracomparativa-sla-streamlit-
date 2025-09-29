@@ -256,10 +256,10 @@ elif st.session_state.tela == "home":
     st.markdown("---")
     col1, col2 = st.columns(2)
     with col1:
-        st.subheader("📊 Calculadora Comparativa de SLA"); st.write("Calcule e compare múltiplos cenários.")
+        st.subheader("📊 Comparativa de SLA"); st.write("Calcule e compare múltiplos cenários.")
         st.button("Acessar Calculadora Comparativa", on_click=ir_para_calc_comparativa, use_container_width=True)
     with col2:
-        st.subheader("🖩 Calculadora de SLA Simples"); st.write("Calcule rapidamente o desconto de SLA para um único serviço.")
+        st.subheader("🖩 SLA Simples"); st.write("Calcule rapidamente o desconto de SLA para um único serviço.")
         st.button("Acessar Calculadora Simples", on_click=ir_para_calc_simples, use_container_width=True)
 
 elif st.session_state.tela == "admin_users":
@@ -431,3 +431,4 @@ elif st.session_state.tela == "calc_simples":
                     st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
+
