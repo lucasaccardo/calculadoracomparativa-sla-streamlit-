@@ -431,3 +431,4 @@ elif st.session_state.tela == "calc_simples":
                     st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
+
