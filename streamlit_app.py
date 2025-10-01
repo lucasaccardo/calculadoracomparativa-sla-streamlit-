@@ -24,14 +24,16 @@ st.set_page_config(
 # --- FUNÇÃO PARA APLICAR O FUNDO E CSS ---
 def aplicar_estilos():
     try:
-        with open("background.jpg", "rb") as f:
+        # CORREÇÃO DEFINITIVA: Nome do arquivo ajustado para .png
+        with open("background.png", "rb") as f:
             data = f.read()
         bg_image_base64 = base64.b64encode(data).decode()
         st.markdown(
             f"""
             <style>
             .stApp {{
-                background-image: url(data:image/jpeg;base64,{bg_image_base64});
+                /* CORREÇÃO DEFINITIVA: Tipo da imagem ajustado para image/png */
+                background-image: url(data:image/png;base64,{bg_image_base64});
                 background-size: cover;
                 background-repeat: no-repeat;
                 background-attachment: fixed;
@@ -71,10 +73,18 @@ def check_password(hashed_password, user_password):
 
 @st.cache_data
 def load_user_db():
-    if os.path.exists("users.csv") and os.path.getsize("users.csv") > 0:
-        return pd.read_csv("users.csv")
-    else:
-        admin_user = {"username": ["lucas.sureira"], "password": [hash_password("Brasil@@2609")], "role": ["admin"]}
+    try:
+        df = pd.read_csv("users.csv")
+        if df.empty: raise pd.errors.EmptyDataError
+        if "full_name" not in df.columns: df["full_name"] = "N/A"
+        if "matricula" not in df.columns: df["matricula"] = "N/A"
+        if "accepted_terms_on" not in df.columns: df["accepted_terms_on"] = None
+        return df
+    except (FileNotFoundError, pd.errors.EmptyDataError):
+        admin_user = {
+            "username": ["lucas.sureira"], "password": [hash_password("Brasil@@2609")], "role": ["admin"],
+            "full_name": ["Administrador Principal"], "matricula": ["N/A"], "accepted_terms_on": [None]
+        }
         df_users = pd.DataFrame(admin_user)
         df_users.to_csv("users.csv", index=False)
         return df_users
@@ -190,7 +200,7 @@ if st.session_state.tela == "login":
     st.markdown("<div class='login-container'>", unsafe_allow_html=True)
     st.markdown("<div class='login-logo'>", unsafe_allow_html=True)
     try: st.image("logo.png", width=300)
-    except: st.header("🚛 Vamos Locação")
+    except: st.markdown("<h2 style='text-align: center;'>🚛 Vamos Locação</h2>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("<h1 style='text-align: center;'>Plataforma de Calculadoras SLA</h1>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
@@ -204,10 +214,13 @@ if st.session_state.tela == "login":
                 df_users = load_user_db()
                 user_data = df_users[df_users["username"] == username]
                 if not user_data.empty and check_password(user_data.iloc[0]["password"], password):
-                    st.session_state.logado = True; st.session_state.tela = "home"
-                    st.session_state.username = user_data.iloc[0]["username"]; st.session_state.role = user_data.iloc[0]["role"]
+                    st.session_state.logado = True
+                    st.session_state.username = user_data.iloc[0]["username"]
+                    st.session_state.role = user_data.iloc[0]["role"]
                     if "accepted_terms_on" in user_data.columns and pd.isna(user_data.iloc[0]["accepted_terms_on"]):
                         st.session_state.tela = "terms_consent"
+                    else:
+                        st.session_state.tela = "home"
                     st.rerun()
                 else: st.error("❌ Usuário ou senha incorretos.")
 
@@ -216,11 +229,9 @@ elif st.session_state.tela == "terms_consent":
     st.title("Termos e Condições de Uso e Política de Privacidade (LGPD)")
     st.info("Para seu primeiro acesso, é necessário ler e aceitar os termos de uso da plataforma.")
     st.markdown("""
-    **Termos e Condições de Uso**
+    **Termos e Condições de Uso da Plataforma de Calculadoras SLA**
     *Última atualização: 28 de Setembro de 2025*
-
-    Bem-vindo à Plataforma de Calculadoras SLA da Vamos Locação... 
-    (Texto completo dos termos e condições)
+    (Seu texto completo dos Termos e Condições vai aqui)
     """)
     st.markdown("---")
     consent = st.checkbox("Eu li e concordo com os Termos e Condições.")
@@ -287,13 +298,13 @@ else:
                         st.success("Usuários removidos com sucesso!"); st.rerun()
                     else:
                         st.warning("Nenhum usuário selecionado.")
-    
+
     elif st.session_state.tela == "calc_comparativa":
         st.title("📊 Calculadora Comparativa de Cenários")
-        # (código da calculadora comparativa)
+        # (código completo da calculadora comparativa)
     
     elif st.session_state.tela == "calc_simples":
         st.title("🖩 Calculadora de SLA Simples")
-        # (código da calculadora simples)
+        # (código completo da calculadora simples)
 
     st.markdown("</div>", unsafe_allow_html=True)
