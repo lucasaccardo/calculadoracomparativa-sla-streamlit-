@@ -1,5 +1,3 @@
-# streamlit_app.py
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -131,10 +129,16 @@ def gerar_pdf_comparativo(df_cenarios, melhor_cenario):
     doc.build(elementos); buffer.seek(0)
     return buffer
 
+# --- CORREÇÃO DA FUNÇÃO (erro .date) ---
 def calcular_sla_simples(data_entrada, data_saida, prazo_sla, valor_mensalidade, feriados):
+    def to_date(obj):
+        if hasattr(obj, "date"):
+            return obj.date()
+        return obj  # já é do tipo date
+
     dias = np.busday_count(
-        np.datetime64(data_entrada.date()),
-        np.datetime64((data_saida + timedelta(days=1)).date()),
+        np.datetime64(to_date(data_entrada)),
+        np.datetime64(to_date(data_saida + timedelta(days=1))),
         holidays=feriados
     )
 
@@ -440,7 +444,3 @@ else:
                         st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
-
-
-
-
