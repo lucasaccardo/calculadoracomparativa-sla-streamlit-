@@ -31,7 +31,7 @@ def aplicar_estilos():
             f"""
             <style>
             .stApp {{
-                background-image: url(data:image/png;base64,{bg_image_base64});
+                background-image: url(data:image/jpeg;base64,{bg_image_base64});
                 background-size: cover;
                 background-repeat: no-repeat;
                 background-attachment: fixed;
@@ -71,18 +71,10 @@ def check_password(hashed_password, user_password):
 
 @st.cache_data
 def load_user_db():
-    try:
-        df = pd.read_csv("users.csv")
-        if df.empty: raise pd.errors.EmptyDataError
-        if "full_name" not in df.columns: df["full_name"] = "N/A"
-        if "matricula" not in df.columns: df["matricula"] = "N/A"
-        if "accepted_terms_on" not in df.columns: df["accepted_terms_on"] = None
-        return df
-    except (FileNotFoundError, pd.errors.EmptyDataError):
-        admin_user = {
-            "username": ["lucas.sureira"], "password": [hash_password("Brasil@@2609")], "role": ["admin"],
-            "full_name": ["Administrador Principal"], "matricula": ["N/A"], "accepted_terms_on": [None]
-        }
+    if os.path.exists("users.csv") and os.path.getsize("users.csv") > 0:
+        return pd.read_csv("users.csv")
+    else:
+        admin_user = {"username": ["lucas.sureira"], "password": [hash_password("Brasil@@2609")], "role": ["admin"]}
         df_users = pd.DataFrame(admin_user)
         df_users.to_csv("users.csv", index=False)
         return df_users
@@ -212,13 +204,10 @@ if st.session_state.tela == "login":
                 df_users = load_user_db()
                 user_data = df_users[df_users["username"] == username]
                 if not user_data.empty and check_password(user_data.iloc[0]["password"], password):
-                    st.session_state.logado = True
-                    st.session_state.username = user_data.iloc[0]["username"]
-                    st.session_state.role = user_data.iloc[0]["role"]
+                    st.session_state.logado = True; st.session_state.tela = "home"
+                    st.session_state.username = user_data.iloc[0]["username"]; st.session_state.role = user_data.iloc[0]["role"]
                     if "accepted_terms_on" in user_data.columns and pd.isna(user_data.iloc[0]["accepted_terms_on"]):
                         st.session_state.tela = "terms_consent"
-                    else:
-                        st.session_state.tela = "home"
                     st.rerun()
                 else: st.error("❌ Usuário ou senha incorretos.")
 
@@ -227,7 +216,27 @@ elif st.session_state.tela == "terms_consent":
     st.title("Termos e Condições de Uso e Política de Privacidade (LGPD)")
     st.info("Para seu primeiro acesso, é necessário ler e aceitar os termos de uso da plataforma.")
     st.markdown("""
-    (Texto completo dos Termos e Condições)
+    **Termos e Condições de Uso da Plataforma de Calculadoras SLA**
+    *Última atualização: 28 de Setembro de 2025*
+
+    Bem-vindo à Plataforma de Calculadoras SLA da Vamos Locação. Ao acessar e utilizar esta ferramenta, você concorda em cumprir os seguintes termos.
+
+    **1. Finalidade da Ferramenta**
+    Esta plataforma é uma ferramenta interna para simulação e referência de cálculos de Service Level Agreement (SLA). Os resultados são estimativas para apoio operacional e não possuem valor fiscal ou contratual definitivo.
+
+    **2. Política de Privacidade e Conformidade com a LGPD**
+    Em conformidade com a Lei Geral de Proteção de Dados (LGPD, Lei nº 13.709/2018), detalhamos como os dados são tratados:
+    - **Dados Tratados:** A ferramenta utiliza dados cadastrais da empresa, como nomes de clientes, placas de veículos e valores contratuais, além de seus dados de login (nome de usuário, nome completo, matrícula).
+    - **Finalidade do Tratamento:** Os dados são utilizados exclusivamente para as finalidades da ferramenta: autenticação de acesso e realização dos cálculos de SLA.
+    - **Segurança:** Suas credenciais de acesso são armazenadas com criptografia (hash), e o acesso aos dados é restrito a usuários autorizados.
+    - **Não Compartilhamento:** Os dados aqui processados são de uso interno da Vamos Locação e não são compartilhados com terceiros.
+
+    **3. Responsabilidades do Usuário**
+    - Você é responsável por manter a confidencialidade de seu usuário e senha.
+    - O uso da ferramenta deve ser estritamente profissional e limitado às atividades da empresa.
+
+    **4. Aceite dos Termos**
+    Ao marcar a caixa abaixo e continuar, você declara que leu, compreendeu e concorda com estes Termos e Condições de Uso e com a forma que seus dados são tratados.
     """)
     st.markdown("---")
     consent = st.checkbox("Eu li e concordo com os Termos e Condições.")
@@ -423,3 +432,5 @@ else:
                         st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
+
+
