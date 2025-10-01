@@ -303,6 +303,10 @@ else:
                     st.success(f"Usuário '{new_username}' adicionado com sucesso!")
         st.markdown("---")
         st.subheader("Usuários Existentes")
+        # Correção para garantir as colunas
+        for col in ["full_name", "matricula", "accepted_terms_on"]:
+            if col not in df_users.columns:
+                df_users[col] = ""
         st.dataframe(df_users[["username", "full_name", "matricula", "role", "accepted_terms_on"]], use_container_width=True)
         with st.expander("⚠️ Remover Usuários Existentes"):
             usuarios_deletaveis = [user for user in df_users["username"] if user != st.session_state.username]
