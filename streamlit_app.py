@@ -13,7 +13,7 @@ import hashlib
 import os
 import base64
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
+# --- CONFIGURAÇÃO DA PAGINA ---
 st.set_page_config(
     page_title="Calculadora SLA | Vamos",
     page_icon="logo_sidebar.png" if os.path.exists("logo_sidebar.png") else "🚛",
@@ -303,3 +303,4 @@ else:
         # (O resto do código da calculadora simples vai aqui...)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
