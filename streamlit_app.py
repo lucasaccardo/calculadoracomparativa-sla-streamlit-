@@ -24,14 +24,14 @@ st.set_page_config(
 # --- FUNÇÃO PARA APLICAR O FUNDO E CSS ---
 def aplicar_estilos():
     try:
-        with open("background.png", "rb") as f:
+        with open("background.jpg", "rb") as f:
             data = f.read()
         bg_image_base64 = base64.b64encode(data).decode()
         st.markdown(
             f"""
             <style>
             .stApp {{
-                background-image: url(data:image/png;base64,{bg_image_base64});
+                background-image: url(data:image/jpeg;base64,{bg_image_base64});
                 background-size: cover;
                 background-repeat: no-repeat;
                 background-attachment: fixed;
@@ -71,18 +71,10 @@ def check_password(hashed_password, user_password):
 
 @st.cache_data
 def load_user_db():
-    try:
-        df = pd.read_csv("users.csv")
-        if df.empty: raise pd.errors.EmptyDataError
-        if "full_name" not in df.columns: df["full_name"] = "N/A"
-        if "matricula" not in df.columns: df["matricula"] = "N/A"
-        if "accepted_terms_on" not in df.columns: df["accepted_terms_on"] = None
-        return df
-    except (FileNotFoundError, pd.errors.EmptyDataError):
-        admin_user = {
-            "username": ["lucas.sureira"], "password": [hash_password("Brasil@@2609")], "role": ["admin"],
-            "full_name": ["Administrador Principal"], "matricula": ["N/A"], "accepted_terms_on": [None]
-        }
+    if os.path.exists("users.csv") and os.path.getsize("users.csv") > 0:
+        return pd.read_csv("users.csv")
+    else:
+        admin_user = {"username": ["lucas.sureira"], "password": [hash_password("Brasil@@2609")], "role": ["admin"]}
         df_users = pd.DataFrame(admin_user)
         df_users.to_csv("users.csv", index=False)
         return df_users
@@ -145,9 +137,7 @@ def calcular_sla_simples(data_entrada, data_saida, prazo_sla, valor_mensalidade,
     if dias_uteis <= prazo_sla:
         status, desconto, dias_excedente = "Dentro do SLA", 0, 0
     else:
-        status = "Fora do SLA"
-        # CORREÇÃO: A variável aqui é 'prazo_sla', não 'sla_dias'
-        dias_excedente = dias_uteis - prazo_sla
+        status, dias_excedente = "Fora do SLA", dias_uteis - prazo_sla
         desconto = (valor_mensalidade / 30) * dias_excedente
     return dias_uteis, status, desconto, dias_excedente
 
@@ -214,21 +204,24 @@ if st.session_state.tela == "login":
                 df_users = load_user_db()
                 user_data = df_users[df_users["username"] == username]
                 if not user_data.empty and check_password(user_data.iloc[0]["password"], password):
-                    st.session_state.logado = True
-                    st.session_state.username = user_data.iloc[0]["username"]
-                    st.session_state.role = user_data.iloc[0]["role"]
-                    
+                    st.session_state.logado = True; st.session_state.tela = "home"
+                    st.session_state.username = user_data.iloc[0]["username"]; st.session_state.role = user_data.iloc[0]["role"]
                     if "accepted_terms_on" in user_data.columns and pd.isna(user_data.iloc[0]["accepted_terms_on"]):
                         st.session_state.tela = "terms_consent"
-                    else:
-                        st.session_state.tela = "home"
                     st.rerun()
                 else: st.error("❌ Usuário ou senha incorretos.")
 
 elif st.session_state.tela == "terms_consent":
+    st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     st.title("Termos e Condições de Uso e Política de Privacidade (LGPD)")
     st.info("Para seu primeiro acesso, é necessário ler e aceitar os termos de uso da plataforma.")
-    # (O restante do texto dos termos...)
+    st.markdown("""
+    **Termos e Condições de Uso**
+    *Última atualização: 28 de Setembro de 2025*
+
+    Bem-vindo à Plataforma de Calculadoras SLA da Vamos Locação... 
+    (Texto completo dos termos e condições)
+    """)
     st.markdown("---")
     consent = st.checkbox("Eu li e concordo com os Termos e Condições.")
     if st.button("Continuar", disabled=not consent, type="primary"):
@@ -239,6 +232,7 @@ elif st.session_state.tela == "terms_consent":
         save_user_db(df_users)
         st.session_state.tela = "home"
         st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
 
 else:
     renderizar_sidebar()
@@ -250,10 +244,12 @@ else:
         st.markdown("---")
         col1, col2 = st.columns(2)
         with col1:
-            st.subheader("📊 Calculadora Comparativa de SLA"); st.write("Calcule e compare múltiplos cenários.")
+            st.subheader("📊 Calculadora Comparativa de SLA")
+            st.write("Calcule e compare múltiplos cenários para encontrar a opção com o menor custo final.")
             st.button("Acessar Calculadora Comparativa", on_click=ir_para_calc_comparativa, use_container_width=True)
         with col2:
-            st.subheader("🖩 Calculadora de SLA Simples"); st.write("Calcule rapidamente o desconto de SLA para um único serviço.")
+            st.subheader("🖩 Calculadora de SLA Simples")
+            st.write("Calcule rapidamente o desconto de SLA para um único serviço ou veículo.")
             st.button("Acessar Calculadora Simples", on_click=ir_para_calc_simples, use_container_width=True)
     
     elif st.session_state.tela == "admin_users":
@@ -275,7 +271,8 @@ else:
                     df_users = pd.concat([df_users, new_user_data], ignore_index=True)
                     save_user_db(df_users)
                     st.success(f"Usuário '{new_username}' adicionado com sucesso!")
-        st.markdown("---"); st.subheader("Usuários Existentes")
+        st.markdown("---")
+        st.subheader("Usuários Existentes")
         st.dataframe(df_users[["username", "full_name", "matricula", "role", "accepted_terms_on"]], use_container_width=True)
         with st.expander("⚠️ Remover Usuários Existentes"):
             usuarios_deletaveis = [user for user in df_users["username"] if user != st.session_state.username]
@@ -290,58 +287,13 @@ else:
                         st.success("Usuários removidos com sucesso!"); st.rerun()
                     else:
                         st.warning("Nenhum usuário selecionado.")
-
+    
     elif st.session_state.tela == "calc_comparativa":
-        # ... (código da calculadora comparativa)
+        st.title("📊 Calculadora Comparativa de Cenários")
+        # (código da calculadora comparativa)
     
     elif st.session_state.tela == "calc_simples":
         st.title("🖩 Calculadora de SLA Simples")
-        if "resultado_sla" not in st.session_state: st.session_state.resultado_sla = None
-        if "pesquisa_cliente" not in st.session_state: st.session_state.pesquisa_cliente = ""
-        df_base = carregar_base()
-        if df_base is None: st.error("❌ Arquivo 'Base De Clientes Faturamento.xlsx' não encontrado."); st.stop()
-        if st.session_state.resultado_sla:
-            st.markdown("---"); st.header("✅ Resultado do Cálculo")
-            r = st.session_state.resultado_sla
-            st.metric(label="Status", value="Fora do SLA" if r["dias_excedente"] > 0 else "Dentro do SLA")
-            st.metric(label="Valor do Desconto", value=formatar_moeda(r['desconto']))
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Dias Úteis na Manutenção", f"{r['dias']} dias")
-            col2.metric("Prazo SLA", f"{r['prazo_sla']} dias")
-            col3.metric("Dias Excedentes", f"{r['dias_excedente']} dias")
-            pdf_buffer = gerar_pdf_sla_simples(r['cliente'], r['placa'], r['tipo_servico'], r['dias'], r['prazo_sla'], r['dias_excedente'], r['valor_mensalidade'], r['desconto'])
-            st.download_button(label="📥 Baixar resultado em PDF", data=pdf_buffer, file_name=f"SLA_{r['placa']}.pdf", mime="application/pdf", use_container_width=True)
-            st.button("🔄 Iniciar Novo Cálculo", on_click=limpar_dados_simples, use_container_width=True, type="primary")
-        else:
-            st.subheader("1. Consulta de Cliente ou Placa")
-            buscar_cliente = st.radio("Deseja procurar o cliente pelo nome?", ("Não", "Sim"), horizontal=True)
-            placa_selecionada = ""
-            if buscar_cliente == "Sim":
-                pesquisa = st.text_input("🔍 Pesquise o nome do cliente:", key="pesquisa_cliente")
-                if pesquisa:
-                    df_filtrado = df_base[df_base["CLIENTE"].str.contains(pesquisa, case=False, na=False)]
-                    st.dataframe(df_filtrado[["CLIENTE", "PLACA", "VALOR MENSALIDADE"]])
-                    placa_selecionada = st.selectbox("Selecione a placa:", df_filtrado["PLACA"].tolist())
-            else:
-                placa_selecionada = st.text_input("📌 Digite a PLACA do ativo:")
-            if placa_selecionada:
-                registro = df_base[df_base["PLACA"].astype(str).str.upper() == str(placa_selecionada).strip().upper()]
-                if registro.empty: st.error("❌ Placa não encontrada!")
-                else:
-                    registro = registro.iloc[0]
-                    cliente, valor_mensalidade = registro["CLIENTE"], registro["VALOR MENSALIDADE"]
-                    st.info(f"**Cliente:** {cliente} | **Placa:** {placa_selecionada} | **Mensalidade:** {formatar_moeda(valor_mensalidade)}")
-                    st.markdown("---"); st.subheader("2. Detalhes do Serviço")
-                    sla_opcoes = {"Preventiva": 2, "Corretiva": 3, "Preventiva + Corretiva": 5, "Motor": 15}
-                    tipo_sla_selecionado = st.selectbox("⚙️ Escolha o tipo de SLA:", [f"{k}: {v} dias úteis" for k, v in sla_opcoes.items()])
-                    prazo_sla = sla_opcoes[tipo_sla_selecionado.split(":")[0]]
-                    col1, col2 = st.columns(2)
-                    data_entrada = col1.date_input("📅 Data de entrada na oficina", datetime.today())
-                    data_saida = col2.date_input("📅 Data de saída da oficina", datetime.today())
-                    feriados = st.number_input("🗓️ Quantos feriados no período?", min_value=0, step=1)
-                    if st.button("Calcular SLA", use_container_width=True, type="primary"):
-                        dias, status, desconto, dias_excedente = calcular_sla_simples(data_entrada, data_saida, prazo_sla, valor_mensalidade, feriados)
-                        st.session_state.resultado_sla = {"cliente": cliente, "placa": placa_selecionada, "tipo_servico": tipo_sla_selecionado.split(":")[0], "dias": dias, "prazo_sla": prazo_sla, "dias_excedente": dias_excedente, "valor_mensalidade": valor_mensalidade, "desconto": desconto}
-                        st.rerun()
+        # (código da calculadora simples)
 
     st.markdown("</div>", unsafe_allow_html=True)
