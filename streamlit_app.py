@@ -131,15 +131,23 @@ def gerar_pdf_comparativo(df_cenarios, melhor_cenario):
     doc.build(elementos); buffer.seek(0)
     return buffer
 
-def calcular_sla_simples(data_entrada, data_saida, prazo_sla, valor_mensalidade, feriados=0):
-    dias = np.busday_count(data_entrada.strftime('%Y-%m-%d'), (saida + timedelta(days=1)).strftime('%Y-%m-%d'))
-    dias_uteis = max(dias - feriados, 0)
-    if dias_uteis <= prazo_sla:
-        status, desconto, dias_excedente = "Dentro do SLA", 0, 0
+def calcular_sla_simples(data_entrada, data_saida, prazo_sla, valor_mensalidade, feriados):
+    dias = np.busday_count(
+        data_entrada.strftime('%Y-%m-%d'),
+        (data_saida + timedelta(days=1)).strftime('%Y-%m-%d'),
+        holidays=feriados
+    )
+
+    if dias <= prazo_sla:
+        status = "Dentro do prazo"
+        desconto = 0
+        dias_excedente = 0
     else:
-        status, dias_excedente = "Fora do SLA", dias_uteis - prazo_sla
+        status = "Fora do prazo"
+        dias_excedente = dias - prazo_sla
         desconto = (valor_mensalidade / 30) * dias_excedente
-    return dias_uteis, status, desconto, dias_excedente
+
+    return dias, status, desconto, dias_excedente
 
 def gerar_pdf_sla_simples(cliente, placa, tipo_servico, dias_uteis_manut, prazo_sla, dias_excedente, valor_mensalidade, desconto):
     buffer = BytesIO()
@@ -432,5 +440,6 @@ else:
                         st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
