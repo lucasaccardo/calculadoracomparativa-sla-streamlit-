@@ -385,3 +385,4 @@ elif st.session_state.tela == "calc_simples":
                     dias, status, desconto, dias_excedente = calcular_sla_simples(data_entrada, data_saida, prazo_sla, valor_mensalidade, feriados)
                     st.session_state.resultado_sla = {"cliente": cliente, "placa": placa_selecionada, "tipo_servico": tipo_sla_selecionado.split(":")[0], "dias": dias, "prazo_sla": prazo_sla, "dias_excedente": dias_excedente, "valor_mensalidade": valor_mensalidade, "desconto": desconto}
                     st.rerun()
+
