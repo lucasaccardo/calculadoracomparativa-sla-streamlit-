@@ -314,3 +314,4 @@ else:
         # ... (código completo da calculadora simples)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
