@@ -24,7 +24,6 @@ st.set_page_config(
 # --- FUNÇÃO PARA APLICAR O FUNDO E CSS ---
 def aplicar_estilos():
     try:
-        # CORREÇÃO DEFINITIVA: Nome do arquivo ajustado para .png
         with open("background.png", "rb") as f:
             data = f.read()
         bg_image_base64 = base64.b64encode(data).decode()
@@ -32,21 +31,30 @@ def aplicar_estilos():
             f"""
             <style>
             .stApp {{
-                /* CORREÇÃO DEFINITIVA: Tipo da imagem ajustado para image/png */
                 background-image: url(data:image/png;base64,{bg_image_base64});
                 background-size: cover;
                 background-repeat: no-repeat;
                 background-attachment: fixed;
             }}
-            .main-container, [data-testid="stForm"] {{
-                background-color: rgba(13, 17, 23, 0.85);
+            /* Container principal para as telas pós-login */
+            .main-container {{
+                background-color: rgba(13, 17, 23, 0.9);
                 padding: 25px;
                 border-radius: 10px;
                 border: 1px solid rgba(255, 255, 255, 0.2);
             }}
+            /* REGRA CORINGA: Força TUDO dentro do container a ter texto branco */
             .main-container, .main-container * {{
                 color: white !important;
             }}
+            /* Estilo para o formulário de login */
+            [data-testid="stForm"] {{
+                background-color: rgba(13, 17, 23, 0.9);
+                padding: 25px;
+                border-radius: 10px;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }}
+            /* Títulos na tela de login */
             .login-container h1, .login-container h2 {{
                 color: white;
                 text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
@@ -300,11 +308,9 @@ else:
                         st.warning("Nenhum usuário selecionado.")
 
     elif st.session_state.tela == "calc_comparativa":
-        st.title("📊 Calculadora Comparativa de Cenários")
-        # (código completo da calculadora comparativa)
+        # ... (código completo da calculadora comparativa)
     
     elif st.session_state.tela == "calc_simples":
-        st.title("🖩 Calculadora de SLA Simples")
-        # (código completo da calculadora simples)
+        # ... (código completo da calculadora simples)
 
     st.markdown("</div>", unsafe_allow_html=True)
