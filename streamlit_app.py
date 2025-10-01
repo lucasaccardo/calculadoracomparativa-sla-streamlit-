@@ -24,7 +24,7 @@ st.set_page_config(
 # --- FUNÇÃO PARA APLICAR O FUNDO E CSS ---
 def aplicar_estilos():
     try:
-        with open("background.jpg", "rb") as f:
+        with open("background.png", "rb") as f:
             data = f.read()
         bg_image_base64 = base64.b64encode(data).decode()
         st.markdown(
@@ -432,3 +432,4 @@ else:
                         st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
+
