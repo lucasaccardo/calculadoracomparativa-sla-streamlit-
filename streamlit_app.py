@@ -129,18 +129,20 @@ def gerar_pdf_comparativo(df_cenarios, melhor_cenario):
     doc.build(elementos); buffer.seek(0)
     return buffer
 
-# --- CORREÇÃO DA FUNÇÃO (erro .date) ---
+# --- CORREÇÃO DA FUNÇÃO (feriados como quantidade) ---
 def calcular_sla_simples(data_entrada, data_saida, prazo_sla, valor_mensalidade, feriados):
     def to_date(obj):
         if hasattr(obj, "date"):
             return obj.date()
         return obj  # já é do tipo date
 
+    # Calcula dias úteis, não usa holidays, só subtrai o número informado pelo usuário
     dias = np.busday_count(
         np.datetime64(to_date(data_entrada)),
-        np.datetime64(to_date(data_saida + timedelta(days=1))),
-        holidays=feriados
+        np.datetime64(to_date(data_saida + timedelta(days=1)))
     )
+    dias -= feriados
+    dias = max(dias, 0)
 
     if dias <= prazo_sla:
         status = "Dentro do prazo"
