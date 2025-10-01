@@ -133,8 +133,8 @@ def gerar_pdf_comparativo(df_cenarios, melhor_cenario):
 
 def calcular_sla_simples(data_entrada, data_saida, prazo_sla, valor_mensalidade, feriados):
     dias = np.busday_count(
-        data_entrada.strftime('%Y-%m-%d'),
-        (data_saida + timedelta(days=1)).strftime('%Y-%m-%d'),
+        np.datetime64(data_entrada.date()),
+        np.datetime64((data_saida + timedelta(days=1)).date()),
         holidays=feriados
     )
 
@@ -440,6 +440,7 @@ else:
                         st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
