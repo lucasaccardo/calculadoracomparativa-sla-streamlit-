@@ -129,14 +129,12 @@ def gerar_pdf_comparativo(df_cenarios, melhor_cenario):
     doc.build(elementos); buffer.seek(0)
     return buffer
 
-# --- CORREÇÃO DA FUNÇÃO (feriados como quantidade) ---
 def calcular_sla_simples(data_entrada, data_saida, prazo_sla, valor_mensalidade, feriados):
     def to_date(obj):
         if hasattr(obj, "date"):
             return obj.date()
         return obj  # já é do tipo date
 
-    # Calcula dias úteis, não usa holidays, só subtrai o número informado pelo usuário
     dias = np.busday_count(
         np.datetime64(to_date(data_entrada)),
         np.datetime64(to_date(data_saida + timedelta(days=1)))
@@ -303,7 +301,7 @@ else:
                     st.success(f"Usuário '{new_username}' adicionado com sucesso!")
         st.markdown("---")
         st.subheader("Usuários Existentes")
-        # Correção para garantir as colunas
+        # GARANTE AS COLUNAS ANTES DE USAR O FATIAMENTO!
         for col in ["full_name", "matricula", "accepted_terms_on"]:
             if col not in df_users.columns:
                 df_users[col] = ""
