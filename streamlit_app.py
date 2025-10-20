@@ -30,7 +30,7 @@ def get_query_params():
         return {k: v[0] if isinstance(v, list) else v for k, v in st.experimental_get_query_params().items()}
 
 def get_app_base_url():
-    url = st.secrets.get("APP_BASE_URL", "").strip()
+    url = (st.secrets.get("APP_BASE_URL", "") or "").strip()
     if url.endswith("/"):
         url = url[:-1]
     return url
@@ -144,6 +144,22 @@ def aplicar_estilos():
                 text-decoration: underline !important;
                 cursor: pointer;
             }}
+            .terms-box {{
+                max-height: 65vh;
+                overflow-y: auto;
+                padding: 18px 20px;
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                border-radius: 10px;
+                margin-top: 10px;
+            }}
+            .terms-box h3, .terms-box h4 {{
+                margin-top: 1.2em;
+                margin-bottom: 0.4em;
+            }}
+            .terms-box p, .terms-box li {{
+                line-height: 1.5em;
+            }}
             </style>
             """,
             unsafe_allow_html=True
@@ -190,6 +206,7 @@ def load_user_db():
         if col not in df.columns:
             df[col] = ""
 
+    # Garante admin principal
     if admin_username in df["username"].values:
         idx = df.index[df["username"] == admin_username][0]
         for k, v in admin_defaults.items():
@@ -374,9 +391,10 @@ def renderizar_sidebar():
 if "tela" not in st.session_state:
     st.session_state.tela = "login"
 
+# Aplica estilos
 aplicar_estilos()
 
-# Detecta token de redefinição vindo por URL
+# Detecta token de redefinição vindo por URL e direciona para tela de reset
 qp = get_query_params()
 incoming_token = qp.get("reset_token") or qp.get("token") or ""
 if incoming_token:
@@ -385,7 +403,7 @@ if incoming_token:
 
 # --- TELAS ---
 if st.session_state.tela == "login":
-    # Logo topo direito
+    # Linha no topo: logo no canto direito
     col1, col2, col3 = st.columns([6, 1, 1])
     with col3:
         try:
@@ -402,6 +420,7 @@ if st.session_state.tela == "login":
             password = st.text_input("Senha", type="password", label_visibility="collapsed", placeholder="Senha")
             submit_login = st.form_submit_button("Entrar 🚀", use_container_width=True)
 
+        # Links de ação
         cols = st.columns(2)
         with cols[0]:
             st.button("Criar cadastro", on_click=ir_para_register, use_container_width=True)
@@ -424,6 +443,7 @@ if st.session_state.tela == "login":
                         st.session_state.logado = True
                         st.session_state.username = row["username"]
                         st.session_state.role = row.get("role", "user")
+                        # Termos LGPD
                         if pd.isna(row.get("accepted_terms_on", "")) or str(row.get("accepted_terms_on", "")).strip() == "":
                             st.session_state.tela = "terms_consent"
                         else:
@@ -434,7 +454,7 @@ elif st.session_state.tela == "register":
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     st.title("🆕 Criar cadastro")
     st.info("Se a sua empresa já realizou um pré-cadastro, informe seu e-mail para pré-preencher os dados.")
-
+    # Passo 1: localizar pré-cadastro por e-mail
     if "register_prefill" not in st.session_state:
         st.session_state.register_prefill = None
 
@@ -453,6 +473,7 @@ elif st.session_state.tela == "register":
             st.success("Pré-cadastro encontrado! Os campos abaixo foram preenchidos automaticamente.")
     pre = st.session_state.register_prefill
 
+    # Regras de preenchimento/lock: se veio do admin, trava estes campos
     lock_username = bool(pre and pre.get("username"))
     lock_fullname = bool(pre and pre.get("full_name"))
     lock_matricula = bool(pre and pre.get("matricula"))
@@ -474,30 +495,38 @@ elif st.session_state.tela == "register":
 
     if submit_reg:
         df = load_user_db()
+        # Validações básicas
         if not all([(username or pre and pre.get("username")), (full_name or pre and pre.get("full_name")),
                     (email or pre and pre.get("email")), password.strip(), password2.strip()]):
             st.error("Preencha todos os campos obrigatórios.")
         elif password != password2:
             st.error("As senhas não conferem.")
         else:
+            # Se existe pré-cadastro por e-mail, atualiza o registro existente
             idxs = df.index[df["email"].str.strip().str.lower() == (email or pre.get("email", "")).strip().lower()]
             if len(idxs) > 0:
                 idx = idxs[0]
+                # username: se admin já definiu, mantemos; senão, usa o informado
                 if not df.loc[idx, "username"]:
+                    # se username já existe em outro usuário, erro
                     if (username.strip() in df["username"].values) and (df.loc[idx, "username"] != username.strip()):
                         st.error("Nome de usuário já existe.")
                         st.stop()
                     df.loc[idx, "username"] = username.strip()
+                # full_name e matricula: mantém admin se vierem, senão usa informado
                 if not df.loc[idx, "full_name"]:
                     df.loc[idx, "full_name"] = full_name.strip()
                 if not df.loc[idx, "matricula"]:
                     df.loc[idx, "matricula"] = matricula.strip()
+                # sempre define/atualiza a senha
                 df.loc[idx, "password"] = hash_password(password)
+                # mantém status atual (pode estar pendente ou aprovado)
                 if df.loc[idx, "status"] == "":
                     df.loc[idx, "status"] = "pendente"
                 save_user_db(df)
                 st.success("Cadastro atualizado! Aguarde aprovação do administrador (se ainda estiver pendente).")
             else:
+                # Cadastro novo normal
                 if username.strip() in df["username"].values:
                     st.error("Nome de usuário já existe.")
                     st.stop()
@@ -594,7 +623,92 @@ elif st.session_state.tela == "reset_password":
 elif st.session_state.tela == "terms_consent":
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     st.title("Termos e Condições de Uso e Política de Privacidade (LGPD)")
-    st.info("Para seu primeiro acesso, é necessário ler e aceitar os termos de uso da plataforma.")
+    st.info("Para seu primeiro acesso, é necessário ler e aceitar os termos de uso e a política de privacidade desta plataforma.")
+    st.markdown("""
+    <div class="terms-box">
+        <p><b>Última atualização:</b> 28 de Setembro de 2025</p>
+
+        <h3>1. Finalidade da Ferramenta</h3>
+        <p>
+            Esta plataforma é um sistema interno para simulação e referência de cálculos de
+            Service Level Agreement (SLA) e apoio operacional. Os resultados são estimativas
+            destinadas ao uso profissional e não substituem documentos contratuais, fiscais
+            ou aprovados formalmente pela empresa.
+        </p>
+
+        <h3>2. Base Legal e Conformidade com a LGPD</h3>
+        <p>
+            O tratamento de dados pessoais nesta plataforma observa a Lei nº 13.709/2018
+            (Lei Geral de Proteção de Dados Pessoais – LGPD), adotando medidas técnicas e
+            administrativas para proteger os dados contra acessos não autorizados e situações
+            acidentais ou ilícitas de destruição, perda, alteração, comunicação ou difusão.
+        </p>
+
+        <h3>3. Dados Coletados e Tratados</h3>
+        <ul>
+            <li>Dados de autenticação: usuário (login), senha (armazenada de forma irreversível via hash), perfil de acesso (user/admin).</li>
+            <li>Dados cadastrais: nome completo, matrícula, e-mail corporativo.</li>
+            <li>Dados operacionais: clientes, placas, valores de mensalidade e informações utilizadas nos cálculos de SLA.</li>
+            <li>Registros de aceite: data/hora do aceite dos termos.</li>
+        </ul>
+
+        <h3>4. Finalidades do Tratamento</h3>
+        <ul>
+            <li>Autenticação e autorização de acesso à plataforma.</li>
+            <li>Execução dos cálculos de SLA e geração de relatórios.</li>
+            <li>Gestão de usuários (aprovação de cadastro por administradores).</li>
+            <li>Comunicações operacionais, como e-mail de redefinição de senha e avisos de aprovação de conta.</li>
+        </ul>
+
+        <h3>5. Compartilhamento e Acesso</h3>
+        <p>
+            Os dados processados são de uso interno e não são compartilhados com terceiros,
+            exceto quando necessários para cumprimento de obrigações legais ou ordem de
+            autoridades competentes.
+        </p>
+
+        <h3>6. Segurança da Informação</h3>
+        <ul>
+            <li>Senhas armazenadas com algoritmo de hash (não reversível).</li>
+            <li>Acesso restrito a usuários autorizados e administradores.</li>
+            <li>Envio de e-mails mediante configurações autenticadas de SMTP corporativo.</li>
+        </ul>
+
+        <h3>7. Direitos dos Titulares</h3>
+        <p>
+            Nos termos da LGPD, o titular possui direitos como confirmação de tratamento,
+            acesso, correção, anonimização, bloqueio, eliminação de dados desnecessários,
+            portabilidade (quando aplicável) e informação sobre compartilhamentos.
+        </p>
+
+        <h3>8. Responsabilidades do Usuário</h3>
+        <ul>
+            <li>Manter a confidencialidade de suas credenciais de acesso.</li>
+            <li>Utilizar a plataforma apenas para fins profissionais internos.</li>
+            <li>Respeitar as políticas internas e as legislações aplicáveis.</li>
+        </ul>
+
+        <h3>9. Retenção e Eliminação</h3>
+        <p>
+            Os dados são mantidos pelo período necessário ao atendimento das finalidades
+            acima e das políticas internas. Após esse período, poderão ser eliminados ou
+            anonimizados, salvo obrigações legais de retenção.
+        </p>
+
+        <h3>10. Alterações dos Termos</h3>
+        <p>
+            Estes termos podem ser atualizados a qualquer tempo, mediante publicação
+            de nova versão na própria plataforma. Recomenda-se a revisão periódica.
+        </p>
+
+        <h3>11. Contato</h3>
+        <p>
+            Em caso de dúvidas sobre estes Termos ou sobre o tratamento de dados pessoais,
+            procure o time responsável pela ferramenta ou o canal corporativo de Privacidade/DPD.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown("---")
     consent = st.checkbox("Eu li e concordo com os Termos e Condições.")
     if st.button("Continuar", disabled=not consent, type="primary"):
@@ -615,7 +729,7 @@ else:
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
 
     if st.session_state.tela == "home":
-        st.title(f"🏠 Home")
+        st.title("🏠 Home")
         st.write(f"### Bem-vindo, {st.session_state.get('username','')}!")
         st.write("Selecione abaixo a ferramenta que deseja utilizar.")
         st.markdown("---")
@@ -660,11 +774,13 @@ else:
             if colap1.button("✅ Aprovar selecionados", type="primary", use_container_width=True):
                 if to_approve:
                     base_url = get_app_base_url() or "https://SEU_DOMINIO"
+                    # aprova e envia notificação (ou convite p/ definir senha)
                     for uname in to_approve:
                         idx = df_users.index[df_users["username"] == uname][0]
                         df_users.loc[idx, "status"] = "aprovado"
                         email = df_users.loc[idx, "email"].strip()
                         if email:
+                            # Se não tem senha definida, envia convite para definir senha
                             if not df_users.loc[idx, "password"]:
                                 token = secrets.token_urlsafe(32)
                                 expires = (datetime.utcnow() + timedelta(minutes=30)).strftime("%Y-%m-%d %H:%M:%S")
@@ -721,232 +837,12 @@ else:
                     df_users = pd.concat([df_users, new_user_data], ignore_index=True)
                     save_user_db(df_users)
 
+                    # Envia e-mail imediatamente se aprovado
                     if status == "aprovado" and new_email.strip():
                         base_url = get_app_base_url() or "https://SEU_DOMINIO"
                         if not pwd_hash:
+                            # enviar convite p/ definir senha
                             idx = df_users.index[df_users["username"] == new_username.strip()][0]
                             token = secrets.token_urlsafe(32)
                             expires = (datetime.utcnow() + timedelta(minutes=30)).strftime("%Y-%m-%d %H:%M:%S")
                             df_users.loc[idx, "reset_token"] = token
-                            df_users.loc[idx, "reset_expires_at"] = expires
-                            save_user_db(df_users)
-                            reset_link = f"{base_url}?reset_token={token}"
-                            send_invite_to_set_password(new_email.strip(), reset_link)
-                        else:
-                            send_approved_email(new_email.strip(), base_url)
-
-                    st.success(f"Usuário '{new_username}' adicionado com sucesso!")
-
-        st.markdown("---")
-        st.subheader("Usuários Existentes")
-        for col in ["full_name", "matricula", "accepted_terms_on", "email", "status"]:
-            if col not in df_users.columns:
-                df_users[col] = ""
-        st.dataframe(
-            df_users[["username", "full_name", "matricula", "email", "role", "status", "accepted_terms_on"]],
-            use_container_width=True
-        )
-        with st.expander("⚠️ Remover Usuários Existentes"):
-            usuarios_deletaveis = [user for user in df_users["username"] if user != st.session_state.get("username", "")]
-            if not usuarios_deletaveis:
-                st.info("Não há outros usuários para remover.")
-            else:
-                usuarios_para_remover = st.multiselect("Selecione para remover:", options=usuarios_deletaveis)
-                if st.button("Remover Usuários Selecionados", type="primary"):
-                    if usuarios_para_remover:
-                        df_users = df_users[~df_users["username"].isin(usuarios_para_remover)]
-                        save_user_db(df_users)
-                        st.success("Usuários removidos com sucesso!")
-                        st.rerun()
-                    else:
-                        st.warning("Nenhum usuário selecionado.")
-
-    elif st.session_state.tela == "calc_comparativa":
-        st.title("📊 Calculadora Comparativa de Cenários")
-        if "cenarios" not in st.session_state: st.session_state.cenarios = []
-        if "pecas_atuais" not in st.session_state: st.session_state.pecas_atuais = []
-        if "mostrar_comparativo" not in st.session_state: st.session_state.mostrar_comparativo = False
-        df_base = carregar_base()
-        if df_base is None:
-            st.error("❌ Arquivo 'Base De Clientes Faturamento.xlsx' não encontrado.")
-            st.stop()
-
-        if st.session_state.cenarios:
-            st.markdown("---")
-            st.header("📈 Cenários Calculados")
-            df_cenarios = pd.DataFrame(st.session_state.cenarios)
-            st.table(df_cenarios.drop(columns=["Detalhe Peças"]))
-            if len(st.session_state.cenarios) >= 2 and not st.session_state.mostrar_comparativo:
-                if st.button("🏆 Comparar Cenários", type="primary"):
-                    st.session_state.mostrar_comparativo = True
-                    st.rerun()
-
-        if st.session_state.mostrar_comparativo:
-            st.header("Análise Comparativa Final")
-            df_cenarios = pd.DataFrame(st.session_state.cenarios)
-            melhor = df_cenarios.loc[df_cenarios["Total Final (R$)"].apply(moeda_para_float).idxmin()]
-            st.success(f"🏆 Melhor cenário: **{melhor['Serviço']}** | Placa **{melhor['Placa']}** | Total Final: **{melhor['Total Final (R$)']}**")
-            pdf_buffer = gerar_pdf_comparativo(df_cenarios, melhor)
-            st.download_button("📥 Baixar Relatório PDF", pdf_buffer, "comparacao_cenarios_sla.pdf", "application/pdf")
-            st.button("🔄 Reiniciar Comparação", on_click=limpar_dados_comparativos, use_container_width=True, type="primary")
-        else:
-            st.markdown("---")
-            st.header(f"📝 Preencher Dados para o Cenário {len(st.session_state.cenarios) + 1}")
-            with st.expander("🔍 Consultar Clientes e Placas"):
-                df_display = df_base[['CLIENTE', 'PLACA', 'VALOR MENSALIDADE']].copy()
-                df_display['VALOR MENSALIDADE'] = df_display['VALOR MENSALIDADE'].apply(formatar_moeda)
-                st.dataframe(df_display, use_container_width=True, hide_index=True)
-
-            col_form, col_pecas = st.columns([2, 1])
-            with col_form:
-                placa = st.text_input("1. Digite a placa e tecle Enter")
-                cliente_info = None
-                if placa:
-                    placa_upper = placa.strip().upper()
-                    cliente_row = df_base[df_base["PLACA"].astype(str).str.upper() == placa_upper]
-                    if not cliente_row.empty:
-                        cliente_info = {
-                            "cliente": cliente_row.iloc[0]["CLIENTE"],
-                            "mensalidade": moeda_para_float(cliente_row.iloc[0]["VALOR MENSALIDADE"])
-                        }
-                        st.info(f"✅ **Cliente:** {cliente_info['cliente']} | **Mensalidade:** {formatar_moeda(cliente_info['mensalidade'])}")
-                    else:
-                        st.warning("❌ Placa não encontrada.")
-
-                with st.form(key=f"form_cenario_{len(st.session_state.cenarios)}", clear_on_submit=True):
-                    st.subheader("2. Detalhes do Serviço")
-                    subcol1, subcol2 = st.columns(2)
-                    entrada = subcol1.date_input("📅 Data de entrada:", datetime.now())
-                    saida = subcol2.date_input("📅 Data de saída:", datetime.now() + timedelta(days=5))
-                    feriados = subcol1.number_input("📌 Feriados no período:", min_value=0, step=1)
-                    servico = subcol2.selectbox("🛠️ Tipo de serviço:", [
-                        "Preventiva – 2 dias úteis", "Corretiva – 3 dias úteis",
-                        "Preventiva + Corretiva – 5 dias úteis", "Motor – 15 dias úteis"
-                    ])
-                    with st.expander("Verificar Peças Adicionadas"):
-                        if st.session_state.pecas_atuais:
-                            for peca in st.session_state.pecas_atuais:
-                                col_peca_nome, col_peca_valor = st.columns([3, 1])
-                                col_peca_nome.write(peca['nome'])
-                                col_peca_valor.write(formatar_moeda(peca['valor']))
-                        else:
-                            st.info("Nenhuma peça adicionada na coluna da direita.")
-                    submitted = st.form_submit_button(
-                        f"➡️ Calcular Cenário {len(st.session_state.cenarios) + 1}",
-                        use_container_width=True, type="primary"
-                    )
-                    if submitted:
-                        if cliente_info:
-                            if entrada >= saida:
-                                st.error("A data de saída deve ser posterior à de entrada.")
-                            else:
-                                cenario = calcular_cenario_comparativo(
-                                    cliente_info["cliente"], placa.upper(), entrada, saida,
-                                    feriados, servico, st.session_state.pecas_atuais, cliente_info["mensalidade"]
-                                )
-                                st.session_state.cenarios.append(cenario)
-                                st.session_state.pecas_atuais = []
-                                st.rerun()
-                        else:
-                            st.error("Placa inválida ou não encontrada para submeter.")
-
-            with col_pecas:
-                st.subheader("3. Gerenciar Peças")
-                nome_peca = st.text_input("Nome da Peça", key="nome_peca_input")
-                valor_peca = st.number_input("Valor (R$)", min_value=0.0, step=0.01, format="%.2f", key="valor_peca_input")
-                if st.button("➕ Adicionar Peça", use_container_width=True):
-                    if nome_peca and valor_peca > 0:
-                        st.session_state.pecas_atuais.append({"nome": nome_peca, "valor": valor_peca})
-                        st.rerun()
-                    else:
-                        st.warning("Preencha o nome e o valor da peça.")
-                if st.session_state.pecas_atuais:
-                    st.markdown("---")
-                    st.write("**Peças adicionadas:**")
-                    opcoes_pecas = [f"{p['nome']} - {formatar_moeda(p['valor'])}" for p in st.session_state.pecas_atuais]
-                    pecas_para_remover = st.multiselect("Selecione para remover:", options=opcoes_pecas)
-                    if st.button("🗑️ Remover Selecionadas", type="secondary", use_container_width=True):
-                        if pecas_para_remover:
-                            nomes_para_remover = [item.split(' - ')[0] for item in pecas_para_remover]
-                            st.session_state.pecas_atuais = [p for p in st.session_state.pecas_atuais if p['nome'] not in nomes_para_remover]
-                            st.rerun()
-                        else:
-                            st.warning("⚠️ Nenhuma peça foi selecionada.")
-
-    elif st.session_state.tela == "calc_simples":
-        st.title("🖩 Calculadora de SLA Simples")
-        if "resultado_sla" not in st.session_state:
-            st.session_state.resultado_sla = None
-        if "pesquisa_cliente" not in st.session_state:
-            st.session_state.pesquisa_cliente = ""
-        df_base = carregar_base()
-        if df_base is None:
-            st.error("❌ Arquivo 'Base De Clientes Faturamento.xlsx' não encontrado.")
-            st.stop()
-
-        if st.session_state.resultado_sla:
-            st.markdown("---")
-            st.header("✅ Resultado do Cálculo")
-            r = st.session_state.resultado_sla
-            st.metric(label="Status", value="Fora do SLA" if r["dias_excedente"] > 0 else "Dentro do SLA")
-            st.metric(label="Valor do Desconto", value=formatar_moeda(r['desconto']))
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Dias Úteis na Manutenção", f"{r['dias']} dias")
-            col2.metric("Prazo SLA", f"{r['prazo_sla']} dias")
-            col3.metric("Dias Excedentes", f"{r['dias_excedente']} dias")
-            pdf_buffer = gerar_pdf_sla_simples(
-                r['cliente'], r['placa'], r['tipo_servico'], r['dias'],
-                r['prazo_sla'], r['dias_excedente'], r['valor_mensalidade'], r['desconto']
-            )
-            st.download_button(
-                label="📥 Baixar resultado em PDF", data=pdf_buffer,
-                file_name=f"SLA_{r['placa']}.pdf", mime="application/pdf", use_container_width=True
-            )
-            st.button("🔄 Iniciar Novo Cálculo", on_click=limpar_dados_simples, use_container_width=True, type="primary")
-        else:
-            st.subheader("1. Consulta de Cliente ou Placa")
-            buscar_cliente = st.radio("Deseja procurar o cliente pelo nome?", ("Não", "Sim"), horizontal=True)
-            placa_selecionada = ""
-            if buscar_cliente == "Sim":
-                pesquisa = st.text_input("🔍 Pesquise o nome do cliente:", key="pesquisa_cliente")
-                if pesquisa:
-                    df_filtrado = df_base[df_base["CLIENTE"].str.contains(pesquisa, case=False, na=False)]
-                    st.dataframe(df_filtrado[["CLIENTE", "PLACA", "VALOR MENSALIDADE"]])
-                    placa_selecionada = st.selectbox("Selecione a placa:", df_filtrado["PLACA"].tolist())
-            else:
-                placa_selecionada = st.text_input("📌 Digite a PLACA do ativo:")
-
-            if placa_selecionada:
-                registro = df_base[df_base["PLACA"].astype(str).str.upper() == str(placa_selecionada).strip().upper()]
-                if registro.empty:
-                    st.error("❌ Placa não encontrada!")
-                else:
-                    registro = registro.iloc[0]
-                    cliente, valor_mensalidade = registro["CLIENTE"], registro["VALOR MENSALIDADE"]
-                    st.info(f"**Cliente:** {cliente} | **Placa:** {placa_selecionada} | **Mensalidade:** {formatar_moeda(valor_mensalidade)}")
-                    st.markdown("---")
-                    st.subheader("2. Detalhes do Serviço")
-                    sla_opcoes = {"Preventiva": 2, "Corretiva": 3, "Preventiva + Corretiva": 5, "Motor": 15}
-                    tipo_sla_selecionado = st.selectbox("⚙️ Escolha o tipo de SLA:", [f"{k}: {v} dias úteis" for k, v in sla_opcoes.items()])
-                    prazo_sla = sla_opcoes[tipo_sla_selecionado.split(":")[0]]
-                    col1, col2 = st.columns(2)
-                    data_entrada = col1.date_input("📅 Data de entrada na oficina", datetime.today())
-                    data_saida = col2.date_input("📅 Data de saída da oficina", datetime.today())
-                    feriados = st.number_input("🗓️ Quantos feriados no período?", min_value=0, step=1)
-                    if st.button("Calcular SLA", use_container_width=True, type="primary"):
-                        dias, status, desconto, dias_excedente = calcular_sla_simples(
-                            data_entrada, data_saida, prazo_sla, valor_mensalidade, feriados
-                        )
-                        st.session_state.resultado_sla = {
-                            "cliente": cliente,
-                            "placa": placa_selecionada,
-                            "tipo_servico": tipo_sla_selecionado.split(":")[0],
-                            "dias": dias,
-                            "prazo_sla": prazo_sla,
-                            "dias_excedente": dias_excedente,
-                            "valor_mensalidade": valor_mensalidade,
-                            "desconto": desconto
-                        }
-                        st.rerun()
-
-    st.markdown("</div>", unsafe_allow_html=True)
