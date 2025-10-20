@@ -200,12 +200,16 @@ aplicar_estilos()
  
 if st.session_state.tela == "login":
     st.markdown("<div class='login-container'>", unsafe_allow_html=True)
-    st.markdown("<div class='login-logo'>", unsafe_allow_html=True)
-    try:
-        st.image("fleetvamossla.png", width=340)
-    except:
-        st.markdown("<h1 style='text-align: center;'>Fleet Vamos SLA</h1>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+# Centraliza a imagem usando HTML/CSS
+st.markdown(
+    """
+    <div style='display: flex; justify-content: center; align-items: center; width: 100%;'>
+        <img src='fleetvamossla.png' width='340'>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+st.markdown("</div>", unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([1, 1.5, 1])
     # ... resto do seu código ...
@@ -451,4 +455,5 @@ else:
                         st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
