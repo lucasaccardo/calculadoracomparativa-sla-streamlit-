@@ -604,7 +604,7 @@ if st.session_state.tela == "login":
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown("<div class='brand-title'>Fleet Vamos SLA</div>", unsafe_allow_html=True)
-        st.markdown("<div class='brand-subtitle'>Acesse com suas credenciais para continuar</div>", unsafe_allow_html=True)
+        st.markdown("<div class='brand-subtitle'>Soluções Inteligentes para Frotas</div>", unsafe_allow_html=True)
 
         with st.form("login_form"):
             username = st.text_input("Usuário", label_visibility="collapsed", placeholder="Usuário")
@@ -1294,3 +1294,4 @@ else:
                             st.warning("Nenhuma peça foi selecionada.")
 
     st.markdown("</div>", unsafe_allow_html=True)
+
