@@ -603,7 +603,7 @@ if st.session_state.tela == "login":
     # Título moderno centralizado "Frotas Vamos SLA"
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown("<div class='brand-title'>Fleet Vamos SLA</div>", unsafe_allow_html=True)
+        st.markdown("<div class='brand-title'>Frotas Vamos SLA</div>", unsafe_allow_html=True)
         st.markdown("<div class='brand-subtitle'>Soluções Inteligentes para Frotas</div>", unsafe_allow_html=True)
 
         with st.form("login_form"):
@@ -1328,4 +1328,5 @@ else:
                             st.warning("Nenhuma peça foi selecionada.")
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
