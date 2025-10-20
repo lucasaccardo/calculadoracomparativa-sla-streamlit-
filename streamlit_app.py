@@ -29,27 +29,53 @@ def get_query_params():
     except Exception:
         return {k: v[0] if isinstance(v, list) else v for k, v in st.experimental_get_query_params().items()}
 
-# --- EMAIL / RESET DE SENHA ---
-def send_reset_email(dest_email: str, reset_link: str):
+def get_app_base_url():
+    url = st.secrets.get("APP_BASE_URL", "").strip()
+    if url.endswith("/"):
+        url = url[:-1]
+    return url
+
+# --- EMAIL / SMTP HELPERS ---
+def smtp_available():
+    host = st.secrets.get("EMAIL_HOST", "")
+    user = st.secrets.get("EMAIL_USERNAME", "")
+    password = st.secrets.get("EMAIL_PASSWORD", "")
+    return bool(host and user and password)
+
+def send_email(dest_email: str, subject: str, body: str):
+    host = st.secrets.get("EMAIL_HOST", "")
+    port = int(st.secrets.get("EMAIL_PORT", 587))
+    user = st.secrets.get("EMAIL_USERNAME", "")
+    password = st.secrets.get("EMAIL_PASSWORD", "")
+    use_tls = bool(st.secrets.get("EMAIL_USE_TLS", True))
+    sender = st.secrets.get("EMAIL_FROM", user or "no-reply@example.com")
+
+    if not host or not user or not password:
+        st.warning("Configurações de e-mail não definidas em st.secrets. Exibindo conteúdo do e-mail abaixo (teste).")
+        st.code(f"Para: {dest_email}\nAssunto: {subject}\n\n{body}", language="text")
+        return False
+
     try:
-        host = st.secrets.get("EMAIL_HOST", "")
-        port = int(st.secrets.get("EMAIL_PORT", 587))
-        user = st.secrets.get("EMAIL_USERNAME", "")
-        password = st.secrets.get("EMAIL_PASSWORD", "")
-        use_tls = bool(st.secrets.get("EMAIL_USE_TLS", True))
-        sender = st.secrets.get("EMAIL_FROM", user or "no-reply@example.com")
-
-        if not host or not user or not password:
-            st.warning("Configurações de e-mail não definidas em st.secrets. Exibindo link de teste na tela.")
-            st.code(reset_link, language="text")
-            return
-
         msg = EmailMessage()
-        msg["Subject"] = "Redefinição de senha - Vamos Fleet SLA"
+        msg["Subject"] = subject
         msg["From"] = sender
         msg["To"] = dest_email
-        msg.set_content(f"""
-Olá,
+        msg.set_content(body)
+        server = smtplib.SMTP(host, port, timeout=20)
+        if use_tls:
+            server.starttls()
+        server.login(user, password)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        st.error(f"Falha ao enviar e-mail: {e}")
+        st.code(f"Para: {dest_email}\nAssunto: {subject}\n\n{body}", language="text")
+        return False
+
+def send_reset_email(dest_email: str, reset_link: str):
+    subject = "Redefinição de senha - Vamos Fleet SLA"
+    body = f"""Olá,
 
 Recebemos uma solicitação para redefinição de senha da sua conta no Vamos Fleet SLA.
 
@@ -60,16 +86,34 @@ Se você não solicitou, ignore este e-mail.
 
 Atenciosamente,
 Equipe Vamos
-""")
-        server = smtplib.SMTP(host, port)
-        if use_tls:
-            server.starttls()
-        server.login(user, password)
-        server.send_message(msg)
-        server.quit()
-    except Exception as e:
-        st.error(f"Falha ao enviar e-mail: {e}")
-        st.code(reset_link, language="text")  # fallback
+"""
+    return send_email(dest_email, subject, body)
+
+def send_approved_email(dest_email: str, base_url: str):
+    subject = "Conta aprovada - Vamos Fleet SLA"
+    body = f"""Olá,
+
+Sua conta no Vamos Fleet SLA foi aprovada pelo administrador.
+
+Você já pode acessar: {base_url}
+
+Atenciosamente,
+Equipe Vamos
+"""
+    return send_email(dest_email, subject, body)
+
+def send_invite_to_set_password(dest_email: str, reset_link: str):
+    subject = "Sua conta foi aprovada - Defina sua senha"
+    body = f"""Olá,
+
+Sua conta no Vamos Fleet SLA foi aprovada.
+Para definir sua senha e começar a usar, acesse (válido por 30 minutos):
+{reset_link}
+
+Atenciosamente,
+Equipe Vamos
+"""
+    return send_email(dest_email, subject, body)
 
 # --- FUNÇÃO PARA APLICAR O FUNDO E CSS ---
 def aplicar_estilos():
@@ -94,16 +138,6 @@ def aplicar_estilos():
             }}
             .main-container, .main-container * {{
                 color: white !important;
-            }}
-            .login-container h1, .login-container h2 {{
-                color: white;
-                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
-                text-align: center;
-            }}
-            .login-logo {{
-                display: flex;
-                justify-content: center;
-                margin-bottom: 20px;
             }}
             a, .as-link {{
                 color: #91c9ff !important;
@@ -148,28 +182,23 @@ def load_user_db():
     if os.path.exists("users.csv") and os.path.getsize("users.csv") > 0:
         df = pd.read_csv("users.csv", dtype=str).fillna("")
     else:
-        # Cria arquivo já com o admin principal pronto
         df = pd.DataFrame([admin_defaults])
         df.to_csv("users.csv", index=False)
         return df
 
-    # Garante colunas
     for col in REQUIRED_USER_COLUMNS:
         if col not in df.columns:
             df[col] = ""
 
-    # Garante que o admin principal existe e está correto
     if admin_username in df["username"].values:
         idx = df.index[df["username"] == admin_username][0]
-        # Atualiza/garante os dados do admin (mantém accepted_terms_on se já houver)
         for k, v in admin_defaults.items():
             if k == "accepted_terms_on" and str(df.loc[idx, k]).strip():
-                continue  # não sobrescreve aceite existente
+                continue
             df.loc[idx, k] = v
     else:
         df = pd.concat([df, pd.DataFrame([admin_defaults])], ignore_index=True)
 
-    # Persiste correções, se houver
     df.to_csv("users.csv", index=False)
     return df
 
@@ -314,13 +343,11 @@ def ir_para_forgot(): st.session_state.tela = "forgot_password"
 def ir_para_reset(): st.session_state.tela = "reset_password"
 
 def limpar_dados_comparativos():
-    keys_to_clear = ["cenarios", "pecas_atuais", "mostrar_comparativo"]
-    for key in keys_to_clear:
+    for key in ["cenarios", "pecas_atuais", "mostrar_comparativo"]:
         if key in st.session_state: del st.session_state[key]
 
 def limpar_dados_simples():
-    keys_to_clear = ["resultado_sla", "pesquisa_cliente"]
-    for key in keys_to_clear:
+    for key in ["resultado_sla", "pesquisa_cliente"]:
         if key in st.session_state: del st.session_state[key]
 
 def logout():
@@ -358,7 +385,7 @@ if incoming_token:
 
 # --- TELAS ---
 if st.session_state.tela == "login":
-    # Linha no topo: logo no canto direito
+    # Logo topo direito
     col1, col2, col3 = st.columns([6, 1, 1])
     with col3:
         try:
@@ -407,7 +434,7 @@ elif st.session_state.tela == "register":
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     st.title("🆕 Criar cadastro")
     st.info("Se a sua empresa já realizou um pré-cadastro, informe seu e-mail para pré-preencher os dados.")
-    # Passo 1: localizar pré-cadastro por e-mail
+
     if "register_prefill" not in st.session_state:
         st.session_state.register_prefill = None
 
@@ -426,7 +453,6 @@ elif st.session_state.tela == "register":
             st.success("Pré-cadastro encontrado! Os campos abaixo foram preenchidos automaticamente.")
     pre = st.session_state.register_prefill
 
-    # Regras de preenchimento/lock: se veio do admin, trava estes campos
     lock_username = bool(pre and pre.get("username"))
     lock_fullname = bool(pre and pre.get("full_name"))
     lock_matricula = bool(pre and pre.get("matricula"))
@@ -448,37 +474,30 @@ elif st.session_state.tela == "register":
 
     if submit_reg:
         df = load_user_db()
-        # Validações básicas
         if not all([(username or pre and pre.get("username")), (full_name or pre and pre.get("full_name")),
                     (email or pre and pre.get("email")), password.strip(), password2.strip()]):
             st.error("Preencha todos os campos obrigatórios.")
         elif password != password2:
             st.error("As senhas não conferem.")
         else:
-            # Se existe pré-cadastro por e-mail, atualiza o registro existente
             idxs = df.index[df["email"].str.strip().str.lower() == (email or pre.get("email", "")).strip().lower()]
             if len(idxs) > 0:
                 idx = idxs[0]
-                # username: se admin já definiu, mantemos; senão, usa o informado
                 if not df.loc[idx, "username"]:
                     if (username.strip() in df["username"].values) and (df.loc[idx, "username"] != username.strip()):
                         st.error("Nome de usuário já existe.")
                         st.stop()
                     df.loc[idx, "username"] = username.strip()
-                # full_name e matricula: mantém admin se vierem, senão usa informado
                 if not df.loc[idx, "full_name"]:
                     df.loc[idx, "full_name"] = full_name.strip()
                 if not df.loc[idx, "matricula"]:
                     df.loc[idx, "matricula"] = matricula.strip()
-                # sempre define/atualiza a senha
                 df.loc[idx, "password"] = hash_password(password)
-                # mantém status atual (pode estar pendente ou aprovado)
                 if df.loc[idx, "status"] == "":
                     df.loc[idx, "status"] = "pendente"
                 save_user_db(df)
                 st.success("Cadastro atualizado! Aguarde aprovação do administrador (se ainda estiver pendente).")
             else:
-                # Cadastro novo normal
                 if username.strip() in df["username"].values:
                     st.error("Nome de usuário já existe.")
                     st.stop()
@@ -523,16 +542,14 @@ elif st.session_state.tela == "forgot_password":
                 df.loc[idx, "reset_expires_at"] = expires
                 save_user_db(df)
 
-                base_url = st.secrets.get("APP_BASE_URL", "")
+                base_url = get_app_base_url()
                 if not base_url:
                     st.info("APP_BASE_URL não definido em st.secrets. Exibindo link gerado.")
-                    base_url = "https://SEU_DOMINIO/"
-                if not base_url.endswith("/"):
-                    base_url += "/"
+                    base_url = "https://SEU_DOMINIO"
                 reset_link = f"{base_url}?reset_token={token}"
 
-                send_reset_email(email.strip(), reset_link)
-                st.success("Se o e-mail existir e estiver aprovado, um link foi enviado. Verifique sua caixa de entrada.")
+                if send_reset_email(email.strip(), reset_link):
+                    st.success("Enviamos um link para seu e-mail. Verifique sua caixa de entrada (e o SPAM).")
 
 elif st.session_state.tela == "reset_password":
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
@@ -578,29 +595,6 @@ elif st.session_state.tela == "terms_consent":
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     st.title("Termos e Condições de Uso e Política de Privacidade (LGPD)")
     st.info("Para seu primeiro acesso, é necessário ler e aceitar os termos de uso da plataforma.")
-    st.markdown("""
-    **Termos e Condições de Uso da Plataforma de Calculadoras SLA**
-    *Última atualização: 28 de Setembro de 2025*
-
-    Bem-vindo à Plataforma de Calculadoras SLA da Vamos Locação. Ao acessar e utilizar esta ferramenta, você concorda em cumprir os seguintes termos.
-
-    **1. Finalidade da Ferramenta**
-    Esta plataforma é uma ferramenta interna para simulação e referência de cálculos de Service Level Agreement (SLA). Os resultados são estimativas para apoio operacional e não possuem valor fiscal ou contratual definitivo.
-
-    **2. Política de Privacidade e Conformidade com a LGPD**
-    Em conformidade com a Lei Geral de Proteção de Dados (LGPD, Lei nº 13.709/2018), detalhamos como os dados são tratados:
-    - **Dados Tratados:** A ferramenta utiliza dados cadastrais da empresa, como nomes de clientes, placas de veículos e valores contratuais, além de seus dados de login (nome de usuário, nome completo, matrícula).
-    - **Finalidade do Tratamento:** Os dados são utilizados exclusivamente para as finalidades da ferramenta: autenticação de acesso e realização dos cálculos de SLA.
-    - **Segurança:** Suas credenciais de acesso são armazenadas com criptografia (hash), e o acesso aos dados é restrito a usuários autorizados.
-    - **Não Compartilhamento:** Os dados aqui processados são de uso interno da Vamos Locação e não são compartilhados com terceiros.
-
-    **3. Responsabilidades do Usuário**
-    - Você é responsável por manter a confidencialidade de seu usuário e senha.
-    - O uso da ferramenta deve ser estritamente profissional e limitado às atividades da empresa.
-
-    **4. Aceite dos Termos**
-    Ao marcar a caixa abaixo e continuar, você declara que leu, compreendeu e concorda com estes Termos e Condições de Uso e com a forma que seus dados são tratados.
-    """)
     st.markdown("---")
     consent = st.checkbox("Eu li e concordo com os Termos e Condições.")
     if st.button("Continuar", disabled=not consent, type="primary"):
@@ -639,6 +633,20 @@ else:
         st.title("👤 Gerenciamento de Usuários")
         df_users = load_user_db()
 
+        # Teste de SMTP
+        with st.expander("✉️ Testar envio de e-mail (SMTP)"):
+            st.write("Use este teste para validar rapidamente as credenciais de e-mail em st.secrets.")
+            test_to = st.text_input("Enviar e-mail de teste para:")
+            if st.button("Enviar e-mail de teste"):
+                ok = send_email(test_to.strip(), "Teste SMTP - Vamos Fleet SLA", "E-mail de teste enviado pelo aplicativo.")
+                if ok:
+                    st.success("E-mail de teste enviado com sucesso!")
+
+            # Status das configs
+            st.write("Status configurações:")
+            st.write(f"- APP_BASE_URL: {'OK' if get_app_base_url() else 'NÃO CONFIGURADO'}")
+            st.write(f"- SMTP: {'OK' if smtp_available() else 'NÃO CONFIGURADO'}")
+
         # Aprovação de cadastros pendentes
         st.subheader("Aprovar Cadastros Pendentes")
         pendentes = df_users[df_users["status"] == "pendente"]
@@ -651,9 +659,23 @@ else:
             colap1, colap2 = st.columns(2)
             if colap1.button("✅ Aprovar selecionados", type="primary", use_container_width=True):
                 if to_approve:
-                    df_users.loc[df_users["username"].isin(to_approve), "status"] = "aprovado"
+                    base_url = get_app_base_url() or "https://SEU_DOMINIO"
+                    for uname in to_approve:
+                        idx = df_users.index[df_users["username"] == uname][0]
+                        df_users.loc[idx, "status"] = "aprovado"
+                        email = df_users.loc[idx, "email"].strip()
+                        if email:
+                            if not df_users.loc[idx, "password"]:
+                                token = secrets.token_urlsafe(32)
+                                expires = (datetime.utcnow() + timedelta(minutes=30)).strftime("%Y-%m-%d %H:%M:%S")
+                                df_users.loc[idx, "reset_token"] = token
+                                df_users.loc[idx, "reset_expires_at"] = expires
+                                reset_link = f"{base_url}?reset_token={token}"
+                                send_invite_to_set_password(email, reset_link)
+                            else:
+                                send_approved_email(email, base_url)
                     save_user_db(df_users)
-                    st.success("Usuários aprovados com sucesso!")
+                    st.success("Usuários aprovados (e e-mails enviados, se configurado).")
                     st.rerun()
                 else:
                     st.warning("Selecione ao menos um usuário.")
@@ -698,6 +720,21 @@ else:
                     }])
                     df_users = pd.concat([df_users, new_user_data], ignore_index=True)
                     save_user_db(df_users)
+
+                    if status == "aprovado" and new_email.strip():
+                        base_url = get_app_base_url() or "https://SEU_DOMINIO"
+                        if not pwd_hash:
+                            idx = df_users.index[df_users["username"] == new_username.strip()][0]
+                            token = secrets.token_urlsafe(32)
+                            expires = (datetime.utcnow() + timedelta(minutes=30)).strftime("%Y-%m-%d %H:%M:%S")
+                            df_users.loc[idx, "reset_token"] = token
+                            df_users.loc[idx, "reset_expires_at"] = expires
+                            save_user_db(df_users)
+                            reset_link = f"{base_url}?reset_token={token}"
+                            send_invite_to_set_password(new_email.strip(), reset_link)
+                        else:
+                            send_approved_email(new_email.strip(), base_url)
+
                     st.success(f"Usuário '{new_username}' adicionado com sucesso!")
 
         st.markdown("---")
@@ -831,7 +868,7 @@ else:
                     if st.button("🗑️ Remover Selecionadas", type="secondary", use_container_width=True):
                         if pecas_para_remover:
                             nomes_para_remover = [item.split(' - ')[0] for item in pecas_para_remover]
-                            st.session_state.pecas_atuais = [p for p in st.session_state.pecas_atuis if p['nome'] not in nomes_para_remover]
+                            st.session_state.pecas_atuais = [p for p in st.session_state.pecas_atuais if p['nome'] not in nomes_para_remover]
                             st.rerun()
                         else:
                             st.warning("⚠️ Nenhuma peça foi selecionada.")
