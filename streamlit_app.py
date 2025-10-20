@@ -197,7 +197,7 @@ def renderizar_sidebar():
 if "tela" not in st.session_state: st.session_state.tela = "login"
 
 aplicar_estilos()
- 
+
 if st.session_state.tela == "login":
     # Centraliza a logo na tela de login usando HTML/CSS flexbox
     st.markdown("""
@@ -449,4 +449,3 @@ else:
                         st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
-
