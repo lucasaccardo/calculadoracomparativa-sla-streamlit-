@@ -198,18 +198,17 @@ if "tela" not in st.session_state: st.session_state.tela = "login"
 
 aplicar_estilos()
 
-# BLOCO DE LOGIN CENTRALIZADO E AJUSTADO
+# BLOCO DE LOGIN: logo no canto superior direito e formulário centralizado
 if st.session_state.tela == "login":
-    # Espaço vertical antes para centralizar
-    st.markdown("<br><br><br>", unsafe_allow_html=True)
+    # Logo no canto superior direito usando HTML
+    st.markdown("""
+    <div style='position: absolute; top: 20px; right: 40px; z-index: 10;'>
+        <img src='fleetvamossla.png' style='width: 120px; max-width: 22vw;'>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # Columns para centralizar logo
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.image("fleetvamossla.png", use_column_width=False, width=320)
-
-    # Espaço entre logo e formulário
-    st.markdown("<br>", unsafe_allow_html=True)
+    # Espaço vertical antes para centralizar o formulário
+    st.markdown("<br><br><br><br><br>", unsafe_allow_html=True)
 
     # Columns para centralizar formulário
     col1, col2, col3 = st.columns([1, 2, 1])
