@@ -15,6 +15,7 @@ import smtplib
 from email.message import EmailMessage
 from textwrap import dedent
 import re
+from streamlit.components.v1 import html as components_html
 
 # =========================
 # CONFIGURAÇÃO DA PÁGINA
@@ -44,7 +45,6 @@ def validate_password_policy(password: str, username: str = "", email: str = "")
         errors.append("Senha deve conter pelo menos 1 número.")
     if not re.search(rf"[{re.escape(SPECIAL_CHARS)}]", password):
         errors.append("Senha deve conter pelo menos 1 caractere especial.")
-    # Não pode conter username ou parte local do e-mail
     uname = (username or "").strip().lower()
     local_email = (email or "").split("@")[0].strip().lower()
     if uname and uname in password.lower():
@@ -65,6 +65,15 @@ def get_query_params():
         except Exception:
             return {}
 
+def clear_all_query_params():
+    try:
+        st.query_params.clear()
+    except Exception:
+        try:
+            st.experimental_set_query_params()
+        except Exception:
+            pass
+
 def get_app_base_url():
     url = (st.secrets.get("APP_BASE_URL", "") or "").strip()
     if url.endswith("/"):
@@ -82,7 +91,7 @@ def smtp_available():
 
 def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label: str = "", cta_url: str = "", footer: str = ""):
     primary = "#e63946"   # vermelho botão
-    brand = "#0d1117"     # fundo escuro
+    brand = "#0d1117"     # fundo header
     text = "#0b1f2a"
     light = "#f6f8fa"
     button_html = ""
@@ -184,10 +193,7 @@ Se você não solicitou, ignore este e-mail.
     html = build_email_html(
         title="Redefinição de senha",
         subtitle="Você solicitou redefinir sua senha no Vamos Fleet SLA.",
-        body_lines=[
-            "Este link é válido por 30 minutos.",
-            "Se você não solicitou, ignore este e-mail."
-        ],
+        body_lines=["Este link é válido por 30 minutos.", "Se você não solicitou, ignore este e-mail."],
         cta_label="Redefinir senha",
         cta_url=reset_link,
         footer="Este é um e-mail automático. Não responda."
@@ -206,9 +212,7 @@ Bom trabalho!
     html = build_email_html(
         title="Conta aprovada",
         subtitle="Seu acesso ao Vamos Fleet SLA foi liberado.",
-        body_lines=[
-            "Você já pode acessar a plataforma com seu usuário e senha.",
-        ],
+        body_lines=["Você já pode acessar a plataforma com seu usuário e senha."],
         cta_label="Acessar plataforma",
         cta_url=base_url,
         footer="Em caso de dúvidas, procure o administrador do sistema."
@@ -228,9 +232,7 @@ Bom trabalho!
     html = build_email_html(
         title="Defina sua senha",
         subtitle="Sua conta foi aprovada. Defina sua senha para começar a usar.",
-        body_lines=[
-            "O link é válido por 30 minutos.",
-        ],
+        body_lines=["O link é válido por 30 minutos."],
         cta_label="Definir senha",
         cta_url=reset_link,
         footer="Se você não reconhece esta solicitação, ignore este e-mail."
@@ -238,7 +240,7 @@ Bom trabalho!
     return send_email(dest_email, subject, plain, html)
 
 # =========================
-# ESTILOS (UI)
+# ESTILOS (UI) + OCULTAR TOOLBAR
 # =========================
 def aplicar_estilos():
     try:
@@ -248,26 +250,27 @@ def aplicar_estilos():
         st.markdown(
             f"""
             <style>
+            /* Plano de fundo */
             .stApp {{
                 background-image: url(data:image/jpeg;base64,{bg_image_base64});
                 background-size: cover;
                 background-repeat: no-repeat;
                 background-attachment: fixed;
             }}
+            /* Cartões/containers */
             .main-container, [data-testid="stForm"] {{
                 background-color: rgba(13, 17, 23, 0.85);
                 padding: 25px;
                 border-radius: 10px;
                 border: 1px solid rgba(255, 255, 255, 0.2);
             }}
-            .main-container, .main-container * {{
-                color: white !important;
-            }}
+            .main-container, .main-container * {{ color: white !important; }}
             a, .as-link {{
                 color: #91c9ff !important;
                 text-decoration: underline !important;
                 cursor: pointer;
             }}
+            /* Termos (sem fundo) */
             .terms-box {{
                 max-height: 65vh;
                 overflow-y: auto;
@@ -277,13 +280,16 @@ def aplicar_estilos():
                 border-radius: 10px;
                 margin-top: 10px;
             }}
-            .terms-box h3, .terms-box h4 {{
-                margin-top: 1.2em;
-                margin-bottom: 0.4em;
-            }}
-            .terms-box p, .terms-box li {{
-                line-height: 1.5em;
-            }}
+            .terms-box h3, .terms-box h4 {{ margin-top: 1.2em; margin-bottom: 0.4em; }}
+            .terms-box p, .terms-box li {{ line-height: 1.5em; }}
+
+            /* Ocultar barra superior do Streamlit (Fork, GitHub, ⋮) e cabeçalho/rodapé */
+            [data-testid="stToolbar"] {{ display: none !important; }}
+            header[data-testid="stHeader"] {{ display: none !important; }}
+            #MainMenu {{ visibility: hidden; }}
+            footer {{ visibility: hidden; }}
+            div[class*="viewerBadge"] {{ display: none !important; }}
+            a[href*="streamlit.io"] {{ display: none !important; }}
             </style>
             """,
             unsafe_allow_html=True
@@ -332,12 +338,10 @@ def load_user_db():
         df.to_csv("users.csv", index=False)
         return df
 
-    # Garante colunas
     for col in REQUIRED_USER_COLUMNS:
         if col not in df.columns:
             df[col] = ""
 
-    # Garante superadmin presente e aprovado
     if SUPERADMIN_USERNAME in df["username"].values:
         idx = df.index[df["username"] == SUPERADMIN_USERNAME][0]
         df.loc[idx, "role"] = "superadmin"
@@ -536,10 +540,10 @@ if "tela" not in st.session_state:
 
 aplicar_estilos()
 
-# Token reset via URL
+# Token reset via URL (evita travar na tela se usuário clicar "Voltar ao login")
 qp = get_query_params()
 incoming_token = qp.get("reset_token") or qp.get("token") or ""
-if incoming_token:
+if incoming_token and not st.session_state.get("ignore_reset_qp"):
     st.session_state.incoming_reset_token = incoming_token
     st.session_state.tela = "reset_password"
 
@@ -584,17 +588,12 @@ if st.session_state.tela == "login":
                         st.session_state.username = row["username"]
                         st.session_state.role = row.get("role", "user")
                         st.session_state.email = row.get("email", "")
-
-                        # Fluxo de termos (primeiro acesso)
                         if not str(row.get("accepted_terms_on", "")).strip():
                             st.session_state.tela = "terms_consent"
                             st.rerun()
-
-                        # Expiração/força troca de senha
                         if is_password_expired(row) or str(row.get("force_password_reset", "")).strip():
                             st.session_state.tela = "force_change_password"
                             st.rerun()
-
                         st.session_state.tela = "home"
                         st.rerun()
 
@@ -701,7 +700,8 @@ elif st.session_state.tela == "forgot_password":
     email = st.text_input("E-mail")
     colb1, colb2 = st.columns(2)
     enviar = colb1.button("Enviar link", type="primary", use_container_width=True)
-    colb2.button("⬅️ Voltar ao login", on_click=ir_para_login, use_container_width=True)
+    if colb2.button("⬅️ Voltar ao login", use_container_width=True):
+        ir_para_login(); st.rerun()
 
     if enviar and email.strip():
         df = load_user_db()
@@ -738,7 +738,15 @@ elif st.session_state.tela == "reset_password":
     new_pass2 = colp2.text_input("Confirmar nova senha", type="password")
     colb1, colb2 = st.columns(2)
     confirmar = colb1.button("Redefinir senha", type="primary", use_container_width=True)
-    colb2.button("⬅️ Voltar ao login", on_click=ir_para_login, use_container_width=True)
+    voltar = colb2.button("⬅️ Voltar ao login", use_container_width=True)
+
+    if voltar:
+        # Corrige "Voltar ao login": limpa query params e ignora token na próxima execução
+        st.session_state.ignore_reset_qp = True
+        st.session_state.incoming_reset_token = ""
+        clear_all_query_params()
+        ir_para_login()
+        st.rerun()
 
     if confirmar:
         if not token.strip():
@@ -767,7 +775,6 @@ elif st.session_state.tela == "reset_password":
                     if not ok:
                         st.error("Regras de senha não atendidas:\n- " + "\n- ".join(errs))
                         st.stop()
-                    # opcional: impedir repetir a senha
                     if check_password(df.loc[idx, "password"], new_pass):
                         st.error("A nova senha não pode ser igual à senha atual.")
                         st.stop()
@@ -779,7 +786,13 @@ elif st.session_state.tela == "reset_password":
                     df.loc[idx, "force_password_reset"] = ""
                     save_user_db(df)
                     st.success("Senha redefinida com sucesso! Faça login novamente.")
-                    st.button("Ir para login", on_click=ir_para_login, type="primary")
+                    # Botão para login após sucesso
+                    if st.button("Ir para login", type="primary"):
+                        st.session_state.ignore_reset_qp = True
+                        st.session_state.incoming_reset_token = ""
+                        clear_all_query_params()
+                        ir_para_login()
+                        st.rerun()
 
 elif st.session_state.tela == "force_change_password":
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
@@ -798,24 +811,19 @@ elif st.session_state.tela == "force_change_password":
             idx = rows.index[0]
             email = df.loc[idx, "email"]
             if not new_pass or not new_pass2:
-                st.error("Preencha os campos de senha.")
-                st.stop()
+                st.error("Preencha os campos de senha."); st.stop()
             if new_pass != new_pass2:
-                st.error("As senhas não conferem.")
-                st.stop()
+                st.error("As senhas não conferem."); st.stop()
             ok, errs = validate_password_policy(new_pass, username=uname, email=email)
             if not ok:
-                st.error("Regras de senha não atendidas:\n- " + "\n- ".join(errs))
-                st.stop()
+                st.error("Regras de senha não atendidas:\n- " + "\n- ".join(errs)); st.stop()
             if check_password(df.loc[idx, "password"], new_pass):
-                st.error("A nova senha não pode ser igual à senha atual.")
-                st.stop()
+                st.error("A nova senha não pode ser igual à senha atual."); st.stop()
             df.loc[idx, "password"] = hash_password(new_pass)
             df.loc[idx, "last_password_change"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             df.loc[idx, "force_password_reset"] = ""
             save_user_db(df)
             st.success("Senha atualizada com sucesso.")
-            # Após trocar senha, se ainda não aceitou termos, direciona; senão home
             if not str(df.loc[idx, "accepted_terms_on"]).strip():
                 st.session_state.tela = "terms_consent"
             else:
@@ -828,25 +836,22 @@ elif st.session_state.tela == "terms_consent":
     st.title("Termos e Condições de Uso e Política de Privacidade (LGPD)")
     st.info("Para seu primeiro acesso, é necessário ler e aceitar os termos de uso e a política de privacidade desta plataforma.")
 
+    # Renderiza o HTML dos termos fora do Markdown para evitar "caixa preta"
     terms_html = dedent("""
-    <div class="terms-box">
+    <div class="terms-box" style="color:#fff;font-family:Segoe UI,Arial,sans-serif;">
         <p><b>Última atualização:</b> 28 de Setembro de 2025</p>
 
         <h3>1. Finalidade da Ferramenta</h3>
-        <p>
-            Esta plataforma é um sistema interno para simulação e referência de cálculos de
-            Service Level Agreement (SLA) e apoio operacional. Os resultados são estimativas
-            destinadas ao uso profissional e não substituem documentos contratuais, fiscais
-            ou aprovados formalmente pela empresa.
-        </p>
+        <p>Esta plataforma é um sistema interno para simulação e referência de cálculos de
+        Service Level Agreement (SLA) e apoio operacional. Os resultados são estimativas
+        destinadas ao uso profissional e não substituem documentos contratuais, fiscais
+        ou aprovados formalmente pela empresa.</p>
 
         <h3>2. Base Legal e Conformidade com a LGPD</h3>
-        <p>
-            O tratamento de dados pessoais nesta plataforma observa a Lei nº 13.709/2018
-            (Lei Geral de Proteção de Dados Pessoais – LGPD), adotando medidas técnicas e
-            administrativas para proteger os dados contra acessos não autorizados e situações
-            acidentais ou ilícitas de destruição, perda, alteração, comunicação ou difusão.
-        </p>
+        <p>O tratamento de dados pessoais nesta plataforma observa a Lei nº 13.709/2018
+        (Lei Geral de Proteção de Dados Pessoais – LGPD), adotando medidas técnicas e
+        administrativas para proteger os dados contra acessos não autorizados e situações
+        acidentais ou ilícitas de destruição, perda, alteração, comunicação ou difusão.</p>
 
         <h3>3. Dados Coletados e Tratados</h3>
         <ul>
@@ -865,11 +870,9 @@ elif st.session_state.tela == "terms_consent":
         </ul>
 
         <h3>5. Compartilhamento e Acesso</h3>
-        <p>
-            Os dados processados são de uso interno e não são compartilhados com terceiros,
-            exceto quando necessários para cumprimento de obrigações legais ou ordem de
-            autoridades competentes.
-        </p>
+        <p>Os dados processados são de uso interno e não são compartilhados com terceiros,
+        exceto quando necessários para cumprimento de obrigações legais ou ordem de
+        autoridades competentes.</p>
 
         <h3>6. Segurança da Informação</h3>
         <ul>
@@ -879,11 +882,9 @@ elif st.session_state.tela == "terms_consent":
         </ul>
 
         <h3>7. Direitos dos Titulares</h3>
-        <p>
-            Nos termos da LGPD, o titular possui direitos como confirmação de tratamento,
-            acesso, correção, anonimização, bloqueio, eliminação de dados desnecessários,
-            portabilidade (quando aplicável) e informação sobre compartilhamentos.
-        </p>
+        <p>Nos termos da LGPD, o titular possui direitos como confirmação de tratamento,
+        acesso, correção, anonimização, bloqueio, eliminação de dados desnecessários,
+        portabilidade (quando aplicável) e informação sobre compartilhamentos.</p>
 
         <h3>8. Responsabilidades do Usuário</h3>
         <ul>
@@ -893,26 +894,20 @@ elif st.session_state.tela == "terms_consent":
         </ul>
 
         <h3>9. Retenção e Eliminação</h3>
-        <p>
-            Os dados são mantidos pelo período necessário ao atendimento das finalidades
-            acima e das políticas internas. Após esse período, poderão ser eliminados ou
-            anonimizados, salvo obrigações legais de retenção.
-        </p>
+        <p>Os dados são mantidos pelo período necessário ao atendimento das finalidades
+        acima e das políticas internas. Após esse período, poderão ser eliminados ou
+        anonimizados, salvo obrigações legais de retenção.</p>
 
         <h3>10. Alterações dos Termos</h3>
-        <p>
-            Estes termos podem ser atualizados a qualquer tempo, mediante publicação
-            de nova versão na própria plataforma. Recomenda-se a revisão periódica.
-        </p>
+        <p>Estes termos podem ser atualizados a qualquer tempo, mediante publicação
+        de nova versão na própria plataforma. Recomenda-se a revisão periódica.</p>
 
         <h3>11. Contato</h3>
-        <p>
-            Em caso de dúvidas sobre estes Termos ou sobre o tratamento de dados pessoais,
-            procure o time responsável pela ferramenta ou o canal corporativo de Privacidade/DPD.
-        </p>
+        <p>Em caso de dúvidas sobre estes Termos ou sobre o tratamento de dados pessoais,
+        procure o time responsável pela ferramenta ou o canal corporativo de Privacidade/DPD.</p>
     </div>
     """)
-    st.markdown(terms_html, unsafe_allow_html=True)
+    components_html(terms_html, height=520, scrolling=True)
 
     st.markdown("---")
     consent = st.checkbox("Eu li e concordo com os Termos e Condições.")
@@ -925,7 +920,6 @@ elif st.session_state.tela == "terms_consent":
             if len(user_index) > 0:
                 df_users.loc[user_index[0], 'accepted_terms_on'] = now
                 save_user_db(df_users)
-        # Depois do aceite, se senha expirada, forçar troca; senão home
         row = df_users[df_users['username'] == username].iloc[0]
         if is_password_expired(row) or str(row.get("force_password_reset", "")).strip():
             st.session_state.tela = "force_change_password"
@@ -957,9 +951,7 @@ else:
         st.title("👤 Gerenciamento de Usuários")
         df_users = load_user_db()
 
-        # --------------------
         # Teste de SMTP
-        # --------------------
         with st.expander("✉️ Testar envio de e-mail (SMTP)", expanded=False):
             st.write("Use este teste para validar rapidamente as credenciais de e-mail em st.secrets.")
             test_to = st.text_input("Enviar e-mail de teste para:")
@@ -985,9 +977,7 @@ else:
             st.write(f"- APP_BASE_URL: {'OK' if get_app_base_url() else 'NÃO CONFIGURADO'}")
             st.write(f"- SMTP: {'OK' if smtp_available() else 'NÃO CONFIGURADO'}")
 
-        # --------------------
-        # Aprovação de pendentes
-        # --------------------
+        # Aprovação de cadastros pendentes
         st.subheader("Aprovar Cadastros Pendentes")
         pendentes = df_users[df_users["status"] == "pendente"]
         if pendentes.empty:
@@ -1021,7 +1011,6 @@ else:
                     st.warning("Selecione ao menos um usuário.")
             if colap2.button("🗑️ Rejeitar (remover) selecionados", use_container_width=True):
                 if to_approve:
-                    # Não permitir remover superadmin
                     to_remove = [u for u in to_approve if u != SUPERADMIN_USERNAME]
                     df_users = df_users[~df_users["username"].isin(to_remove)]
                     save_user_db(df_users)
@@ -1032,9 +1021,7 @@ else:
 
         st.markdown("---")
 
-        # --------------------
         # Adicionar novo usuário
-        # --------------------
         st.subheader("Adicionar Novo Usuário (admin)")
         with st.form("add_user_form", clear_on_submit=True):
             new_username = st.text_input("Usuário (para login)")
@@ -1076,7 +1063,6 @@ else:
                     df_users = pd.concat([df_users, new_user_data], ignore_index=True)
                     save_user_db(df_users)
 
-                    # E-mails
                     base_url = get_app_base_url() or "https://SEU_DOMINIO"
                     if status == "aprovado" and new_email.strip():
                         if not pwd_hash:
@@ -1095,15 +1081,12 @@ else:
 
         st.markdown("---")
 
-        # --------------------
-        # Usuários existentes (com busca e remoção)
-        # --------------------
+        # Usuários existentes (busca e remoção)
         st.subheader("Usuários Existentes")
         for col in ["full_name", "matricula", "accepted_terms_on", "email", "status", "last_password_change", "role"]:
             if col not in df_users.columns:
                 df_users[col] = ""
 
-        # Busca
         termo = st.text_input("Buscar por usuário, nome, e-mail ou matrícula:")
         df_view = df_users.copy()
         if termo.strip():
@@ -1121,12 +1104,10 @@ else:
             use_container_width=True
         )
 
-        # Remoção
         st.markdown("#### Remover usuários")
         candidates = [u for u in df_users["username"].tolist() if u != SUPERADMIN_USERNAME]
         remove_select = st.multiselect("Selecione usuários para remover:", options=candidates)
-        can_remove = []
-        cannot_remove = []
+        can_remove, cannot_remove = [], []
         if st.button("Remover selecionados", type="primary"):
             if not remove_select:
                 st.warning("Nenhum usuário selecionado.")
@@ -1134,7 +1115,6 @@ else:
                 for uname in remove_select:
                     idx = df_users.index[df_users["username"] == uname][0]
                     role = df_users.loc[idx, "role"]
-                    # Regras de proteção:
                     if uname == SUPERADMIN_USERNAME:
                         cannot_remove.append(uname)
                         continue
@@ -1177,7 +1157,7 @@ else:
                     st.rerun()
 
         if st.session_state.mostrar_comparativo:
-            st.header("Análise de Custo Final")
+            st.header("Análise Comparativa Final")
             df_cenarios = pd.DataFrame(st.session_state.cenarios)
             melhor = df_cenarios.loc[df_cenarios["Total Final (R$)"].apply(moeda_para_float).idxmin()]
             st.success(f"🏆 Melhor cenário: {melhor['Serviço']} | Placa {melhor['Placa']} | Total Final: {melhor['Total Final (R$)']}")
@@ -1270,4 +1250,3 @@ else:
                             st.warning("Nenhuma peça foi selecionada.")
 
     st.markdown("</div>", unsafe_allow_html=True)
-
