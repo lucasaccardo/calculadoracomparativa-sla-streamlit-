@@ -1125,7 +1125,7 @@ else:
 
         st.markdown("---")
 
-        # Usuários existentes (busca e remoção)
+        # Usuários existentes (busca, promoção a admin e remoção)
         st.subheader("Usuários Existentes")
         for col in ["full_name", "matricula", "accepted_terms_on", "email", "status", "last_password_change", "role"]:
             if col not in df_users.columns:
@@ -1148,11 +1148,45 @@ else:
             use_container_width=True
         )
 
+        # NOVO: Admin e Superadmin podem conceder papel de admin para outros usuários
+        st.markdown("#### Conceder acesso de administrador")
+        promote_candidates = df_users[
+            (df_users["role"].str.lower() != "admin") &
+            (df_users["role"].str.lower() != "superadmin")
+        ]["username"].tolist()
+        selected_to_promote = st.multiselect("Selecione usuários (atuais 'user') para promover a admin:", options=promote_candidates)
+
+        if st.button("Conceder admin aos selecionados", type="primary", disabled=not user_is_admin()):
+            if not selected_to_promote:
+                st.warning("Nenhum usuário selecionado para promoção.")
+            else:
+                # Admin e Superadmin podem promover; proteger a conta superadmin
+                changed = []
+                for uname in selected_to_promote:
+                    if uname == SUPERADMIN_USERNAME:
+                        continue
+                    idxs = df_users.index[df_users["username"] == uname]
+                    if len(idxs) == 0:
+                        continue
+                    idx = idxs[0]
+                    if df_users.loc[idx, "role"].lower() in ["admin", "superadmin"]:
+                        continue
+                    df_users.loc[idx, "role"] = "admin"
+                    changed.append(uname)
+                if changed:
+                    save_user_db(df_users)
+                    st.success(f"Permissão de admin concedida para: {', '.join(changed)}")
+                    st.rerun()
+                else:
+                    st.info("Nenhuma alteração realizada.")
+
+        st.markdown("---")
+
         st.markdown("#### Remover usuários")
         candidates = [u for u in df_users["username"].tolist() if u != SUPERADMIN_USERNAME]
         remove_select = st.multiselect("Selecione usuários para remover:", options=candidates)
         can_remove, cannot_remove = [], []
-        if st.button("Remover selecionados", type="primary"):
+        if st.button("Remover selecionados", type="secondary"):
             if not remove_select:
                 st.warning("Nenhum usuário selecionado.")
             else:
@@ -1162,7 +1196,7 @@ else:
                     if uname == SUPERADMIN_USERNAME:
                         cannot_remove.append(uname)
                         continue
-                    if role in ("admin", "superadmin") and not user_is_superadmin():
+                    if role.lower() in ("admin", "superadmin") and not user_is_superadmin():
                         cannot_remove.append(uname)
                         continue
                     can_remove.append(uname)
@@ -1294,4 +1328,3 @@ else:
                             st.warning("Nenhuma peça foi selecionada.")
 
     st.markdown("</div>", unsafe_allow_html=True)
-
