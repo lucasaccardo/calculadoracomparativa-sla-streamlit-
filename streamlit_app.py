@@ -90,8 +90,8 @@ def smtp_available():
     return bool(host and user and password)
 
 def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label: str = "", cta_url: str = "", footer: str = ""):
-    primary = "#e63946"   # vermelho botão
-    brand = "#0d1117"     # fundo header
+    primary = "#e63946"   # botão
+    brand = "#0d1117"     # header
     text = "#0b1f2a"
     light = "#f6f8fa"
     button_html = ""
@@ -107,7 +107,6 @@ def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label
         """
     body_html = "".join([f'<p style="margin:8px 0 8px 0">{line}</p>' for line in body_lines])
     footer_html = f'<p style="color:#6b7280;font-size:12px">{footer}</p>' if footer else ""
-
     return f"""<!DOCTYPE html>
 <html>
   <body style="margin:0;padding:0;background:{light}">
@@ -240,7 +239,7 @@ Bom trabalho!
     return send_email(dest_email, subject, plain, html)
 
 # =========================
-# ESTILOS (UI) + OCULTAR TOOLBAR
+# ESTILOS (UI) + OCULTAR TOOLBAR + FULL BG
 # =========================
 def aplicar_estilos():
     try:
@@ -250,14 +249,23 @@ def aplicar_estilos():
         st.markdown(
             f"""
             <style>
-            /* Plano de fundo */
-            .stApp {{
-                background-image: url(data:image/jpeg;base64,{bg_image_base64});
+            /* Fundo geral para eliminar faixas brancas da página */
+            html, body {{
+                background-color: #0b1220 !important;
+                height: 100%;
+            }}
+
+            /* Usa o container principal da AppView para aplicar o background full width/height */
+            [data-testid="stAppViewContainer"] {{
+                background-image: url(data:image/png;base64,{bg_image_base64});
                 background-size: cover;
                 background-repeat: no-repeat;
+                background-position: center top;
                 background-attachment: fixed;
+                min-height: 100vh;
             }}
-            /* Cartões/containers */
+
+            /* Aparência dos cartões/containers próprios do app */
             .main-container, [data-testid="stForm"] {{
                 background-color: rgba(13, 17, 23, 0.85);
                 padding: 25px;
@@ -270,6 +278,7 @@ def aplicar_estilos():
                 text-decoration: underline !important;
                 cursor: pointer;
             }}
+
             /* Termos (sem fundo) */
             .terms-box {{
                 max-height: 65vh;
@@ -282,6 +291,12 @@ def aplicar_estilos():
             }}
             .terms-box h3, .terms-box h4 {{ margin-top: 1.2em; margin-bottom: 0.4em; }}
             .terms-box p, .terms-box li {{ line-height: 1.5em; }}
+
+            /* Reduz espaço superior do conteúdo principal */
+            section.main > div.block-container {{
+                padding-top: 2rem !important;
+                padding-bottom: 2rem !important;
+            }}
 
             /* Ocultar barra superior do Streamlit (Fork, GitHub, ⋮) e cabeçalho/rodapé */
             [data-testid="stToolbar"] {{ display: none !important; }}
@@ -540,7 +555,7 @@ if "tela" not in st.session_state:
 
 aplicar_estilos()
 
-# Token reset via URL (evita travar na tela se usuário clicar "Voltar ao login")
+# Token reset via URL
 qp = get_query_params()
 incoming_token = qp.get("reset_token") or qp.get("token") or ""
 if incoming_token and not st.session_state.get("ignore_reset_qp"):
@@ -741,7 +756,6 @@ elif st.session_state.tela == "reset_password":
     voltar = colb2.button("⬅️ Voltar ao login", use_container_width=True)
 
     if voltar:
-        # Corrige "Voltar ao login": limpa query params e ignora token na próxima execução
         st.session_state.ignore_reset_qp = True
         st.session_state.incoming_reset_token = ""
         clear_all_query_params()
@@ -786,7 +800,6 @@ elif st.session_state.tela == "reset_password":
                     df.loc[idx, "force_password_reset"] = ""
                     save_user_db(df)
                     st.success("Senha redefinida com sucesso! Faça login novamente.")
-                    # Botão para login após sucesso
                     if st.button("Ir para login", type="primary"):
                         st.session_state.ignore_reset_qp = True
                         st.session_state.incoming_reset_token = ""
@@ -836,7 +849,7 @@ elif st.session_state.tela == "terms_consent":
     st.title("Termos e Condições de Uso e Política de Privacidade (LGPD)")
     st.info("Para seu primeiro acesso, é necessário ler e aceitar os termos de uso e a política de privacidade desta plataforma.")
 
-    # Renderiza o HTML dos termos fora do Markdown para evitar "caixa preta"
+    # Renderiza o HTML dos termos sem interpretar como bloco de código
     terms_html = dedent("""
     <div class="terms-box" style="color:#fff;font-family:Segoe UI,Arial,sans-serif;">
         <p><b>Última atualização:</b> 28 de Setembro de 2025</p>
