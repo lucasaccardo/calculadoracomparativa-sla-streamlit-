@@ -198,8 +198,7 @@ if "tela" not in st.session_state: st.session_state.tela = "login"
 
 aplicar_estilos()
  
-if st.session_state.tela == "login":
-    st.markdown("<div class='login-container'>", unsafe_allow_html=True)
+st.markdown("<div class='login-container'>", unsafe_allow_html=True)
 # Centraliza a imagem usando HTML/CSS
 st.markdown(
     """
@@ -455,5 +454,6 @@ else:
                         st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
