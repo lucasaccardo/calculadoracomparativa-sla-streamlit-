@@ -239,7 +239,7 @@ Bom trabalho!
     return send_email(dest_email, subject, plain, html)
 
 # =========================
-# ESTILOS (UI) + OCULTAR TOOLBAR + FULL BG
+# ESTILOS (UI) + OCULTAR TOOLBAR + FULL BG + TÍTULO LOGIN
 # =========================
 def aplicar_estilos():
     try:
@@ -249,13 +249,13 @@ def aplicar_estilos():
         st.markdown(
             f"""
             <style>
-            /* Fundo geral para eliminar faixas brancas da página */
+            /* Fundo geral sem faixas brancas */
             html, body {{
                 background-color: #0b1220 !important;
                 height: 100%;
             }}
 
-            /* Usa o container principal da AppView para aplicar o background full width/height */
+            /* Background ocupando a tela toda */
             [data-testid="stAppViewContainer"] {{
                 background-image: url(data:image/png;base64,{bg_image_base64});
                 background-size: cover;
@@ -265,7 +265,7 @@ def aplicar_estilos():
                 min-height: 100vh;
             }}
 
-            /* Aparência dos cartões/containers próprios do app */
+            /* Cartões do app */
             .main-container, [data-testid="stForm"] {{
                 background-color: rgba(13, 17, 23, 0.85);
                 padding: 25px;
@@ -279,7 +279,7 @@ def aplicar_estilos():
                 cursor: pointer;
             }}
 
-            /* Termos (sem fundo) */
+            /* Caixa de Termos sem fundo */
             .terms-box {{
                 max-height: 65vh;
                 overflow-y: auto;
@@ -292,19 +292,44 @@ def aplicar_estilos():
             .terms-box h3, .terms-box h4 {{ margin-top: 1.2em; margin-bottom: 0.4em; }}
             .terms-box p, .terms-box li {{ line-height: 1.5em; }}
 
-            /* Reduz espaço superior do conteúdo principal */
+            /* Espaçamento do conteúdo */
             section.main > div.block-container {{
                 padding-top: 2rem !important;
                 padding-bottom: 2rem !important;
             }}
 
-            /* Ocultar barra superior do Streamlit (Fork, GitHub, ⋮) e cabeçalho/rodapé */
+            /* Ocultar toolbar/menu/rodapé do Streamlit (para todos) */
             [data-testid="stToolbar"] {{ display: none !important; }}
             header[data-testid="stHeader"] {{ display: none !important; }}
             #MainMenu {{ visibility: hidden; }}
             footer {{ visibility: hidden; }}
             div[class*="viewerBadge"] {{ display: none !important; }}
             a[href*="streamlit.io"] {{ display: none !important; }}
+
+            /* Título moderno na tela de login */
+            .brand-title {{
+                width: 100%;
+                text-align: center;
+                font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+                font-weight: 800;
+                font-size: clamp(28px, 5vw, 52px);
+                letter-spacing: 0.6px;
+                line-height: 1.1;
+                margin: 0 auto 16px auto;
+                background: linear-gradient(90deg, #ffffff 0%, #bfe1ff 40%, #7bc6ff 70%, #e6f2ff 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                text-shadow: 0 4px 24px rgba(0,0,0,0.35);
+                filter: drop-shadow(0 6px 18px rgba(0,0,0,0.25));
+            }}
+            .brand-subtitle {{
+                text-align: center;
+                color: #c8d7e1;
+                margin-top: -6px;
+                margin-bottom: 10px;
+                font-size: 14px;
+                opacity: 0.9;
+            }}
             </style>
             """,
             unsafe_allow_html=True
@@ -566,15 +591,21 @@ if incoming_token and not st.session_state.get("ignore_reset_qp"):
 # TELAS
 # =========================
 if st.session_state.tela == "login":
+    # Linha do topo (logo à direita, se existir)
     col1, col2, col3 = st.columns([6, 1, 1])
     with col3:
         try: st.image("fleetvamossla.png", width=120)
         except Exception: pass
 
-    st.markdown("<br><br><br><br>", unsafe_allow_html=True)
+    # Espaço antes do formulário
+    st.markdown("<br><br>", unsafe_allow_html=True)
 
+    # Título moderno centralizado "Fleet Vamos SLA"
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
+        st.markdown("<div class='brand-title'>Fleet Vamos SLA</div>", unsafe_allow_html=True)
+        st.markdown("<div class='brand-subtitle'>Acesse com suas credenciais para continuar</div>", unsafe_allow_html=True)
+
         with st.form("login_form"):
             username = st.text_input("Usuário", label_visibility="collapsed", placeholder="Usuário")
             password = st.text_input("Senha", type="password", label_visibility="collapsed", placeholder="Senha")
@@ -849,7 +880,7 @@ elif st.session_state.tela == "terms_consent":
     st.title("Termos e Condições de Uso e Política de Privacidade (LGPD)")
     st.info("Para seu primeiro acesso, é necessário ler e aceitar os termos de uso e a política de privacidade desta plataforma.")
 
-    # Renderiza o HTML dos termos sem interpretar como bloco de código
+    # Renderização dos Termos (sem caixa preta)
     terms_html = dedent("""
     <div class="terms-box" style="color:#fff;font-family:Segoe UI,Arial,sans-serif;">
         <p><b>Última atualização:</b> 28 de Setembro de 2025</p>
