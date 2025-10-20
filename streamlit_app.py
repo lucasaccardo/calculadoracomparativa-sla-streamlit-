@@ -13,21 +13,57 @@ import base64
 import secrets
 import smtplib
 from email.message import EmailMessage
+from textwrap import dedent
+import re
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
+# =========================
+# CONFIGURAÇÃO DA PÁGINA
+# =========================
 st.set_page_config(
     page_title="Calculadora SLA | Vamos",
     page_icon="logo_sidebar.png" if os.path.exists("logo_sidebar.png") else "🚛",
     layout="wide",
-    initial_sidebar_state="auto"
+    initial_sidebar_state="expanded"
 )
 
-# --- UTILS QUERY PARAMS ---
+# =========================
+# POLÍTICA DE SENHA
+# =========================
+PASSWORD_MIN_LEN = 10
+SPECIAL_CHARS = r"!@#$%^&*()_+\-=\[\]{};':\",.<>/?\\|`~"
+
+def validate_password_policy(password: str, username: str = "", email: str = ""):
+    errors = []
+    if len(password) < PASSWORD_MIN_LEN:
+        errors.append(f"Senha deve ter pelo menos {PASSWORD_MIN_LEN} caracteres.")
+    if not re.search(r"[A-Z]", password):
+        errors.append("Senha deve conter pelo menos 1 letra maiúscula.")
+    if not re.search(r"[a-z]", password):
+        errors.append("Senha deve conter pelo menos 1 letra minúscula.")
+    if not re.search(r"[0-9]", password):
+        errors.append("Senha deve conter pelo menos 1 número.")
+    if not re.search(rf"[{re.escape(SPECIAL_CHARS)}]", password):
+        errors.append("Senha deve conter pelo menos 1 caractere especial.")
+    # Não pode conter username ou parte local do e-mail
+    uname = (username or "").strip().lower()
+    local_email = (email or "").split("@")[0].strip().lower()
+    if uname and uname in password.lower():
+        errors.append("Senha não pode conter o seu usuário.")
+    if local_email and local_email in password.lower():
+        errors.append("Senha não pode conter a parte local do seu e-mail.")
+    return (len(errors) == 0), errors
+
+# =========================
+# UTILS / QUERY PARAMS
+# =========================
 def get_query_params():
     try:
         return dict(st.query_params)
     except Exception:
-        return {k: v[0] if isinstance(v, list) else v for k, v in st.experimental_get_query_params().items()}
+        try:
+            return {k: (v[0] if isinstance(v, list) else v) for k, v in st.experimental_get_query_params().items()}
+        except Exception:
+            return {}
 
 def get_app_base_url():
     url = (st.secrets.get("APP_BASE_URL", "") or "").strip()
@@ -35,14 +71,72 @@ def get_app_base_url():
         url = url[:-1]
     return url
 
-# --- EMAIL / SMTP HELPERS ---
+# =========================
+# EMAIL / SMTP
+# =========================
 def smtp_available():
     host = st.secrets.get("EMAIL_HOST", "")
     user = st.secrets.get("EMAIL_USERNAME", "")
     password = st.secrets.get("EMAIL_PASSWORD", "")
     return bool(host and user and password)
 
-def send_email(dest_email: str, subject: str, body: str):
+def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label: str = "", cta_url: str = "", footer: str = ""):
+    primary = "#e63946"   # vermelho botão
+    brand = "#0d1117"     # fundo escuro
+    text = "#0b1f2a"
+    light = "#f6f8fa"
+    button_html = ""
+    if cta_label and cta_url:
+        button_html = f"""
+        <tr>
+          <td align="center" style="padding: 28px 0 10px 0;">
+            <a href="{cta_url}" style="background:{primary};color:#ffffff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:8px;display:inline-block;font-family:Segoe UI,Arial,sans-serif">
+              {cta_label}
+            </a>
+          </td>
+        </tr>
+        """
+    body_html = "".join([f'<p style="margin:8px 0 8px 0">{line}</p>' for line in body_lines])
+    footer_html = f'<p style="color:#6b7280;font-size:12px">{footer}</p>' if footer else ""
+
+    return f"""<!DOCTYPE html>
+<html>
+  <body style="margin:0;padding:0;background:{light}">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="100%" style="background:{light};padding:24px 0">
+      <tr>
+        <td>
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="600" style="margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
+            <tr>
+              <td style="background:{brand};padding:18px 24px;color:#ffffff;">
+                <div style="display:flex;align-items:center;gap:12px">
+                  <span style="font-weight:700;font-size:18px;font-family:Segoe UI,Arial,sans-serif">Vamos Fleet SLA</span>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px 24px 0 24px;color:{text};font-family:Segoe UI,Arial,sans-serif">
+                <h2 style="margin:0 0 6px 0;font-weight:700">{title}</h2>
+                <p style="margin:0 0 12px 0;color:#475569">{subtitle}</p>
+                {body_html}
+              </td>
+            </tr>
+            {button_html}
+            <tr>
+              <td style="padding:12px 24px 24px 24px;color:#334155;font-family:Segoe UI,Arial,sans-serif">
+                {footer_html}
+              </td>
+            </tr>
+          </table>
+          <div style="text-align:center;color:#94a3b8;font-size:12px;margin-top:8px;font-family:Segoe UI,Arial,sans-serif">
+            © {datetime.now().year} Vamos Locação. Todos os direitos reservados.
+          </div>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>"""
+
+def send_email(dest_email: str, subject: str, body_plain: str, body_html: str | None = None):
     host = st.secrets.get("EMAIL_HOST", "")
     port = int(st.secrets.get("EMAIL_PORT", 587))
     user = st.secrets.get("EMAIL_USERNAME", "")
@@ -51,8 +145,8 @@ def send_email(dest_email: str, subject: str, body: str):
     sender = st.secrets.get("EMAIL_FROM", user or "no-reply@example.com")
 
     if not host or not user or not password:
-        st.warning("Configurações de e-mail não definidas em st.secrets. Exibindo conteúdo do e-mail abaixo (teste).")
-        st.code(f"Para: {dest_email}\nAssunto: {subject}\n\n{body}", language="text")
+        st.warning("Configurações de e-mail não definidas em st.secrets. Exibindo conteúdo (teste).")
+        st.code(f"Para: {dest_email}\nAssunto: {subject}\n\n{body_plain}", language="text")
         return False
 
     try:
@@ -60,7 +154,10 @@ def send_email(dest_email: str, subject: str, body: str):
         msg["Subject"] = subject
         msg["From"] = sender
         msg["To"] = dest_email
-        msg.set_content(body)
+        msg.set_content(body_plain)
+        if body_html:
+            msg.add_alternative(body_html, subtype="html")
+
         server = smtplib.SMTP(host, port, timeout=20)
         if use_tls:
             server.starttls()
@@ -70,52 +167,79 @@ def send_email(dest_email: str, subject: str, body: str):
         return True
     except Exception as e:
         st.error(f"Falha ao enviar e-mail: {e}")
-        st.code(f"Para: {dest_email}\nAssunto: {subject}\n\n{body}", language="text")
+        st.code(f"Para: {dest_email}\nAssunto: {subject}\n\n{body_plain}", language="text")
         return False
 
 def send_reset_email(dest_email: str, reset_link: str):
     subject = "Redefinição de senha - Vamos Fleet SLA"
-    body = f"""Olá,
+    plain = f"""Olá,
 
-Recebemos uma solicitação para redefinição de senha da sua conta no Vamos Fleet SLA.
+Recebemos uma solicitação para redefinir sua senha no Vamos Fleet SLA.
+Use o link abaixo (válido por 30 minutos):
 
-Para redefinir sua senha, acesse o link abaixo (válido por 30 minutos):
 {reset_link}
 
 Se você não solicitou, ignore este e-mail.
-
-Atenciosamente,
-Equipe Vamos
 """
-    return send_email(dest_email, subject, body)
+    html = build_email_html(
+        title="Redefinição de senha",
+        subtitle="Você solicitou redefinir sua senha no Vamos Fleet SLA.",
+        body_lines=[
+            "Este link é válido por 30 minutos.",
+            "Se você não solicitou, ignore este e-mail."
+        ],
+        cta_label="Redefinir senha",
+        cta_url=reset_link,
+        footer="Este é um e-mail automático. Não responda."
+    )
+    return send_email(dest_email, subject, plain, html)
 
 def send_approved_email(dest_email: str, base_url: str):
     subject = "Conta aprovada - Vamos Fleet SLA"
-    body = f"""Olá,
+    plain = f"""Olá,
 
-Sua conta no Vamos Fleet SLA foi aprovada pelo administrador.
+Sua conta no Vamos Fleet SLA foi aprovada.
+Acesse a plataforma: {base_url}
 
-Você já pode acessar: {base_url}
-
-Atenciosamente,
-Equipe Vamos
+Bom trabalho!
 """
-    return send_email(dest_email, subject, body)
+    html = build_email_html(
+        title="Conta aprovada",
+        subtitle="Seu acesso ao Vamos Fleet SLA foi liberado.",
+        body_lines=[
+            "Você já pode acessar a plataforma com seu usuário e senha.",
+        ],
+        cta_label="Acessar plataforma",
+        cta_url=base_url,
+        footer="Em caso de dúvidas, procure o administrador do sistema."
+    )
+    return send_email(dest_email, subject, plain, html)
 
 def send_invite_to_set_password(dest_email: str, reset_link: str):
     subject = "Sua conta foi aprovada - Defina sua senha"
-    body = f"""Olá,
+    plain = f"""Olá,
 
 Sua conta no Vamos Fleet SLA foi aprovada.
-Para definir sua senha e começar a usar, acesse (válido por 30 minutos):
+Para definir sua senha inicial, use o link (válido por 30 minutos):
 {reset_link}
 
-Atenciosamente,
-Equipe Vamos
+Bom trabalho!
 """
-    return send_email(dest_email, subject, body)
+    html = build_email_html(
+        title="Defina sua senha",
+        subtitle="Sua conta foi aprovada. Defina sua senha para começar a usar.",
+        body_lines=[
+            "O link é válido por 30 minutos.",
+        ],
+        cta_label="Definir senha",
+        cta_url=reset_link,
+        footer="Se você não reconhece esta solicitação, ignore este e-mail."
+    )
+    return send_email(dest_email, subject, plain, html)
 
-# --- FUNÇÃO PARA APLICAR O FUNDO E CSS ---
+# =========================
+# ESTILOS (UI)
+# =========================
 def aplicar_estilos():
     try:
         with open("background.png", "rb") as f:
@@ -147,9 +271,9 @@ def aplicar_estilos():
             .terms-box {{
                 max-height: 65vh;
                 overflow-y: auto;
-                padding: 18px 20px;
-                background: rgba(255, 255, 255, 0.04);
-                border: 1px solid rgba(255, 255, 255, 0.15);
+                padding: 4px 2px;
+                background: transparent;
+                border: none;
                 border-radius: 10px;
                 margin-top: 10px;
             }}
@@ -167,7 +291,9 @@ def aplicar_estilos():
     except FileNotFoundError:
         pass
 
-# --- AUTENTICAÇÃO E USUÁRIOS ---
+# =========================
+# AUTENTICAÇÃO E USUÁRIOS
+# =========================
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
@@ -176,23 +302,27 @@ def check_password(hashed_password, user_password):
 
 REQUIRED_USER_COLUMNS = [
     "username", "password", "role", "full_name", "matricula",
-    "email", "status", "accepted_terms_on", "reset_token", "reset_expires_at"
+    "email", "status", "accepted_terms_on", "reset_token", "reset_expires_at",
+    "last_password_change", "force_password_reset"
 ]
+
+SUPERADMIN_USERNAME = "lucas.sureira"
 
 @st.cache_data
 def load_user_db():
-    admin_username = "lucas.sureira"
     admin_defaults = {
-        "username": admin_username,
+        "username": SUPERADMIN_USERNAME,
         "password": hash_password("Brasil@@2609"),
-        "role": "admin",
+        "role": "superadmin",
         "full_name": "Lucas Mateus Sureira",
         "matricula": "30159179",
         "email": "lucas.sureira@grupovamos.com.br",
         "status": "aprovado",
         "accepted_terms_on": "",
         "reset_token": "",
-        "reset_expires_at": ""
+        "reset_expires_at": "",
+        "last_password_change": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        "force_password_reset": ""
     }
 
     if os.path.exists("users.csv") and os.path.getsize("users.csv") > 0:
@@ -202,17 +332,16 @@ def load_user_db():
         df.to_csv("users.csv", index=False)
         return df
 
+    # Garante colunas
     for col in REQUIRED_USER_COLUMNS:
         if col not in df.columns:
             df[col] = ""
 
-    # Garante admin principal
-    if admin_username in df["username"].values:
-        idx = df.index[df["username"] == admin_username][0]
-        for k, v in admin_defaults.items():
-            if k == "accepted_terms_on" and str(df.loc[idx, k]).strip():
-                continue
-            df.loc[idx, k] = v
+    # Garante superadmin presente e aprovado
+    if SUPERADMIN_USERNAME in df["username"].values:
+        idx = df.index[df["username"] == SUPERADMIN_USERNAME][0]
+        df.loc[idx, "role"] = "superadmin"
+        df.loc[idx, "status"] = "aprovado"
     else:
         df = pd.concat([df, pd.DataFrame([admin_defaults])], ignore_index=True)
 
@@ -227,7 +356,19 @@ def save_user_db(df_users):
     df_users.to_csv("users.csv", index=False)
     st.cache_data.clear()
 
-# --- FUNÇÕES AUXILIARES COMUNS ---
+def is_password_expired(row) -> bool:
+    try:
+        last = row.get("last_password_change", "")
+        if not last:
+            return True
+        last_dt = datetime.strptime(last, "%Y-%m-%d %H:%M:%S")
+        return datetime.utcnow() > (last_dt + timedelta(days=30))
+    except Exception:
+        return True
+
+# =========================
+# FUNÇÕES AUXILIARES COMUNS
+# =========================
 @st.cache_data
 def carregar_base():
     try:
@@ -249,16 +390,18 @@ def moeda_para_float(valor_str):
             return 0.0
     return 0.0
 
-# --- FUNÇÕES DAS CALCULADORAS ---
+# =========================
+# CÁLCULOS / PDFs
+# =========================
 def calcular_cenario_comparativo(cliente, placa, entrada, saida, feriados, servico, pecas, mensalidade):
     dias = np.busday_count(entrada.strftime('%Y-%m-%d'), (saida + timedelta(days=1)).strftime('%Y-%m-%d'))
-    dias_uteis = max(dias - feriados, 0)
+    dias_uteis = max(dias - int(feriados or 0), 0)
     sla_dict = {"Preventiva – 2 dias úteis": 2, "Corretiva – 3 dias úteis": 3,
                 "Preventiva + Corretiva – 5 dias úteis": 5, "Motor – 15 dias úteis": 15}
     sla_dias = sla_dict.get(servico, 0)
     excedente = max(0, dias_uteis - sla_dias)
     desconto = (mensalidade / 30) * excedente if excedente > 0 else 0
-    total_pecas = sum(p["valor"] for p in pecas)
+    total_pecas = sum(float(p["valor"]) for p in pecas)
     total_final = (mensalidade - desconto) + total_pecas
     return {
         "Cliente": cliente, "Placa": placa,
@@ -285,7 +428,7 @@ def gerar_pdf_comparativo(df_cenarios, melhor_cenario):
         for col, valor in row.items():
             if col != "Detalhe Peças":
                 elementos.append(Paragraph(f"<b>{col}:</b> {valor}", styles['Normal']))
-        if row["Detalhe Peças"]:
+        if isinstance(row.get("Detalhe Peças", []), list) and row["Detalhe Peças"]:
             elementos.append(Paragraph("<b>Detalhe de Peças:</b>", styles['Normal']))
             for peca in row["Detalhe Peças"]:
                 elementos.append(Paragraph(f"- {peca['nome']}: {formatar_moeda(peca['valor'])}", styles['Normal']))
@@ -307,16 +450,11 @@ def calcular_sla_simples(data_entrada, data_saida, prazo_sla, valor_mensalidade,
         if hasattr(obj, "date"):
             return obj.date()
         return obj
-    dias = np.busday_count(
-        np.datetime64(to_date(data_entrada)),
-        np.datetime64(to_date(data_saida + timedelta(days=1)))
-    )
-    dias -= feriados
+    dias = np.busday_count(np.datetime64(to_date(data_entrada)), np.datetime64(to_date(data_saida + timedelta(days=1))))
+    dias -= int(feriados or 0)
     dias = max(dias, 0)
     if dias <= prazo_sla:
-        status = "Dentro do prazo"
-        desconto = 0
-        dias_excedente = 0
+        status = "Dentro do prazo"; desconto = 0; dias_excedente = 0
     else:
         status = "Fora do prazo"
         dias_excedente = dias - prazo_sla
@@ -342,14 +480,12 @@ def gerar_pdf_sla_simples(cliente, placa, tipo_servico, dias_uteis_manut, prazo_
         f"Valor do desconto: {formatar_moeda(desconto)}"
     ]
     for line in text_lines:
-        c.drawString(50, y, line)
-        y -= 20
-    c.showPage()
-    c.save()
-    buffer.seek(0)
-    return buffer
+        c.drawString(50, y, line); y -= 20
+    c.showPage(); c.save(); buffer.seek(0); return buffer
 
-# --- NAV STATE HELPERS ---
+# =========================
+# NAV HELPERS / ESTADO
+# =========================
 def ir_para_home(): st.session_state.tela = "home"
 def ir_para_calc_comparativa(): st.session_state.tela = "calc_comparativa"
 def ir_para_calc_simples(): st.session_state.tela = "calc_simples"
@@ -358,6 +494,7 @@ def ir_para_login(): st.session_state.tela = "login"
 def ir_para_register(): st.session_state.tela = "register"
 def ir_para_forgot(): st.session_state.tela = "forgot_password"
 def ir_para_reset(): st.session_state.tela = "reset_password"
+def ir_para_force_change(): st.session_state.tela = "force_change_password"
 
 def limpar_dados_comparativos():
     for key in ["cenarios", "pecas_atuais", "mostrar_comparativo"]:
@@ -371,14 +508,18 @@ def logout():
     for key in list(st.session_state.keys()):
         del st.session_state[key]
 
+def user_is_admin():
+    return st.session_state.get("role") in ("admin", "superadmin")
+
+def user_is_superadmin():
+    return st.session_state.get("username") == SUPERADMIN_USERNAME or st.session_state.get("role") == "superadmin"
+
 def renderizar_sidebar():
     with st.sidebar:
-        try:
-            st.image("logo_sidebar.png", width=100)
-        except:
-            pass
+        try: st.image("logo_sidebar.png", width=100)
+        except Exception: pass
         st.header("Menu de Navegação")
-        if st.session_state.get("role") == "admin":
+        if user_is_admin():
             st.button("👤 Gerenciar Usuários", on_click=ir_para_admin, use_container_width=True)
         st.button("🏠 Voltar para Home", on_click=ir_para_home, use_container_width=True)
         if st.session_state.tela == "calc_comparativa":
@@ -387,29 +528,29 @@ def renderizar_sidebar():
             st.button("🔄 Limpar Cálculo", on_click=limpar_dados_simples, use_container_width=True)
         st.button("🚪 Sair (Logout)", on_click=logout, use_container_width=True, type="secondary")
 
-# --- ESTADO INICIAL ---
+# =========================
+# ESTADO INICIAL / ESTILOS
+# =========================
 if "tela" not in st.session_state:
     st.session_state.tela = "login"
 
-# Aplica estilos
 aplicar_estilos()
 
-# Detecta token de redefinição vindo por URL e direciona para tela de reset
+# Token reset via URL
 qp = get_query_params()
 incoming_token = qp.get("reset_token") or qp.get("token") or ""
 if incoming_token:
     st.session_state.incoming_reset_token = incoming_token
     st.session_state.tela = "reset_password"
 
-# --- TELAS ---
+# =========================
+# TELAS
+# =========================
 if st.session_state.tela == "login":
-    # Linha no topo: logo no canto direito
     col1, col2, col3 = st.columns([6, 1, 1])
     with col3:
-        try:
-            st.image("fleetvamossla.png", width=120)
-        except:
-            pass
+        try: st.image("fleetvamossla.png", width=120)
+        except Exception: pass
 
     st.markdown("<br><br><br><br>", unsafe_allow_html=True)
 
@@ -420,7 +561,6 @@ if st.session_state.tela == "login":
             password = st.text_input("Senha", type="password", label_visibility="collapsed", placeholder="Senha")
             submit_login = st.form_submit_button("Entrar 🚀", use_container_width=True)
 
-        # Links de ação
         cols = st.columns(2)
         with cols[0]:
             st.button("Criar cadastro", on_click=ir_para_register, use_container_width=True)
@@ -443,18 +583,26 @@ if st.session_state.tela == "login":
                         st.session_state.logado = True
                         st.session_state.username = row["username"]
                         st.session_state.role = row.get("role", "user")
-                        # Termos LGPD
-                        if pd.isna(row.get("accepted_terms_on", "")) or str(row.get("accepted_terms_on", "")).strip() == "":
+                        st.session_state.email = row.get("email", "")
+
+                        # Fluxo de termos (primeiro acesso)
+                        if not str(row.get("accepted_terms_on", "")).strip():
                             st.session_state.tela = "terms_consent"
-                        else:
-                            st.session_state.tela = "home"
+                            st.rerun()
+
+                        # Expiração/força troca de senha
+                        if is_password_expired(row) or str(row.get("force_password_reset", "")).strip():
+                            st.session_state.tela = "force_change_password"
+                            st.rerun()
+
+                        st.session_state.tela = "home"
                         st.rerun()
 
 elif st.session_state.tela == "register":
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     st.title("🆕 Criar cadastro")
     st.info("Se a sua empresa já realizou um pré-cadastro, informe seu e-mail para pré-preencher os dados.")
-    # Passo 1: localizar pré-cadastro por e-mail
+
     if "register_prefill" not in st.session_state:
         st.session_state.register_prefill = None
 
@@ -473,7 +621,6 @@ elif st.session_state.tela == "register":
             st.success("Pré-cadastro encontrado! Os campos abaixo foram preenchidos automaticamente.")
     pre = st.session_state.register_prefill
 
-    # Regras de preenchimento/lock: se veio do admin, trava estes campos
     lock_username = bool(pre and pre.get("username"))
     lock_fullname = bool(pre and pre.get("full_name"))
     lock_matricula = bool(pre and pre.get("matricula"))
@@ -487,7 +634,7 @@ elif st.session_state.tela == "register":
         matricula = col3.text_input("Matrícula", value=(pre.get("matricula") if pre else ""), disabled=lock_matricula)
         email = col4.text_input("E-mail corporativo", value=(pre.get("email") if pre else lookup_email or ""), disabled=lock_email)
         col5, col6 = st.columns(2)
-        password = col5.text_input("Senha", type="password")
+        password = col5.text_input("Senha", type="password", help="Mín 10, com maiúscula, minúscula, número e especial.")
         password2 = col6.text_input("Confirmar senha", type="password")
         submit_reg = st.form_submit_button("Enviar cadastro", type="primary", use_container_width=True)
 
@@ -495,38 +642,37 @@ elif st.session_state.tela == "register":
 
     if submit_reg:
         df = load_user_db()
-        # Validações básicas
         if not all([(username or pre and pre.get("username")), (full_name or pre and pre.get("full_name")),
                     (email or pre and pre.get("email")), password.strip(), password2.strip()]):
             st.error("Preencha todos os campos obrigatórios.")
         elif password != password2:
             st.error("As senhas não conferem.")
         else:
-            # Se existe pré-cadastro por e-mail, atualiza o registro existente
+            valid, errs = validate_password_policy(password, username=username, email=email)
+            if not valid:
+                st.error("Regras de senha não atendidas:\n- " + "\n- ".join(errs))
+                st.stop()
+
             idxs = df.index[df["email"].str.strip().str.lower() == (email or pre.get("email", "")).strip().lower()]
             if len(idxs) > 0:
                 idx = idxs[0]
-                # username: se admin já definiu, mantemos; senão, usa o informado
                 if not df.loc[idx, "username"]:
-                    # se username já existe em outro usuário, erro
                     if (username.strip() in df["username"].values) and (df.loc[idx, "username"] != username.strip()):
                         st.error("Nome de usuário já existe.")
                         st.stop()
                     df.loc[idx, "username"] = username.strip()
-                # full_name e matricula: mantém admin se vierem, senão usa informado
                 if not df.loc[idx, "full_name"]:
                     df.loc[idx, "full_name"] = full_name.strip()
                 if not df.loc[idx, "matricula"]:
                     df.loc[idx, "matricula"] = matricula.strip()
-                # sempre define/atualiza a senha
                 df.loc[idx, "password"] = hash_password(password)
-                # mantém status atual (pode estar pendente ou aprovado)
                 if df.loc[idx, "status"] == "":
                     df.loc[idx, "status"] = "pendente"
+                df.loc[idx, "last_password_change"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                df.loc[idx, "force_password_reset"] = ""
                 save_user_db(df)
                 st.success("Cadastro atualizado! Aguarde aprovação do administrador (se ainda estiver pendente).")
             else:
-                # Cadastro novo normal
                 if username.strip() in df["username"].values:
                     st.error("Nome de usuário já existe.")
                     st.stop()
@@ -540,7 +686,9 @@ elif st.session_state.tela == "register":
                     "status": "pendente",
                     "accepted_terms_on": "",
                     "reset_token": "",
-                    "reset_expires_at": ""
+                    "reset_expires_at": "",
+                    "last_password_change": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                    "force_password_reset": ""
                 }
                 df = pd.concat([df, pd.DataFrame([new_user])], ignore_index=True)
                 save_user_db(df)
@@ -586,7 +734,7 @@ elif st.session_state.tela == "reset_password":
     token = st.session_state.get("incoming_reset_token", "")
     token = st.text_input("Token de redefinição (se veio por link, já estará preenchido)", value=token)
     colp1, colp2 = st.columns(2)
-    new_pass = colp1.text_input("Nova senha", type="password")
+    new_pass = colp1.text_input("Nova senha", type="password", help="Mín 10, com maiúscula, minúscula, número e especial.")
     new_pass2 = colp2.text_input("Confirmar nova senha", type="password")
     colb1, colb2 = st.columns(2)
     confirmar = colb1.button("Redefinir senha", type="primary", use_container_width=True)
@@ -613,18 +761,74 @@ elif st.session_state.tela == "reset_password":
                 if datetime.utcnow() > exp:
                     st.error("Token expirado. Solicite novamente.")
                 else:
+                    username = df.loc[idx, "username"]
+                    email = df.loc[idx, "email"]
+                    ok, errs = validate_password_policy(new_pass, username=username, email=email)
+                    if not ok:
+                        st.error("Regras de senha não atendidas:\n- " + "\n- ".join(errs))
+                        st.stop()
+                    # opcional: impedir repetir a senha
+                    if check_password(df.loc[idx, "password"], new_pass):
+                        st.error("A nova senha não pode ser igual à senha atual.")
+                        st.stop()
+
                     df.loc[idx, "password"] = hash_password(new_pass)
                     df.loc[idx, "reset_token"] = ""
                     df.loc[idx, "reset_expires_at"] = ""
+                    df.loc[idx, "last_password_change"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                    df.loc[idx, "force_password_reset"] = ""
                     save_user_db(df)
                     st.success("Senha redefinida com sucesso! Faça login novamente.")
                     st.button("Ir para login", on_click=ir_para_login, type="primary")
+
+elif st.session_state.tela == "force_change_password":
+    st.markdown("<div class='main-container'>", unsafe_allow_html=True)
+    st.title("🔒 Alteração obrigatória de senha")
+    st.warning("Sua senha expirou ou foi marcada para alteração. Defina uma nova senha para continuar.")
+    col1, col2 = st.columns(2)
+    new_pass = col1.text_input("Nova senha", type="password", help="Mín 10, com maiúscula, minúscula, número e especial.")
+    new_pass2 = col2.text_input("Confirmar nova senha", type="password")
+    if st.button("Atualizar senha", type="primary"):
+        df = load_user_db()
+        uname = st.session_state.get("username", "")
+        rows = df[df["username"] == uname]
+        if rows.empty:
+            st.error("Sessão inválida. Faça login novamente.")
+        else:
+            idx = rows.index[0]
+            email = df.loc[idx, "email"]
+            if not new_pass or not new_pass2:
+                st.error("Preencha os campos de senha.")
+                st.stop()
+            if new_pass != new_pass2:
+                st.error("As senhas não conferem.")
+                st.stop()
+            ok, errs = validate_password_policy(new_pass, username=uname, email=email)
+            if not ok:
+                st.error("Regras de senha não atendidas:\n- " + "\n- ".join(errs))
+                st.stop()
+            if check_password(df.loc[idx, "password"], new_pass):
+                st.error("A nova senha não pode ser igual à senha atual.")
+                st.stop()
+            df.loc[idx, "password"] = hash_password(new_pass)
+            df.loc[idx, "last_password_change"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            df.loc[idx, "force_password_reset"] = ""
+            save_user_db(df)
+            st.success("Senha atualizada com sucesso.")
+            # Após trocar senha, se ainda não aceitou termos, direciona; senão home
+            if not str(df.loc[idx, "accepted_terms_on"]).strip():
+                st.session_state.tela = "terms_consent"
+            else:
+                st.session_state.tela = "home"
+            st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
 
 elif st.session_state.tela == "terms_consent":
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     st.title("Termos e Condições de Uso e Política de Privacidade (LGPD)")
     st.info("Para seu primeiro acesso, é necessário ler e aceitar os termos de uso e a política de privacidade desta plataforma.")
-    st.markdown("""
+
+    terms_html = dedent("""
     <div class="terms-box">
         <p><b>Última atualização:</b> 28 de Setembro de 2025</p>
 
@@ -707,20 +911,26 @@ elif st.session_state.tela == "terms_consent":
             procure o time responsável pela ferramenta ou o canal corporativo de Privacidade/DPD.
         </p>
     </div>
-    """, unsafe_allow_html=True)
+    """)
+    st.markdown(terms_html, unsafe_allow_html=True)
 
     st.markdown("---")
     consent = st.checkbox("Eu li e concordo com os Termos e Condições.")
     if st.button("Continuar", disabled=not consent, type="primary"):
         df_users = load_user_db()
-        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         username = st.session_state.get("username", "")
         if username:
             user_index = df_users.index[df_users['username'] == username]
             if len(user_index) > 0:
                 df_users.loc[user_index[0], 'accepted_terms_on'] = now
                 save_user_db(df_users)
-        st.session_state.tela = "home"
+        # Depois do aceite, se senha expirada, forçar troca; senão home
+        row = df_users[df_users['username'] == username].iloc[0]
+        if is_password_expired(row) or str(row.get("force_password_reset", "")).strip():
+            st.session_state.tela = "force_change_password"
+        else:
+            st.session_state.tela = "home"
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -747,21 +957,37 @@ else:
         st.title("👤 Gerenciamento de Usuários")
         df_users = load_user_db()
 
+        # --------------------
         # Teste de SMTP
-        with st.expander("✉️ Testar envio de e-mail (SMTP)"):
+        # --------------------
+        with st.expander("✉️ Testar envio de e-mail (SMTP)", expanded=False):
             st.write("Use este teste para validar rapidamente as credenciais de e-mail em st.secrets.")
             test_to = st.text_input("Enviar e-mail de teste para:")
             if st.button("Enviar e-mail de teste"):
-                ok = send_email(test_to.strip(), "Teste SMTP - Vamos Fleet SLA", "E-mail de teste enviado pelo aplicativo.")
-                if ok:
-                    st.success("E-mail de teste enviado com sucesso!")
-
-            # Status das configs
+                if not test_to.strip():
+                    st.warning("Informe um e-mail de destino.")
+                else:
+                    ok = send_email(
+                        test_to.strip(),
+                        "Teste SMTP - Vamos Fleet SLA",
+                        "E-mail de teste enviado pelo aplicativo.",
+                        build_email_html(
+                            title="Teste de e-mail",
+                            subtitle="Este é um e-mail de teste do Vamos Fleet SLA.",
+                            body_lines=["Se você recebeu, o SMTP está funcionando corretamente."],
+                            cta_label="Abrir plataforma",
+                            cta_url=get_app_base_url() or "https://streamlit.io"
+                        )
+                    )
+                    if ok:
+                        st.success("E-mail de teste enviado com sucesso!")
             st.write("Status configurações:")
             st.write(f"- APP_BASE_URL: {'OK' if get_app_base_url() else 'NÃO CONFIGURADO'}")
             st.write(f"- SMTP: {'OK' if smtp_available() else 'NÃO CONFIGURADO'}")
 
-        # Aprovação de cadastros pendentes
+        # --------------------
+        # Aprovação de pendentes
+        # --------------------
         st.subheader("Aprovar Cadastros Pendentes")
         pendentes = df_users[df_users["status"] == "pendente"]
         if pendentes.empty:
@@ -774,13 +1000,11 @@ else:
             if colap1.button("✅ Aprovar selecionados", type="primary", use_container_width=True):
                 if to_approve:
                     base_url = get_app_base_url() or "https://SEU_DOMINIO"
-                    # aprova e envia notificação (ou convite p/ definir senha)
                     for uname in to_approve:
                         idx = df_users.index[df_users["username"] == uname][0]
                         df_users.loc[idx, "status"] = "aprovado"
                         email = df_users.loc[idx, "email"].strip()
                         if email:
-                            # Se não tem senha definida, envia convite para definir senha
                             if not df_users.loc[idx, "password"]:
                                 token = secrets.token_urlsafe(32)
                                 expires = (datetime.utcnow() + timedelta(minutes=30)).strftime("%Y-%m-%d %H:%M:%S")
@@ -797,21 +1021,27 @@ else:
                     st.warning("Selecione ao menos um usuário.")
             if colap2.button("🗑️ Rejeitar (remover) selecionados", use_container_width=True):
                 if to_approve:
-                    df_users = df_users[~df_users["username"].isin(to_approve)]
+                    # Não permitir remover superadmin
+                    to_remove = [u for u in to_approve if u != SUPERADMIN_USERNAME]
+                    df_users = df_users[~df_users["username"].isin(to_remove)]
                     save_user_db(df_users)
-                    st.success("Usuários removidos com sucesso!")
+                    st.success("Usuários removidos com sucesso.")
                     st.rerun()
                 else:
                     st.warning("Selecione ao menos um usuário.")
 
         st.markdown("---")
+
+        # --------------------
+        # Adicionar novo usuário
+        # --------------------
         st.subheader("Adicionar Novo Usuário (admin)")
         with st.form("add_user_form", clear_on_submit=True):
             new_username = st.text_input("Usuário (para login)")
             new_full_name = st.text_input("Nome Completo")
             new_matricula = st.text_input("Matrícula")
             new_email = st.text_input("E-mail")
-            new_password = st.text_input("Senha Temporária (opcional)", type="password")
+            new_password = st.text_input("Senha Temporária (opcional)", type="password", help="Se não preencher, o usuário receberá e-mail para definir a senha.")
             new_role = st.selectbox("Tipo de Acesso", ["user", "admin"])
             aprovar_agora = st.checkbox("Aprovar agora", value=True)
             if st.form_submit_button("Adicionar Usuário"):
@@ -821,28 +1051,222 @@ else:
                     st.error("Usuário, nome completo e e-mail são obrigatórios.")
                 else:
                     status = "aprovado" if aprovar_agora else "pendente"
-                    pwd_hash = hash_password(new_password) if new_password.strip() else ""
+                    pwd_hash = ""
+                    if new_password.strip():
+                        ok, errs = validate_password_policy(new_password, username=new_username, email=new_email)
+                        if not ok:
+                            st.error("Regras de senha não atendidas:\n- " + "\n- ".join(errs))
+                            st.stop()
+                        pwd_hash = hash_password(new_password)
+
                     new_user_data = pd.DataFrame([{
                         "username": new_username.strip(),
                         "password": pwd_hash,
-                        "role": new_role,
+                        "role": "admin" if new_role == "admin" else "user",
                         "full_name": new_full_name.strip(),
                         "matricula": new_matricula.strip(),
                         "email": new_email.strip(),
                         "status": status,
                         "accepted_terms_on": "",
                         "reset_token": "",
-                        "reset_expires_at": ""
+                        "reset_expires_at": "",
+                        "last_password_change": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S") if pwd_hash else "",
+                        "force_password_reset": "" if pwd_hash else "1"
                     }])
                     df_users = pd.concat([df_users, new_user_data], ignore_index=True)
                     save_user_db(df_users)
 
-                    # Envia e-mail imediatamente se aprovado
+                    # E-mails
+                    base_url = get_app_base_url() or "https://SEU_DOMINIO"
                     if status == "aprovado" and new_email.strip():
-                        base_url = get_app_base_url() or "https://SEU_DOMINIO"
                         if not pwd_hash:
-                            # enviar convite p/ definir senha
                             idx = df_users.index[df_users["username"] == new_username.strip()][0]
                             token = secrets.token_urlsafe(32)
                             expires = (datetime.utcnow() + timedelta(minutes=30)).strftime("%Y-%m-%d %H:%M:%S")
                             df_users.loc[idx, "reset_token"] = token
+                            df_users.loc[idx, "reset_expires_at"] = expires
+                            save_user_db(df_users)
+                            reset_link = f"{base_url}?reset_token={token}"
+                            send_invite_to_set_password(new_email.strip(), reset_link)
+                        else:
+                            send_approved_email(new_email.strip(), base_url)
+
+                    st.success(f"Usuário '{new_username}' adicionado com sucesso!")
+
+        st.markdown("---")
+
+        # --------------------
+        # Usuários existentes (com busca e remoção)
+        # --------------------
+        st.subheader("Usuários Existentes")
+        for col in ["full_name", "matricula", "accepted_terms_on", "email", "status", "last_password_change", "role"]:
+            if col not in df_users.columns:
+                df_users[col] = ""
+
+        # Busca
+        termo = st.text_input("Buscar por usuário, nome, e-mail ou matrícula:")
+        df_view = df_users.copy()
+        if termo.strip():
+            t = termo.strip().lower()
+            mask = (
+                df_view["username"].str.lower().str.contains(t, na=False) |
+                df_view["full_name"].str.lower().str.contains(t, na=False) |
+                df_view["email"].str.lower().str.contains(t, na=False) |
+                df_view["matricula"].str.lower().str.contains(t, na=False)
+            )
+            df_view = df_view[mask]
+
+        st.dataframe(
+            df_view[["username", "full_name", "matricula", "email", "role", "status", "accepted_terms_on", "last_password_change"]],
+            use_container_width=True
+        )
+
+        # Remoção
+        st.markdown("#### Remover usuários")
+        candidates = [u for u in df_users["username"].tolist() if u != SUPERADMIN_USERNAME]
+        remove_select = st.multiselect("Selecione usuários para remover:", options=candidates)
+        can_remove = []
+        cannot_remove = []
+        if st.button("Remover selecionados", type="primary"):
+            if not remove_select:
+                st.warning("Nenhum usuário selecionado.")
+            else:
+                for uname in remove_select:
+                    idx = df_users.index[df_users["username"] == uname][0]
+                    role = df_users.loc[idx, "role"]
+                    # Regras de proteção:
+                    if uname == SUPERADMIN_USERNAME:
+                        cannot_remove.append(uname)
+                        continue
+                    if role in ("admin", "superadmin") and not user_is_superadmin():
+                        cannot_remove.append(uname)
+                        continue
+                    can_remove.append(uname)
+                if can_remove:
+                    df_users = df_users[~df_users["username"].isin(can_remove)]
+                    save_user_db(df_users)
+                    st.success(f"Removidos: {', '.join(can_remove)}")
+                    if cannot_remove:
+                        st.warning(f"Não permitido remover: {', '.join(cannot_remove)}")
+                    st.rerun()
+                else:
+                    st.warning("Nenhum usuário pôde ser removido pelas regras de proteção.")
+
+    elif st.session_state.tela == "calc_comparativa":
+        st.title("📊 Calculadora Comparativa de Cenários")
+        if "cenarios" not in st.session_state:
+            st.session_state.cenarios = []
+        if "pecas_atuais" not in st.session_state:
+            st.session_state.pecas_atuais = []
+        if "mostrar_comparativo" not in st.session_state:
+            st.session_state.mostrar_comparativo = False
+
+        df_base = carregar_base()
+        if df_base is None:
+            st.error("❌ Arquivo 'Base De Clientes Faturamento.xlsx' não encontrado.")
+            st.stop()
+
+        if st.session_state.cenarios:
+            st.markdown("---")
+            st.header("📈 Cenários Calculados")
+            df_cenarios = pd.DataFrame(st.session_state.cenarios)
+            st.table(df_cenarios.drop(columns=["Detalhe Peças"]))
+            if len(st.session_state.cenarios) >= 2 and not st.session_state.mostrar_comparativo:
+                if st.button("🏆 Comparar Cenários", type="primary"):
+                    st.session_state.mostrar_comparativo = True
+                    st.rerun()
+
+        if st.session_state.mostrar_comparativo:
+            st.header("Análise Comparativa Final")
+            df_cenarios = pd.DataFrame(st.session_state.cenarios)
+            melhor = df_cenarios.loc[df_cenarios["Total Final (R$)"].apply(moeda_para_float).idxmin()]
+            st.success(f"🏆 Melhor cenário: {melhor['Serviço']} | Placa {melhor['Placa']} | Total Final: {melhor['Total Final (R$)']}")
+            pdf_buffer = gerar_pdf_comparativo(df_cenarios, melhor)
+            st.download_button("📥 Baixar Relatório PDF", pdf_buffer, "comparacao_cenarios_sla.pdf", "application/pdf")
+            st.button("🔄 Reiniciar Comparação", on_click=limpar_dados_comparativos, use_container_width=True, type="primary")
+        else:
+            st.markdown("---")
+            st.header(f"📝 Preencher Dados para o Cenário {len(st.session_state.cenarios) + 1}")
+
+            with st.expander("🔍 Consultar Clientes e Placas"):
+                df_display = df_base[['CLIENTE', 'PLACA', 'VALOR MENSALIDADE']].copy()
+                df_display['VALOR MENSALIDADE'] = df_display['VALOR MENSALIDADE'].apply(formatar_moeda)
+                st.dataframe(df_display, use_container_width=True, hide_index=True)
+
+            col_form, col_pecas = st.columns([2, 1])
+            with col_form:
+                placa = st.text_input("1. Digite a placa e tecle Enter")
+                cliente_info = None
+                if placa:
+                    placa_upper = placa.strip().upper()
+                    cliente_row = df_base[df_base["PLACA"].astype(str).str.upper() == placa_upper]
+                    if not cliente_row.empty:
+                        cliente_info = {
+                            "cliente": cliente_row.iloc[0]["CLIENTE"],
+                            "mensalidade": moeda_para_float(cliente_row.iloc[0]["VALOR MENSALIDADE"])
+                        }
+                        st.info(f"✅ Cliente: {cliente_info['cliente']} | Mensalidade: {formatar_moeda(cliente_info['mensalidade'])}")
+                    else:
+                        st.warning("❌ Placa não encontrada.")
+
+                with st.form(key=f"form_cenario_{len(st.session_state.cenarios)}", clear_on_submit=True):
+                    st.subheader("2. Detalhes do Serviço")
+                    subcol1, subcol2 = st.columns(2)
+                    entrada = subcol1.date_input("📅 Data de entrada:", datetime.now())
+                    saida = subcol2.date_input("📅 Data de saída:", datetime.now() + timedelta(days=5))
+                    feriados = subcol1.number_input("📌 Feriados no período:", min_value=0, step=1)
+                    servico = subcol2.selectbox("🛠️ Tipo de serviço:", [
+                        "Preventiva – 2 dias úteis", "Corretiva – 3 dias úteis",
+                        "Preventiva + Corretiva – 5 dias úteis", "Motor – 15 dias úteis"
+                    ])
+                    with st.expander("Verificar Peças Adicionadas"):
+                        if st.session_state.pecas_atuais:
+                            for peca in st.session_state.pecas_atuais:
+                                c1, c2 = st.columns([3, 1])
+                                c1.write(peca['nome'])
+                                c2.write(formatar_moeda(peca['valor']))
+                        else:
+                            st.info("Nenhuma peça adicionada na coluna da direita.")
+
+                    submitted = st.form_submit_button(
+                        f"➡️ Calcular Cenário {len(st.session_state.cenarios) + 1}",
+                        use_container_width=True, type="primary"
+                    )
+                    if submitted:
+                        if not cliente_info:
+                            st.error("Placa inválida ou não encontrada para submeter.")
+                        elif entrada >= saida:
+                            st.error("A data de saída deve ser posterior à de entrada.")
+                        else:
+                            cenario = calcular_cenario_comparativo(
+                                cliente_info["cliente"], placa.upper(), entrada, saida,
+                                feriados, servico, st.session_state.pecas_atuais, cliente_info["mensalidade"]
+                            )
+                            st.session_state.cenarios.append(cenario)
+                            st.session_state.pecas_atuais = []
+                            st.rerun()
+
+            with col_pecas:
+                st.subheader("3. Gerenciar Peças")
+                nome_peca = st.text_input("Nome da Peça", key="nome_peca_input")
+                valor_peca = st.number_input("Valor (R$)", min_value=0.0, step=0.01, format="%.2f", key="valor_peca_input")
+                if st.button("➕ Adicionar Peça", use_container_width=True):
+                    if nome_peca and valor_peca > 0:
+                        st.session_state.pecas_atuais.append({"nome": nome_peca, "valor": float(valor_peca)})
+                        st.rerun()
+                    else:
+                        st.warning("Preencha o nome e o valor da peça.")
+                if st.session_state.pecas_atuais:
+                    st.markdown("---")
+                    st.write("Peças adicionadas:")
+                    opcoes_pecas = [f"{p['nome']} - {formatar_moeda(p['valor'])}" for p in st.session_state.pecas_atuais]
+                    pecas_para_remover = st.multiselect("Selecione para remover:", options=opcoes_pecas)
+                    if st.button("🗑️ Remover Selecionadas", type="secondary", use_container_width=True):
+                        if pecas_para_remover:
+                            nomes_para_remover = [item.split(' - ')[0] for item in pecas_para_remover]
+                            st.session_state.pecas_atuais = [p for p in st.session_state.pecas_atuais if p['nome'] not in nomes_para_remover]
+                            st.rerun()
+                        else:
+                            st.warning("Nenhuma peça foi selecionada.")
+
+    st.markdown("</div>", unsafe_allow_html=True)
