@@ -289,7 +289,7 @@ else:
             new_username = st.text_input("Usuário (para login)")
             new_full_name = st.text_input("Nome Completo")
             new_matricula = st.text_input("Matrícula")
-            new_password = st.text_input("Senha Temporária", type="password")
+            new_password = st.text_input("Senha", type="password")
             new_role = st.selectbox("Tipo de Acesso", ["user", "admin"])
             if st.form_submit_button("Adicionar Usuário"):
                 if new_username in df_users["username"].values: st.error("Este nome de usuário já existe.")
@@ -449,4 +449,5 @@ else:
                         st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
