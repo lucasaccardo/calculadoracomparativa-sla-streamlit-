@@ -274,7 +274,7 @@ else:
         col1, col2 = st.columns(2)
         with col1:
             st.subheader("📊 Análise de Cenários")
-            st.write("Calcule e compare múltiplos cenários para encontrar a opção com o menor custo final.")
+            st.write("Compare múltiplos cenários para encontrar a opção com o menor custo final.")
             st.button("Acessar Análise de Cenários", on_click=ir_para_calc_comparativa, use_container_width=True)
         with col2:
             st.subheader("🖩 SLA Mensal")
@@ -449,3 +449,4 @@ else:
                         st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
+
