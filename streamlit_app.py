@@ -198,50 +198,38 @@ if "tela" not in st.session_state: st.session_state.tela = "login"
 
 aplicar_estilos()
 
+# BLOCO DE LOGIN CENTRALIZADO E AJUSTADO
 if st.session_state.tela == "login":
-    st.markdown("""
-    <style>
-    .login-page-center {
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-    }
-    .login-logo-img {
-        max-width: 340px;
-        width: 30vw;
-        min-width: 220px;
-        margin-bottom: 32px;
-    }
-    .login-form-box {
-        width: 100%;
-        max-width: 400px;
-    }
-    </style>
-    <div class='login-page-center'>
-        <img src='fleetvamossla.png' class='login-logo-img'>
-        <div class='login-form-box'>
-    """, unsafe_allow_html=True)
+    # Espaço vertical antes para centralizar
+    st.markdown("<br><br><br>", unsafe_allow_html=True)
 
-    with st.form("login_form"):
-        username = st.text_input("Usuário", label_visibility="collapsed", placeholder="Usuário")
-        password = st.text_input("Senha", type="password", label_visibility="collapsed", placeholder="Senha")
-        if st.form_submit_button("Entrar 🚀"):
-            df_users = load_user_db()
-            user_data = df_users[df_users["username"] == username]
-            if not user_data.empty and check_password(user_data.iloc[0]["password"], password):
-                st.session_state.logado = True; st.session_state.tela = "home"
-                st.session_state.username = user_data.iloc[0]["username"]; st.session_state.role = user_data.iloc[0]["role"]
-                if "accepted_terms_on" in user_data.columns and pd.isna(user_data.iloc[0]["accepted_terms_on"]):
-                    st.session_state.tela = "terms_consent"
-                st.rerun()
-            else: st.error("❌ Usuário ou senha incorretos.")
+    # Columns para centralizar logo
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.image("fleetvamossla.png", use_column_width=False, width=320)
 
-    st.markdown("""
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    # Espaço entre logo e formulário
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Columns para centralizar formulário
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        with st.form("login_form"):
+            username = st.text_input("Usuário", label_visibility="collapsed", placeholder="Usuário")
+            password = st.text_input("Senha", type="password", label_visibility="collapsed", placeholder="Senha")
+            if st.form_submit_button("Entrar 🚀"):
+                df_users = load_user_db()
+                user_data = df_users[df_users["username"] == username]
+                if not user_data.empty and check_password(user_data.iloc[0]["password"], password):
+                    st.session_state.logado = True; st.session_state.tela = "home"
+                    st.session_state.username = user_data.iloc[0]["username"]; st.session_state.role = user_data.iloc[0]["role"]
+                    if "accepted_terms_on" in user_data.columns and pd.isna(user_data.iloc[0]["accepted_terms_on"]):
+                        st.session_state.tela = "terms_consent"
+                    st.rerun()
+                else: st.error("❌ Usuário ou senha incorretos.")
+
+    # Espaço vertical depois para evitar grudar no rodapé
+    st.markdown("<br><br>", unsafe_allow_html=True)
 
 elif st.session_state.tela == "terms_consent":
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
