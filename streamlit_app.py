@@ -197,15 +197,18 @@ def renderizar_sidebar():
 if "tela" not in st.session_state: st.session_state.tela = "login"
 
 aplicar_estilos()
-
+ 
 if st.session_state.tela == "login":
     st.markdown("<div class='login-container'>", unsafe_allow_html=True)
     st.markdown("<div class='login-logo'>", unsafe_allow_html=True)
-    try: st.image("logo.png", width=300)
-    except: st.markdown("<h2 style='text-align: center;'>🚛 Vamos Locação</h2>", unsafe_allow_html=True)
+    try:
+        st.image("fleetvamossla.png", width=340)
+    except:
+        st.markdown("<h1 style='text-align: center;'>Fleet Vamos SLA</h1>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("<h1 style='text-align: center;'>Plataforma de Calculadoras SLA</h1>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns([1, 1.5, 1])
+    # ... resto do seu código ...
     
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
@@ -448,3 +451,4 @@ else:
                         st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
+
