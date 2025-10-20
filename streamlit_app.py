@@ -122,7 +122,6 @@ def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 def check_password(hashed_password, user_password):
-    # se senha armazenada vier vazia, nunca autentica
     return hashed_password == hash_password(user_password)
 
 REQUIRED_USER_COLUMNS = [
@@ -132,26 +131,46 @@ REQUIRED_USER_COLUMNS = [
 
 @st.cache_data
 def load_user_db():
+    admin_username = "lucas.sureira"
+    admin_defaults = {
+        "username": admin_username,
+        "password": hash_password("Brasil@@2609"),
+        "role": "admin",
+        "full_name": "Lucas Mateus Sureira",
+        "matricula": "30159179",
+        "email": "lucas.sureira@grupovamos.com.br",
+        "status": "aprovado",
+        "accepted_terms_on": "",
+        "reset_token": "",
+        "reset_expires_at": ""
+    }
+
     if os.path.exists("users.csv") and os.path.getsize("users.csv") > 0:
         df = pd.read_csv("users.csv", dtype=str).fillna("")
     else:
-        df = pd.DataFrame([{
-            "username": "lucas.sureira",
-            "password": hash_password("Brasil@@2609"),
-            "role": "admin",
-            "full_name": "Admin",
-            "matricula": "",
-            "email": "admin@example.com",
-            "status": "aprovado",
-            "accepted_terms_on": "",
-            "reset_token": "",
-            "reset_expires_at": ""
-        }])
+        # Cria arquivo já com o admin principal pronto
+        df = pd.DataFrame([admin_defaults])
         df.to_csv("users.csv", index=False)
+        return df
 
+    # Garante colunas
     for col in REQUIRED_USER_COLUMNS:
         if col not in df.columns:
             df[col] = ""
+
+    # Garante que o admin principal existe e está correto
+    if admin_username in df["username"].values:
+        idx = df.index[df["username"] == admin_username][0]
+        # Atualiza/garante os dados do admin (mantém accepted_terms_on se já houver)
+        for k, v in admin_defaults.items():
+            if k == "accepted_terms_on" and str(df.loc[idx, k]).strip():
+                continue  # não sobrescreve aceite existente
+            df.loc[idx, k] = v
+    else:
+        df = pd.concat([df, pd.DataFrame([admin_defaults])], ignore_index=True)
+
+    # Persiste correções, se houver
+    df.to_csv("users.csv", index=False)
     return df
 
 def save_user_db(df_users):
@@ -442,7 +461,6 @@ elif st.session_state.tela == "register":
                 idx = idxs[0]
                 # username: se admin já definiu, mantemos; senão, usa o informado
                 if not df.loc[idx, "username"]:
-                    # se username já existe em outro usuário, erro
                     if (username.strip() in df["username"].values) and (df.loc[idx, "username"] != username.strip()):
                         st.error("Nome de usuário já existe.")
                         st.stop()
@@ -813,7 +831,7 @@ else:
                     if st.button("🗑️ Remover Selecionadas", type="secondary", use_container_width=True):
                         if pecas_para_remover:
                             nomes_para_remover = [item.split(' - ')[0] for item in pecas_para_remover]
-                            st.session_state.pecas_atuais = [p for p in st.session_state.pecas_atuais if p['nome'] not in nomes_para_remover]
+                            st.session_state.pecas_atuais = [p for p in st.session_state.pecas_atuis if p['nome'] not in nomes_para_remover]
                             st.rerun()
                         else:
                             st.warning("⚠️ Nenhuma peça foi selecionada.")
