@@ -198,21 +198,14 @@ if "tela" not in st.session_state: st.session_state.tela = "login"
 
 aplicar_estilos()
  
-st.markdown("<div class='login-container'>", unsafe_allow_html=True)
-# Centraliza a imagem usando HTML/CSS
-st.markdown(
-    """
-    <div style='display: flex; justify-content: center; align-items: center; width: 100%;'>
-        <img src='fleetvamossla.png' width='340'>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-st.markdown("</div>", unsafe_allow_html=True)
+if st.session_state.tela == "login":
+    st.markdown("<div class='login-container'>", unsafe_allow_html=True)
+    # Centraliza a logo usando columns
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.image("fleetvamossla.png", width=340)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns([1, 1.5, 1])
-    # ... resto do seu código ...
-    
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
         with st.form("login_form"):
@@ -454,6 +447,3 @@ else:
                         st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
-
-
-
