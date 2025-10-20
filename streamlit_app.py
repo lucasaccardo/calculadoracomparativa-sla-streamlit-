@@ -198,17 +198,14 @@ if "tela" not in st.session_state: st.session_state.tela = "login"
 
 aplicar_estilos()
 
-# BLOCO DE LOGIN: logo no canto superior direito (usando columns) e formulário centralizado
 if st.session_state.tela == "login":
     # Linha no topo: logo no canto direito
     col1, col2, col3 = st.columns([6, 1, 1])
     with col3:
         st.image("fleetvamossla.png", width=120)
 
-    # Espaço vertical antes para centralizar o formulário
     st.markdown("<br><br><br><br>", unsafe_allow_html=True)
 
-    # Columns para centralizar formulário
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         with st.form("login_form"):
@@ -225,7 +222,6 @@ if st.session_state.tela == "login":
                     st.rerun()
                 else: st.error("❌ Usuário ou senha incorretos.")
 
-    # Espaço vertical depois para evitar grudar no rodapé
     st.markdown("<br><br>", unsafe_allow_html=True)
 
 elif st.session_state.tela == "terms_consent":
@@ -271,19 +267,19 @@ else:
     renderizar_sidebar()
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     
-if st.session_state.tela == "home":
-    st.title(f"🏠 Home"); st.write(f"### Bem-vindo, {st.session_state.username}!")
-    st.write("Selecione abaixo a ferramenta que deseja utilizar.")
-    st.markdown("---")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("📊 Análise de Cenários")
-        st.write("Calcule e compare múltiplos cenários para encontrar a opção com o menor custo final.")
-        st.button("Acessar Análise de Cenários", on_click=ir_para_calc_comparativa, use_container_width=True)
-    with col2:
-        st.subheader("🖩 SLA Mensal")
-        st.write("Calcule rapidamente o desconto de SLA para um único serviço ou veículo.")
-        st.button("Acessar SLA Mensal", on_click=ir_para_calc_simples, use_container_width=True)
+    if st.session_state.tela == "home":
+        st.title(f"🏠 Home"); st.write(f"### Bem-vindo, {st.session_state.username}!")
+        st.write("Selecione abaixo a ferramenta que deseja utilizar.")
+        st.markdown("---")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("📊 Análise de Cenários")
+            st.write("Calcule e compare múltiplos cenários para encontrar a opção com o menor custo final.")
+            st.button("Acessar Análise de Cenários", on_click=ir_para_calc_comparativa, use_container_width=True)
+        with col2:
+            st.subheader("🖩 SLA Mensal")
+            st.write("Calcule rapidamente o desconto de SLA para um único serviço ou veículo.")
+            st.button("Acessar SLA Mensal", on_click=ir_para_calc_simples, use_container_width=True)
     
     elif st.session_state.tela == "admin_users":
         st.title("👤 Gerenciamento de Usuários")
@@ -453,4 +449,3 @@ if st.session_state.tela == "home":
                         st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
-
