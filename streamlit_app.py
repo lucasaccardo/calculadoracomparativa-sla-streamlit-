@@ -271,19 +271,19 @@ else:
     renderizar_sidebar()
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     
-    if st.session_state.tela == "home":
-        st.title(f"🏠 Home"); st.write(f"### Bem-vindo, {st.session_state.username}!")
-        st.write("Selecione abaixo a ferramenta que deseja utilizar.")
-        st.markdown("---")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("📊 Calculadora Comparativa de SLA")
-            st.write("Calcule e compare múltiplos cenários para encontrar a opção com o menor custo final.")
-            st.button("Acessar Calculadora Comparativa", on_click=ir_para_calc_comparativa, use_container_width=True)
-        with col2:
-            st.subheader("🖩 Calculadora de SLA Simples")
-            st.write("Calcule rapidamente o desconto de SLA para um único serviço ou veículo.")
-            st.button("Acessar Calculadora Simples", on_click=ir_para_calc_simples, use_container_width=True)
+if st.session_state.tela == "home":
+    st.title(f"🏠 Home"); st.write(f"### Bem-vindo, {st.session_state.username}!")
+    st.write("Selecione abaixo a ferramenta que deseja utilizar.")
+    st.markdown("---")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("📊 Análise de Cenários")
+        st.write("Calcule e compare múltiplos cenários para encontrar a opção com o menor custo final.")
+        st.button("Acessar Análise de Cenários", on_click=ir_para_calc_comparativa, use_container_width=True)
+    with col2:
+        st.subheader("🖩 SLA Mensal")
+        st.write("Calcule rapidamente o desconto de SLA para um único serviço ou veículo.")
+        st.button("Acessar SLA Mensal", on_click=ir_para_calc_simples, use_container_width=True)
     
     elif st.session_state.tela == "admin_users":
         st.title("👤 Gerenciamento de Usuários")
@@ -453,3 +453,4 @@ else:
                         st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
+
