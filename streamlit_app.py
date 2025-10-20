@@ -1177,7 +1177,7 @@ else:
                     st.rerun()
 
         if st.session_state.mostrar_comparativo:
-            st.header("Análise Comparativa Final")
+            st.header("Análise de Custo Final")
             df_cenarios = pd.DataFrame(st.session_state.cenarios)
             melhor = df_cenarios.loc[df_cenarios["Total Final (R$)"].apply(moeda_para_float).idxmin()]
             st.success(f"🏆 Melhor cenário: {melhor['Serviço']} | Placa {melhor['Placa']} | Total Final: {melhor['Total Final (R$)']}")
@@ -1270,3 +1270,4 @@ else:
                             st.warning("Nenhuma peça foi selecionada.")
 
     st.markdown("</div>", unsafe_allow_html=True)
+
