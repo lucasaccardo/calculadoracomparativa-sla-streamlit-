@@ -199,14 +199,11 @@ if "tela" not in st.session_state: st.session_state.tela = "login"
 aplicar_estilos()
 
 if st.session_state.tela == "login":
-    # Centraliza a logo na tela de login usando HTML/CSS flexbox
-    st.markdown("""
-    <div class='login-container'>
-        <div style="width: 100vw; display: flex; justify-content: center; align-items: center; margin-top: 3vh; margin-bottom: 2vh;">
-            <img src="fleetvamossla.png" style="max-width:340px; width: 30vw; min-width:220px;">
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("<div class='login-container'>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.image("fleetvamossla.png", use_column_width=False, width=340)
+    st.markdown("</div>", unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
