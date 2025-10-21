@@ -106,7 +106,7 @@ def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label
         </tr>
         """
     body_html = "".join([f'<p style="margin:8px 0 8px 0">{line}</p>' for line in body_lines])
-    footer_html = f'<p style="color:#6b7280;font-size:12px">{footer}</p>' if footer else ""
+    footer_html = f'<p style="color:#6b7280;font-size:12px'>{footer}</p>' if footer else ""
     return f"""<!DOCTYPE html>
 <html>
   <body style="margin:0;padding:0;background:{light}">
@@ -311,41 +311,21 @@ def aplicar_estilos():
             opacity: 0.9;
         }}
 
-        /* ======= AJUSTES E CORREÇÕES DO SIDEBAR ======= */
+        /* ======= AJUSTES DO SIDEBAR ======= */
 
-        /* Largura estável do sidebar */
-        [data-testid="stSidebar"] {{
-            width: 320px !important;
-            min-width: 320px !important;
-        }}
-        @media (max-width: 768px) {{
-            [data-testid="stSidebar"] {{
-                width: 260px !important;
-                min-width: 260px !important;
-            }}
-        }}
-
-        /* RESET universal: escrita horizontal, sem rotações */
-        [data-testid="stSidebar"],
-        [data-testid="stSidebar"] * {{
-            writing-mode: horizontal-tb !important;
-            text-orientation: mixed !important;
-            transform: none !important;
-            rotate: 0deg !important;
-        }}
-
+        /* NÃO fixe width/min-width do sidebar para não quebrar o colapso (X) */
         /* Estrutura interna do sidebar */
         [data-testid="stSidebar"] [data-testid="stSidebarContent"] {{
             display: flex !important;
             flex-direction: column !important;
-            align-items: stretch !important; /* filhos ocupam a largura do sidebar */
-            gap: 8px !important;
+            align-items: center !important;
+            gap: 10px !important;
             text-align: center !important;
             padding-left: 8px !important;
             padding-right: 8px !important;
         }}
 
-        /* Blocos ocupam a largura total */
+        /* Blocos ocupam a largura do container interno (não do viewport) */
         [data-testid="stSidebar"] .element-container,
         [data-testid="stSidebar"] .block-container,
         [data-testid="stSidebar"] .stButton,
@@ -353,23 +333,14 @@ def aplicar_estilos():
             width: 100% !important;
         }}
 
-        /* Centralização opcional */
-        [data-testid="stSidebar"] .sidebar-center {{
-            width: 100% !important;
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: center !important;
-            gap: 10px !important;
-            text-align: center !important;
-        }}
-        [data-testid="stSidebar"] .sidebar-center img {{
-            display: block !important;
-            margin: 6px auto 2px auto !important;
-        }}
-
-        /* Botões do sidebar: horizontais, sem quebra por letra */
+        /* Reset de escrita SOMENTE em botões para evitar texto "em pé" sem interferir no colapso */
         [data-testid="stSidebar"] .stButton > button,
         [data-testid="stSidebar"] button {{
+            writing-mode: horizontal-tb !important;
+            white-space: nowrap !important;
+            word-break: keep-all !important;
+            overflow-wrap: normal !important;
+
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
@@ -378,14 +349,8 @@ def aplicar_estilos():
             max-width: 280px !important;
             min-width: 220px !important;
             margin: 4px auto !important;
-
-            white-space: nowrap !important;
-            word-break: keep-all !important;
-            overflow-wrap: normal !important;
-
             text-align: center !important;
             line-height: 1.1 !important;
-            letter-spacing: normal !important;
         }}
         [data-testid="stSidebar"] .stButton > button span {{
             white-space: nowrap !important;
@@ -393,15 +358,8 @@ def aplicar_estilos():
             overflow-wrap: normal !important;
         }}
 
-        /* ===== Remover "bolha cinza" de zoom sobre a imagem do logo =====
-           O Streamlit exibe um botão/overlay de fullscreen nas imagens.
-           Desativamos interação e escondemos o botão para evitar a bolha. */
-        [data-testid="stSidebar"] figure,
-        [data-testid="stSidebar"] img {{
-            pointer-events: none !important;   /* impede hover/click => sem overlay */
-        }}
-        /* Esconde possíveis botões de fullscreen de imagens (todas as versões/idiomas) */
-        [data-testid="stImage"] button,
+        /* Remover overlay/bolha de fullscreen sobre a imagem do logo (sem afetar colapso) */
+        [data-testid="stSidebar"] .stImage > button,
         [data-testid="StyledFullScreenButton"],
         button[title*="full"],
         button[title*="tela cheia"],
@@ -409,7 +367,6 @@ def aplicar_estilos():
         button[aria-label*="tela cheia"] {{
             display: none !important;
         }}
-        /* ===== FIM CORREÇÕES SIDEBAR ===== */
 
         /* Espaçamento do conteúdo principal */
         section.main > div.block-container {{
