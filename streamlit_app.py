@@ -117,7 +117,7 @@ def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label
             <tr>
               <td style="background:{brand};padding:18px 24px;color:#ffffff;">
                 <div style="display:flex;align-items:center;gap:12px">
-                  <span style="font-weight:700;font-size:18px;font-family:Segoe UI,Arial,sans-serif">Vamos Frotas SLA</span>
+                  <span style="font-weight:700;font-size:18px;font-family:Segoe UI,Arial,sans-serif">Vamos Fleet SLA</span>
                 </div>
               </td>
             </tr>
@@ -160,8 +160,8 @@ def send_email(dest_email: str, subject: str, body_plain: str, body_html: str | 
     try:
         msg = EmailMessage()
         msg["Subject"] = subject
-        msg["From"]        = sender
-        msg["To"]          = dest_email
+        msg["From"] = sender
+        msg["To"] = dest_email
         msg.set_content(body_plain)
         if body_html:
             msg.add_alternative(body_html, subtype="html")
@@ -179,10 +179,10 @@ def send_email(dest_email: str, subject: str, body_plain: str, body_html: str | 
         return False
 
 def send_reset_email(dest_email: str, reset_link: str):
-    subject = "Redefinição de senha - Vamos Frotas SLA"
+    subject = "Redefinição de senha - Vamos Fleet SLA"
     plain = f"""Olá,
 
-Recebemos uma solicitação para redefinir sua senha no Vamos Frotas SLA.
+Recebemos uma solicitação para redefinir sua senha no Vamos Fleet SLA.
 Use o link abaixo (válido por 30 minutos):
 
 {reset_link}
@@ -191,7 +191,7 @@ Se você não solicitou, ignore este e-mail.
 """
     html = build_email_html(
         title="Redefinição de senha",
-        subtitle="Você solicitou redefinir sua senha no Vamos Frotas SLA.",
+        subtitle="Você solicitou redefinir sua senha no Vamos Fleet SLA.",
         body_lines=["Este link é válido por 30 minutos.", "Se você não solicitou, ignore este e-mail."],
         cta_label="Redefinir senha",
         cta_url=reset_link,
@@ -200,17 +200,17 @@ Se você não solicitou, ignore este e-mail.
     return send_email(dest_email, subject, plain, html)
 
 def send_approved_email(dest_email: str, base_url: str):
-    subject = "Conta aprovada - Vamos Frotas SLA"
+    subject = "Conta aprovada - Vamos Fleet SLA"
     plain = f"""Olá,
 
-Sua conta no Vamos Frotas SLA foi aprovada.
+Sua conta no Vamos Fleet SLA foi aprovada.
 Acesse a plataforma: {base_url}
 
 Bom trabalho!
 """
     html = build_email_html(
         title="Conta aprovada",
-        subtitle="Seu acesso ao Vamos Frotas SLA foi liberado.",
+        subtitle="Seu acesso ao Vamos Fleet SLA foi liberado.",
         body_lines=["Você já pode acessar a plataforma com seu usuário e senha."],
         cta_label="Acessar plataforma",
         cta_url=base_url,
@@ -222,7 +222,7 @@ def send_invite_to_set_password(dest_email: str, reset_link: str):
     subject = "Sua conta foi aprovada - Defina sua senha"
     plain = f"""Olá,
 
-Sua conta no Vamos Frotas SLA foi aprovada.
+Sua conta no Vamos Fleet SLA foi aprovada.
 Para definir sua senha inicial, use o link (válido por 30 minutos):
 {reset_link}
 
@@ -1078,11 +1078,11 @@ else:
                 else:
                     ok = send_email(
                         test_to.strip(),
-                        "Teste SMTP - Vamos Frotas SLA",
+                        "Teste SMTP - Vamos Fleet SLA",
                         "E-mail de teste enviado pelo aplicativo.",
                         build_email_html(
                             title="Teste de e-mail",
-                            subtitle="Este é um e-mail de teste do Vamos Frotas SLA.",
+                            subtitle="Este é um e-mail de teste do Vamos Fleet SLA.",
                             body_lines=["Se você recebeu, o SMTP está funcionando corretamente."],
                             cta_label="Abrir plataforma",
                             cta_url=get_app_base_url() or "https://streamlit.io"
@@ -1514,5 +1514,3 @@ else:
                             st.warning("Nenhuma peça foi selecionada.")
 
     st.markdown("</div>", unsafe_allow_html=True)
-
-
