@@ -106,7 +106,7 @@ def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label
         </tr>
         """
     body_html = "".join([f'<p style="margin:8px 0 8px 0">{line}</p>' for line in body_lines])
-    footer_html = f'<p style="color:#6b7280;font-size:12px'>{footer}</p>' if footer else ""
+    footer_html = f'<p style="color:#6b7280;font-size:12px">{footer}</p>' if footer else ""
     return f"""<!DOCTYPE html>
 <html>
   <body style="margin:0;padding:0;background:{light}">
@@ -311,10 +311,9 @@ def aplicar_estilos():
             opacity: 0.9;
         }}
 
-        /* ======= AJUSTES DO SIDEBAR ======= */
+        /* ======= AJUSTES DO SIDEBAR (mínimos p/ não quebrar o recolhimento) ======= */
 
-        /* NÃO fixe width/min-width do sidebar para não quebrar o colapso (X) */
-        /* Estrutura interna do sidebar */
+        /* Container interno do sidebar */
         [data-testid="stSidebar"] [data-testid="stSidebarContent"] {{
             display: flex !important;
             flex-direction: column !important;
@@ -325,7 +324,7 @@ def aplicar_estilos():
             padding-right: 8px !important;
         }}
 
-        /* Blocos ocupam a largura do container interno (não do viewport) */
+        /* Cada bloco ocupa largura do container */
         [data-testid="stSidebar"] .element-container,
         [data-testid="stSidebar"] .block-container,
         [data-testid="stSidebar"] .stButton,
@@ -333,22 +332,21 @@ def aplicar_estilos():
             width: 100% !important;
         }}
 
-        /* Reset de escrita SOMENTE em botões para evitar texto "em pé" sem interferir no colapso */
-        [data-testid="stSidebar"] .stButton > button,
-        [data-testid="stSidebar"] button {{
-            writing-mode: horizontal-tb !important;
-            white-space: nowrap !important;
-            word-break: keep-all !important;
-            overflow-wrap: normal !important;
-
+        /* Botões do sidebar: horizontais e sem quebrar por letra,
+           sem min-width para não travar o recolhimento */
+        [data-testid="stSidebar"] .stButton > button {{
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
 
             width: 100% !important;
-            max-width: 280px !important;
-            min-width: 220px !important;
+            max-width: 100% !important;
             margin: 4px auto !important;
+
+            writing-mode: horizontal-tb !important;
+            white-space: nowrap !important;
+            word-break: keep-all !important;
+            overflow-wrap: normal !important;
             text-align: center !important;
             line-height: 1.1 !important;
         }}
@@ -358,8 +356,8 @@ def aplicar_estilos():
             overflow-wrap: normal !important;
         }}
 
-        /* Remover overlay/bolha de fullscreen sobre a imagem do logo (sem afetar colapso) */
-        [data-testid="stSidebar"] .stImage > button,
+        /* Remover botão de fullscreen das imagens (evita bolha/overlay cinza) */
+        [data-testid="stImage"] button,
         [data-testid="StyledFullScreenButton"],
         button[title*="full"],
         button[title*="tela cheia"],
@@ -367,6 +365,9 @@ def aplicar_estilos():
         button[aria-label*="tela cheia"] {{
             display: none !important;
         }}
+
+        /* NÃO definir width/min-width/transform no próprio [data-testid="stSidebar"].
+           Assim o X (fechar) funciona com o comportamento padrão do Streamlit. */
 
         /* Espaçamento do conteúdo principal */
         section.main > div.block-container {{
