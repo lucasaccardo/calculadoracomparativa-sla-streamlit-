@@ -242,175 +242,171 @@ Bom trabalho!
 # ESTILOS (UI) + OCULTAR TOOLBAR + FULL BG + TÍTULO LOGIN + SIDEBAR CENTRAL
 # =========================
 def aplicar_estilos():
+    # Carrega o background se existir
+    bg_image_base64 = ""
     try:
-        with open("background.png", "rb") as f:
-            data = f.read()
-        bg_image_base64 = base64.b64encode(data).decode()
-        st.markdown(
-            f"""
-            <style>
-            /* Fundo */
-            html, body {{
-                background-color: #0b1220 !important;
-                height: 100%;
-            }}
-            [data-testid="stAppViewContainer"] {{
-                background-image: url(data:image/png;base64,{bg_image_base64});
-                background-size: cover;
-                background-repeat: no-repeat;
-                background-position: center top;
-                background-attachment: fixed;
-                min-height: 100vh;
-            }}
-            /* Cartões */
-            .main-container, [data-testid="stForm"] {{
-                background-color: rgba(13, 17, 23, 0.85);
-                padding: 25px;
-                border-radius: 10px;
-                border: 1px solid rgba(255, 255, 255, 0.2);
-            }}
-            .main-container, .main-container * {{ color: white !important; }}
-            a, .as-link {{
-                color: #91c9ff !important;
-                text-decoration: underline !important;
-                cursor: pointer;
-            }}
-            /* Termos */
-            .terms-box {{
-                max-height: 65vh;
-                overflow-y: auto;
-                padding: 4px 2px;
-                background: transparent;
-                border: none;
-                border-radius: 10px;
-                margin-top: 10px;
-            }}
-            .terms-box h3, .terms-box h4 {{ margin-top: 1.2em; margin-bottom: 0.4em; }}
-            .terms-box p, .terms-box li {{ line-height: 1.5em; }}
-            /* Espaçamento conteúdo */
-            section.main > div.block-container {{
-                padding-top: 2rem !important;
-                padding-bottom: 2rem !important;
-            }}
-            /* Ocultar UI padrão */
-            [data-testid="stToolbar"] {{ display: none !important; }}
-            header[data-testid="stHeader"] {{ display: none !important; }}
-            #MainMenu {{ visibility: hidden; }}
-            footer {{ visibility: hidden; }}
-            div[class*="viewerBadge"] {{ display: none !important; }}
-            a[href*="streamlit.io"] {{ display: none !important; }}
-            /* Título login */
-            .brand-title {{
-                width: 100%;
-                text-align: center;
-                font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
-                font-weight: 800;
-                font-size: clamp(28px, 5vw, 52px);
-                letter-spacing: 0.6px;
-                line-height: 1.1;
-                margin: 0 auto 16px auto;
-                background: linear-gradient(90deg, #ffffff 0%, #bfe1ff 40%, #7bc6ff 70%, #e6f2ff 100%);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                text-shadow: 0 4px 24px rgba(0,0,0,0.35);
-                filter: drop-shadow(0 6px 18px rgba(0,0,0,0.25));
-            }}
-            .brand-subtitle {{
-                text-align: center;
-                color: #c8d7e1;
-                margin-top: -6px;
-                margin-bottom: 10px;
-                font-size: 14px;
-                opacity: 0.9;
-            }}
-
-            /* ======= AJUSTES DO SIDEBAR (corrige botões "verticais") ======= */
-            /* Largura consistente do sidebar */
-            [data-testid="stSidebar"] {{
-                width: 320px !important;
-                min-width: 320px !important;
-            }}
-            @media (max-width: 768px) {{
-                [data-testid="stSidebar"] {{
-                    width: 260px !important;
-                    min-width: 260px !important;
-                }}
-            }}
-            /* Container interno centralizado */
-            [data-testid="stSidebar"] [data-testid="stSidebarContent"] {{
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                text-align: center;
-                padding-left: 0 !important;
-                padding-right: 0 !important;
-            }}
-            /* Garante que blocos ocupem a largura total */
-            [data-testid="stSidebar"] .element-container,
-            [data-testid="stSidebar"] .block-container {{
-                width: 100% !important;
-            }}
-            /* Wrapper central (quando usado) */
-            [data-testid="stSidebar"] .sidebar-center {{
-                width: 100%;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 10px;
-                text-align: center;
-                padding: 6px 6px 14px 6px;
-            }}
-            [data-testid="stSidebar"] .sidebar-center img {{
-                display: block;
-                margin: 6px auto 2px auto;
-            }}
-            [data-testid="stSidebar"] .sidebar-center h1,
-            [data-testid="stSidebar"] .sidebar-center h2,
-            [data-testid="stSidebar"] .sidebar-center h3 {{
-                width: 100%;
-                text-align: center !important;
-                margin: 0.3rem 0 0.7rem 0;
-            }}
-            /* Container do botão centralizado */
-            [data-testid="stSidebar"] .stButton {{
-                width: 100% !important;
-                display: flex !important;
-                justify-content: center !important;
-            }}
-            /* FORÇA MODO HORIZONTAL E EVITA QUEBRA POR LETRA */
-            [data-testid="stSidebar"] .stButton > button,
-            [data-testid="stSidebar"] button {{
-                writing-mode: horizontal-tb !important;
-                white-space: nowrap !important;
-                word-break: normal !important;
-                overflow-wrap: normal !important;
-                hyphens: none !important;
-                text-align: center !important;
-
-                display: inline-flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-
-                min-width: 230px !important;
-                max-width: 280px !important;
-                width: 92% !important;
-
-                padding: 0.6rem 1rem !important;
-                margin: 4px auto !important;
-            }}
-            /* Alguns temas colocam o texto do botão dentro de span */
-            [data-testid="stSidebar"] .stButton > button span {{
-                white-space: nowrap !important;
-                word-break: normal !important;
-                overflow-wrap: normal !important;
-            }}
-            /* ======= FIM AJUSTES SIDEBAR ======= */
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
-    except FileNotFoundError:
+        if os.path.exists("background.png"):
+            with open("background.png", "rb") as f:
+                bg_image_base64 = base64.b64encode(f.read()).decode()
+    except Exception:
         pass
+    bg_css = f"background-image: url(data:image/png;base64,{bg_image_base64});" if bg_image_base64 else ""
+
+    st.markdown(
+        f"""
+        <style>
+        /* Fundo */
+        html, body {{
+            background-color: #0b1220 !important;
+            height: 100%;
+        }}
+        [data-testid="stAppViewContainer"] {{
+            {bg_css}
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-position: center top;
+            background-attachment: fixed;
+            min-height: 100vh;
+        }}
+
+        /* Cartões */
+        .main-container, [data-testid="stForm"] {{
+            background-color: rgba(13, 17, 23, 0.85);
+            padding: 25px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }}
+        .main-container, .main-container * {{ color: #fff !important; }}
+
+        /* Ocultar UI padrão do Streamlit */
+        [data-testid="stToolbar"] {{ display: none !important; }}
+        header[data-testid="stHeader"] {{ display: none !important; }}
+        #MainMenu {{ visibility: hidden; }}
+        footer {{ visibility: hidden; }}
+        div[class*="viewerBadge"] {{ display: none !important; }}
+        a[href*="streamlit.io"] {{ display: none !important; }}
+
+        /* Título login */
+        .brand-title {{
+            width: 100%;
+            text-align: center;
+            font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+            font-weight: 800;
+            font-size: clamp(28px, 5vw, 52px);
+            letter-spacing: 0.6px;
+            line-height: 1.1;
+            margin: 0 auto 16px auto;
+            background: linear-gradient(90deg, #ffffff 0%, #bfe1ff 40%, #7bc6ff 70%, #e6f2ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 4px 24px rgba(0,0,0,0.35);
+            filter: drop-shadow(0 6px 18px rgba(0,0,0,0.25));
+        }}
+        .brand-subtitle {{
+            text-align: center;
+            color: #c8d7e1;
+            margin-top: -6px;
+            margin-bottom: 10px;
+            font-size: 14px;
+            opacity: 0.9;
+        }}
+
+        /* ======= AJUSTES DO SIDEBAR (corrige botões "em pé") ======= */
+        /* Largura consistente do sidebar */
+        [data-testid="stSidebar"] {{
+            width: 320px !important;
+            min-width: 320px !important;
+        }}
+        @media (max-width: 768px) {{
+            [data-testid="stSidebar"] {{
+                width: 260px !important;
+                min-width: 260px !important;
+            }}
+        }}
+
+        /* RESET universal: escrita horizontal, sem rotações, sem compressão esquisita */
+        [data-testid="stSidebar"],
+        [data-testid="stSidebar"] * {{
+            writing-mode: horizontal-tb !important;
+            text-orientation: mixed !important;
+            transform: none !important;
+            rotate: 0deg !important;
+        }}
+
+        /* Estrutura interna do sidebar */
+        [data-testid="stSidebar"] [data-testid="stSidebarContent"] {{
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: stretch !important;      /* filhos ocupam a largura do sidebar */
+            gap: 8px !important;
+            text-align: center !important;
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+        }}
+
+        /* Garante que blocos ocupem a largura total */
+        [data-testid="stSidebar"] .element-container,
+        [data-testid="stSidebar"] .block-container,
+        [data-testid="stSidebar"] .stButton,
+        [data-testid="stSidebar"] .stMarkdown {{
+            width: 100% !important;
+        }}
+
+        /* Wrapper opcional para centralizar logo/título */
+        [data-testid="stSidebar"] .sidebar-center {{
+            width: 100% !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 10px !important;
+            text-align: center !important;
+        }}
+        [data-testid="stSidebar"] .sidebar-center img {{
+            display: block !important;
+            margin: 6px auto 2px auto !important;
+        }}
+        [data-testid="stSidebar"] .sidebar-center h1,
+        [data-testid="stSidebar"] .sidebar-center h2,
+        [data-testid="stSidebar"] .sidebar-center h3 {{
+            margin: 0.3rem 0 0.7rem 0 !important;
+        }}
+
+        /* Botões do sidebar: horizontais, largura confortável e sem quebrar por letra */
+        [data-testid="stSidebar"] .stButton > button,
+        [data-testid="stSidebar"] button {{
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+
+            width: 100% !important;
+            max-width: 280px !important;          /* ajuste se quiser mais largo/estreito */
+            min-width: 220px !important;
+            margin: 4px auto !important;
+
+            white-space: nowrap !important;       /* evita quebra de linha */
+            word-break: keep-all !important;      /* não quebra palavras */
+            overflow-wrap: normal !important;
+
+            text-align: center !important;
+            line-height: 1.1 !important;
+            letter-spacing: normal !important;
+        }}
+        [data-testid="stSidebar"] .stButton > button span {{
+            white-space: nowrap !important;
+            word-break: keep-all !important;
+            overflow-wrap: normal !important;
+        }}
+        /* ======= FIM AJUSTES SIDEBAR ======= */
+
+        /* Espaçamento do conteúdo principal */
+        section.main > div.block-container {{
+            padding-top: 2rem !important;
+            padding-bottom: 2rem !important;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
 # =========================
 # AUTENTICAÇÃO E USUÁRIOS
