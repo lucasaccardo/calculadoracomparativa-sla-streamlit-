@@ -117,7 +117,7 @@ def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label
             <tr>
               <td style="background:{brand};padding:18px 24px;color:#ffffff;">
                 <div style="display:flex;align-items:center;gap:12px">
-                  <span style="font-weight:700;font-size:18px;font-family:Segoe UI,Arial,sans-serif">Vamos Fleet SLA</span>
+                  <span style="font-weight:700;font-size:18px;font-family:Segoe UI,Arial,sans-serif">Frotas Vamos SLA</span>
                 </div>
               </td>
             </tr>
@@ -179,10 +179,10 @@ def send_email(dest_email: str, subject: str, body_plain: str, body_html: str | 
         return False
 
 def send_reset_email(dest_email: str, reset_link: str):
-    subject = "Redefinição de senha - Vamos Fleet SLA"
+    subject = "Redefinição de senha - Frotas Vamos SLA"
     plain = f"""Olá,
 
-Recebemos uma solicitação para redefinir sua senha no Vamos Fleet SLA.
+Recebemos uma solicitação para redefinir sua senha no Frotas Vamos SLA.
 Use o link abaixo (válido por 30 minutos):
 
 {reset_link}
@@ -191,7 +191,7 @@ Se você não solicitou, ignore este e-mail.
 """
     html = build_email_html(
         title="Redefinição de senha",
-        subtitle="Você solicitou redefinir sua senha no Vamos Fleet SLA.",
+        subtitle="Você solicitou redefinir sua senha no Frotas Vamos SLA.",
         body_lines=["Este link é válido por 30 minutos.", "Se você não solicitou, ignore este e-mail."],
         cta_label="Redefinir senha",
         cta_url=reset_link,
@@ -200,17 +200,17 @@ Se você não solicitou, ignore este e-mail.
     return send_email(dest_email, subject, plain, html)
 
 def send_approved_email(dest_email: str, base_url: str):
-    subject = "Conta aprovada - Vamos Fleet SLA"
+    subject = "Conta aprovada - Frotas Vamos SLA"
     plain = f"""Olá,
 
-Sua conta no Vamos Fleet SLA foi aprovada.
+Sua conta no Frotas Vamos SLA foi aprovada.
 Acesse a plataforma: {base_url}
 
 Bom trabalho!
 """
     html = build_email_html(
         title="Conta aprovada",
-        subtitle="Seu acesso ao Vamos Fleet SLA foi liberado.",
+        subtitle="Seu acesso ao Frotas Vamos SLA foi liberado.",
         body_lines=["Você já pode acessar a plataforma com seu usuário e senha."],
         cta_label="Acessar plataforma",
         cta_url=base_url,
@@ -222,7 +222,7 @@ def send_invite_to_set_password(dest_email: str, reset_link: str):
     subject = "Sua conta foi aprovada - Defina sua senha"
     plain = f"""Olá,
 
-Sua conta no Vamos Fleet SLA foi aprovada.
+Sua conta no Frotas Vamos SLA foi aprovada.
 Para definir sua senha inicial, use o link (válido por 30 minutos):
 {reset_link}
 
@@ -230,7 +230,7 @@ Bom trabalho!
 """
     html = build_email_html(
         title="Defina sua senha",
-        subtitle="Sua conta foi aprovada. Defina sua senha para começar a usar.",
+        subtitle="Sua conta foi aprovada no Frotas Vamos SLA. Defina sua senha para começar a usar.",
         body_lines=["O link é válido por 30 minutos."],
         cta_label="Definir senha",
         cta_url=reset_link,
@@ -249,13 +249,11 @@ def aplicar_estilos():
         st.markdown(
             f"""
             <style>
-            /* Fundo geral sem faixas brancas */
+            /* Fundo */
             html, body {{
                 background-color: #0b1220 !important;
                 height: 100%;
             }}
-
-            /* Background ocupando a tela toda */
             [data-testid="stAppViewContainer"] {{
                 background-image: url(data:image/png;base64,{bg_image_base64});
                 background-size: cover;
@@ -264,8 +262,7 @@ def aplicar_estilos():
                 background-attachment: fixed;
                 min-height: 100vh;
             }}
-
-            /* Cartões do app */
+            /* Cartões */
             .main-container, [data-testid="stForm"] {{
                 background-color: rgba(13, 17, 23, 0.85);
                 padding: 25px;
@@ -278,8 +275,7 @@ def aplicar_estilos():
                 text-decoration: underline !important;
                 cursor: pointer;
             }}
-
-            /* Caixa de Termos sem fundo */
+            /* Termos */
             .terms-box {{
                 max-height: 65vh;
                 overflow-y: auto;
@@ -291,22 +287,19 @@ def aplicar_estilos():
             }}
             .terms-box h3, .terms-box h4 {{ margin-top: 1.2em; margin-bottom: 0.4em; }}
             .terms-box p, .terms-box li {{ line-height: 1.5em; }}
-
-            /* Espaçamento do conteúdo */
+            /* Espaçamento conteúdo */
             section.main > div.block-container {{
                 padding-top: 2rem !important;
                 padding-bottom: 2rem !important;
             }}
-
-            /* Ocultar toolbar/menu/rodapé do Streamlit (para todos) */
+            /* Ocultar UI padrão */
             [data-testid="stToolbar"] {{ display: none !important; }}
             header[data-testid="stHeader"] {{ display: none !important; }}
             #MainMenu {{ visibility: hidden; }}
             footer {{ visibility: hidden; }}
             div[class*="viewerBadge"] {{ display: none !important; }}
             a[href*="streamlit.io"] {{ display: none !important; }}
-
-            /* Título moderno na tela de login */
+            /* Título login */
             .brand-title {{
                 width: 100%;
                 text-align: center;
@@ -331,8 +324,8 @@ def aplicar_estilos():
                 opacity: 0.9;
             }}
 
-            /* ======= CENTRALIZAÇÃO E CORREÇÃO DO SIDEBAR ======= */
-            /* Largura consistente do sidebar para evitar "amassar" os botões */
+            /* ======= AJUSTES DO SIDEBAR (corrige botões "verticais") ======= */
+            /* Largura consistente do sidebar */
             [data-testid="stSidebar"] {{
                 width: 320px !important;
                 min-width: 320px !important;
@@ -343,19 +336,21 @@ def aplicar_estilos():
                     min-width: 260px !important;
                 }}
             }}
-
-            /* Container interno do sidebar centralizado */
+            /* Container interno centralizado e com largura total para os filhos */
             [data-testid="stSidebar"] [data-testid="stSidebarContent"] {{
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                justify-content: flex-start;
                 text-align: center;
                 padding-left: 0 !important;
                 padding-right: 0 !important;
             }}
-
-            /* Wrapper para manter tudo centralizado e organizado */
+            /* Garante que cada elemento ocupe a largura disponível */
+            [data-testid="stSidebar"] .element-container,
+            [data-testid="stSidebar"] .block-container {{
+                width: 100% !important;
+            }}
+            /* Wrapper central (quando usado) */
             [data-testid="stSidebar"] .sidebar-center {{
                 width: 100%;
                 display: flex;
@@ -365,14 +360,10 @@ def aplicar_estilos():
                 text-align: center;
                 padding: 6px 6px 14px 6px;
             }}
-
-            /* Logo central */
             [data-testid="stSidebar"] .sidebar-center img {{
                 display: block;
                 margin: 6px auto 2px auto;
             }}
-
-            /* Títulos centralizados */
             [data-testid="stSidebar"] .sidebar-center h1,
             [data-testid="stSidebar"] .sidebar-center h2,
             [data-testid="stSidebar"] .sidebar-center h3 {{
@@ -380,22 +371,27 @@ def aplicar_estilos():
                 text-align: center !important;
                 margin: 0.3rem 0 0.7rem 0;
             }}
-
-            /* Botões realmente centralizados, com largura mínima para evitar texto quebrado na vertical */
-            [data-testid="stSidebar"] .sidebar-center .stButton {{
-                width: 100%;
-                display: flex;
-                justify-content: center;
+            /* Alinha o container do botão e o próprio botão ao centro */
+            [data-testid="stSidebar"] .stButton {{
+                width: 100% !important;
+                display: flex !important;
+                justify-content: center !important;
             }}
-            [data-testid="stSidebar"] .sidebar-center .stButton > button {{
-                width: 95%;
-                max-width: 280px;
-                min-width: 200px;             /* evita ficar "torto" e quebrar cada letra na vertical */
-                white-space: nowrap;           /* não deixa o texto quebrar em múltiplas linhas finas */
-                overflow: hidden;
-                text-overflow: ellipsis;
-                margin: 4px auto;
-                text-align: center;
+            /* BOTÃO: impede quebra de linha vertical e define uma largura mínima */
+            [data-testid="stSidebar"] .stButton > button {{
+                width: 92% !important;
+                max-width: 280px !important;
+                min-width: 220px !important;
+                writing-mode: horizontal-tb !important;
+                white-space: nowrap !important;
+                word-break: keep-all !important;
+                overflow-wrap: normal !important;
+                hyphens: none !important;
+                text-align: center !important;
+                margin: 4px auto !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
             }}
             /* ======= FIM AJUSTES SIDEBAR ======= */
             </style>
@@ -668,8 +664,8 @@ if incoming_token and not st.session_state.get("ignore_reset_qp"):
 if st.session_state.tela == "login":
     col1, col2, col3 = st.columns([6, 1, 1])
     with col3:
-        try: st.image("fleetvamossla.png", width=120)
-        except Exception: pass
+        if os.path.exists("frotasvamossla.png"):
+            st.image("frotasvamossla.png", width=120)
 
     st.markdown("<br><br>", unsafe_allow_html=True)
 
@@ -952,7 +948,6 @@ elif st.session_state.tela == "terms_consent":
     st.title("Termos e Condições de Uso e Política de Privacidade (LGPD)")
     st.info("Para seu primeiro acesso, é necessário ler e aceitar os termos de uso e a política de privacidade desta plataforma.")
 
-    # Texto LGPD
     terms_html = dedent("""
     <div class="terms-box" style="color:#fff;font-family:Segoe UI,Arial,sans-serif;">
         <p><b>Última atualização:</b> 28 de Setembro de 2025</p>
@@ -1078,11 +1073,11 @@ else:
                 else:
                     ok = send_email(
                         test_to.strip(),
-                        "Teste SMTP - Vamos Fleet SLA",
+                        "Teste SMTP - Frotas Vamos SLA",
                         "E-mail de teste enviado pelo aplicativo.",
                         build_email_html(
                             title="Teste de e-mail",
-                            subtitle="Este é um e-mail de teste do Vamos Fleet SLA.",
+                            subtitle="Este é um e-mail de teste do Frotas Vamos SLA.",
                             body_lines=["Se você recebeu, o SMTP está funcionando corretamente."],
                             cta_label="Abrir plataforma",
                             cta_url=get_app_base_url() or "https://streamlit.io"
