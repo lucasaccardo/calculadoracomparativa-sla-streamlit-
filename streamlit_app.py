@@ -90,8 +90,8 @@ def smtp_available():
     return bool(host and user and password)
 
 def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label: str = "", cta_url: str = "", footer: str = ""):
-    primary = "#e63946"   # botão
-    brand = "#0d1117"     # header
+    primary = "#e63946"
+    brand = "#0d1117"
     text = "#0b1f2a"
     light = "#f6f8fa"
     button_html = ""
@@ -239,7 +239,7 @@ Bom trabalho!
     return send_email(dest_email, subject, plain, html)
 
 # =========================
-# ESTILOS (UI) + OCULTAR TOOLBAR + FULL BG + TÍTULO LOGIN + SIDEBAR CENTRAL
+# ESTILOS (UI) + OCULTAR TOOLBAR + BG + LOGIN + SIDEBAR
 # =========================
 def aplicar_estilos():
     # Carrega o background se existir
@@ -255,7 +255,7 @@ def aplicar_estilos():
     st.markdown(
         f"""
         <style>
-        /* Fundo */
+        /* Fundo geral */
         html, body {{
             background-color: #0b1220 !important;
             height: 100%;
@@ -286,7 +286,7 @@ def aplicar_estilos():
         div[class*="viewerBadge"] {{ display: none !important; }}
         a[href*="streamlit.io"] {{ display: none !important; }}
 
-        /* Título login */
+        /* Títulos login */
         .brand-title {{
             width: 100%;
             text-align: center;
@@ -311,8 +311,9 @@ def aplicar_estilos():
             opacity: 0.9;
         }}
 
-        /* ======= AJUSTES DO SIDEBAR (corrige botões "em pé") ======= */
-        /* Largura consistente do sidebar */
+        /* ======= AJUSTES E CORREÇÕES DO SIDEBAR ======= */
+
+        /* Largura estável do sidebar */
         [data-testid="stSidebar"] {{
             width: 320px !important;
             min-width: 320px !important;
@@ -324,7 +325,7 @@ def aplicar_estilos():
             }}
         }}
 
-        /* RESET universal: escrita horizontal, sem rotações, sem compressão esquisita */
+        /* RESET universal: escrita horizontal, sem rotações */
         [data-testid="stSidebar"],
         [data-testid="stSidebar"] * {{
             writing-mode: horizontal-tb !important;
@@ -337,14 +338,14 @@ def aplicar_estilos():
         [data-testid="stSidebar"] [data-testid="stSidebarContent"] {{
             display: flex !important;
             flex-direction: column !important;
-            align-items: stretch !important;      /* filhos ocupam a largura do sidebar */
+            align-items: stretch !important; /* filhos ocupam a largura do sidebar */
             gap: 8px !important;
             text-align: center !important;
             padding-left: 8px !important;
             padding-right: 8px !important;
         }}
 
-        /* Garante que blocos ocupem a largura total */
+        /* Blocos ocupam a largura total */
         [data-testid="stSidebar"] .element-container,
         [data-testid="stSidebar"] .block-container,
         [data-testid="stSidebar"] .stButton,
@@ -352,7 +353,7 @@ def aplicar_estilos():
             width: 100% !important;
         }}
 
-        /* Wrapper opcional para centralizar logo/título */
+        /* Centralização opcional */
         [data-testid="stSidebar"] .sidebar-center {{
             width: 100% !important;
             display: flex !important;
@@ -365,13 +366,8 @@ def aplicar_estilos():
             display: block !important;
             margin: 6px auto 2px auto !important;
         }}
-        [data-testid="stSidebar"] .sidebar-center h1,
-        [data-testid="stSidebar"] .sidebar-center h2,
-        [data-testid="stSidebar"] .sidebar-center h3 {{
-            margin: 0.3rem 0 0.7rem 0 !important;
-        }}
 
-        /* Botões do sidebar: horizontais, largura confortável e sem quebrar por letra */
+        /* Botões do sidebar: horizontais, sem quebra por letra */
         [data-testid="stSidebar"] .stButton > button,
         [data-testid="stSidebar"] button {{
             display: inline-flex !important;
@@ -379,12 +375,12 @@ def aplicar_estilos():
             justify-content: center !important;
 
             width: 100% !important;
-            max-width: 280px !important;          /* ajuste se quiser mais largo/estreito */
+            max-width: 280px !important;
             min-width: 220px !important;
             margin: 4px auto !important;
 
-            white-space: nowrap !important;       /* evita quebra de linha */
-            word-break: keep-all !important;      /* não quebra palavras */
+            white-space: nowrap !important;
+            word-break: keep-all !important;
             overflow-wrap: normal !important;
 
             text-align: center !important;
@@ -396,7 +392,24 @@ def aplicar_estilos():
             word-break: keep-all !important;
             overflow-wrap: normal !important;
         }}
-        /* ======= FIM AJUSTES SIDEBAR ======= */
+
+        /* ===== Remover "bolha cinza" de zoom sobre a imagem do logo =====
+           O Streamlit exibe um botão/overlay de fullscreen nas imagens.
+           Desativamos interação e escondemos o botão para evitar a bolha. */
+        [data-testid="stSidebar"] figure,
+        [data-testid="stSidebar"] img {{
+            pointer-events: none !important;   /* impede hover/click => sem overlay */
+        }}
+        /* Esconde possíveis botões de fullscreen de imagens (todas as versões/idiomas) */
+        [data-testid="stImage"] button,
+        [data-testid="StyledFullScreenButton"],
+        button[title*="full"],
+        button[title*="tela cheia"],
+        button[aria-label*="full"],
+        button[aria-label*="tela cheia"] {{
+            display: none !important;
+        }}
+        /* ===== FIM CORREÇÕES SIDEBAR ===== */
 
         /* Espaçamento do conteúdo principal */
         section.main > div.block-container {{
@@ -1223,7 +1236,7 @@ else:
             use_container_width=True
         )
 
-        # Promoção a admin (admin e superadmin podem promover)
+        # Promoção a admin
         st.markdown("#### Conceder acesso de administrador")
         promote_candidates = df_users[
             (df_users["role"].str.lower() != "admin") &
