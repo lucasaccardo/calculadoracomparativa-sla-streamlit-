@@ -336,7 +336,7 @@ def aplicar_estilos():
                     min-width: 260px !important;
                 }}
             }}
-            /* Container interno centralizado e com largura total para os filhos */
+            /* Container interno centralizado */
             [data-testid="stSidebar"] [data-testid="stSidebarContent"] {{
                 display: flex;
                 flex-direction: column;
@@ -345,7 +345,7 @@ def aplicar_estilos():
                 padding-left: 0 !important;
                 padding-right: 0 !important;
             }}
-            /* Garante que cada elemento ocupe a largura disponível */
+            /* Garante que blocos ocupem a largura total */
             [data-testid="stSidebar"] .element-container,
             [data-testid="stSidebar"] .block-container {{
                 width: 100% !important;
@@ -371,27 +371,38 @@ def aplicar_estilos():
                 text-align: center !important;
                 margin: 0.3rem 0 0.7rem 0;
             }}
-            /* Alinha o container do botão e o próprio botão ao centro */
+            /* Container do botão centralizado */
             [data-testid="stSidebar"] .stButton {{
                 width: 100% !important;
                 display: flex !important;
                 justify-content: center !important;
             }}
-            /* BOTÃO: impede quebra de linha vertical e define uma largura mínima */
-            [data-testid="stSidebar"] .stButton > button {{
-                width: 92% !important;
-                max-width: 280px !important;
-                min-width: 220px !important;
+            /* FORÇA MODO HORIZONTAL E EVITA QUEBRA POR LETRA */
+            [data-testid="stSidebar"] .stButton > button,
+            [data-testid="stSidebar"] button {{
                 writing-mode: horizontal-tb !important;
                 white-space: nowrap !important;
-                word-break: keep-all !important;
+                word-break: normal !important;
                 overflow-wrap: normal !important;
                 hyphens: none !important;
                 text-align: center !important;
-                margin: 4px auto !important;
+
                 display: inline-flex !important;
                 align-items: center !important;
                 justify-content: center !important;
+
+                min-width: 230px !important;
+                max-width: 280px !important;
+                width: 92% !important;
+
+                padding: 0.6rem 1rem !important;
+                margin: 4px auto !important;
+            }}
+            /* Alguns temas colocam o texto do botão dentro de span */
+            [data-testid="stSidebar"] .stButton > button span {{
+                white-space: nowrap !important;
+                word-break: normal !important;
+                overflow-wrap: normal !important;
             }}
             /* ======= FIM AJUSTES SIDEBAR ======= */
             </style>
