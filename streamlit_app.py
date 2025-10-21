@@ -160,8 +160,8 @@ def send_email(dest_email: str, subject: str, body_plain: str, body_html: str | 
     try:
         msg = EmailMessage()
         msg["Subject"] = subject
-        msg["From"] = sender
-        msg["To"] = dest_email
+        msg["From"]        = sender
+        msg["To"]          = dest_email
         msg.set_content(body_plain)
         if body_html:
             msg.add_alternative(body_html, subtype="html")
@@ -331,14 +331,31 @@ def aplicar_estilos():
                 opacity: 0.9;
             }}
 
-            /* CENTRALIZAÇÃO TOTAL DO SIDEBAR */
+            /* ======= CENTRALIZAÇÃO E CORREÇÃO DO SIDEBAR ======= */
+            /* Largura consistente do sidebar para evitar "amassar" os botões */
+            [data-testid="stSidebar"] {{
+                width: 320px !important;
+                min-width: 320px !important;
+            }}
+            @media (max-width: 768px) {{
+                [data-testid="stSidebar"] {{
+                    width: 260px !important;
+                    min-width: 260px !important;
+                }}
+            }}
+
+            /* Container interno do sidebar centralizado */
             [data-testid="stSidebar"] [data-testid="stSidebarContent"] {{
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 justify-content: flex-start;
                 text-align: center;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
             }}
+
+            /* Wrapper para manter tudo centralizado e organizado */
             [data-testid="stSidebar"] .sidebar-center {{
                 width: 100%;
                 display: flex;
@@ -346,12 +363,16 @@ def aplicar_estilos():
                 align-items: center;
                 gap: 10px;
                 text-align: center;
-                padding: 4px 6px;
+                padding: 6px 6px 14px 6px;
             }}
+
+            /* Logo central */
             [data-testid="stSidebar"] .sidebar-center img {{
                 display: block;
                 margin: 6px auto 2px auto;
             }}
+
+            /* Títulos centralizados */
             [data-testid="stSidebar"] .sidebar-center h1,
             [data-testid="stSidebar"] .sidebar-center h2,
             [data-testid="stSidebar"] .sidebar-center h3 {{
@@ -359,17 +380,24 @@ def aplicar_estilos():
                 text-align: center !important;
                 margin: 0.3rem 0 0.7rem 0;
             }}
+
+            /* Botões realmente centralizados, com largura mínima para evitar texto quebrado na vertical */
             [data-testid="stSidebar"] .sidebar-center .stButton {{
                 width: 100%;
                 display: flex;
                 justify-content: center;
             }}
             [data-testid="stSidebar"] .sidebar-center .stButton > button {{
-                width: 85%;
-                max-width: 260px;
+                width: 95%;
+                max-width: 280px;
+                min-width: 200px;             /* evita ficar "torto" e quebrar cada letra na vertical */
+                white-space: nowrap;           /* não deixa o texto quebrar em múltiplas linhas finas */
+                overflow: hidden;
+                text-overflow: ellipsis;
                 margin: 4px auto;
                 text-align: center;
             }}
+            /* ======= FIM AJUSTES SIDEBAR ======= */
             </style>
             """,
             unsafe_allow_html=True
@@ -601,17 +629,22 @@ def user_is_superadmin():
 def renderizar_sidebar():
     with st.sidebar:
         st.markdown("<div class='sidebar-center'>", unsafe_allow_html=True)
-        try: st.image("logo_sidebar.png", width=100)
-        except Exception: pass
+        try:
+            st.image("logo_sidebar.png", width=100)
+        except Exception:
+            pass
         st.header("Menu de Navegação")
+
         if user_is_admin():
-            st.button("👤 Gerenciar Usuários", on_click=ir_para_admin)
-        st.button("🏠 Voltar para Home", on_click=ir_para_home)
+            st.button("👤 Gerenciar Usuários", on_click=ir_para_admin, use_container_width=True)
+        st.button("🏠 Voltar para Home", on_click=ir_para_home, use_container_width=True)
+
         if st.session_state.tela == "calc_comparativa":
-            st.button("🔄 Limpar Comparação", on_click=limpar_dados_comparativos)
+            st.button("🔄 Limpar Comparação", on_click=limpar_dados_comparativos, use_container_width=True)
         if st.session_state.tela == "calc_simples":
-            st.button("🔄 Limpar Cálculo", on_click=limpar_dados_simples)
-        st.button("🚪 Sair (Logout)", on_click=logout, type="secondary")
+            st.button("🔄 Limpar Cálculo", on_click=limpar_dados_simples, use_container_width=True)
+
+        st.button("🚪 Sair (Logout)", on_click=logout, type="secondary", use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
 # =========================
@@ -919,6 +952,7 @@ elif st.session_state.tela == "terms_consent":
     st.title("Termos e Condições de Uso e Política de Privacidade (LGPD)")
     st.info("Para seu primeiro acesso, é necessário ler e aceitar os termos de uso e a política de privacidade desta plataforma.")
 
+    # Texto LGPD
     terms_html = dedent("""
     <div class="terms-box" style="color:#fff;font-family:Segoe UI,Arial,sans-serif;">
         <p><b>Última atualização:</b> 28 de Setembro de 2025</p>
@@ -1249,7 +1283,7 @@ else:
                     st.warning("Nenhum usuário pôde ser removido pelas regras de proteção.")
 
     # =========================
-    # NOVO: TELA SLA MENSAL (calc_simples) - restaurada/implementada
+    # TELA SLA MENSAL (calc_simples)
     # =========================
     elif st.session_state.tela == "calc_simples":
         st.title("🖩 SLA Mensal")
