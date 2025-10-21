@@ -239,7 +239,7 @@ Bom trabalho!
     return send_email(dest_email, subject, plain, html)
 
 # =========================
-# ESTILOS (UI) + OCULTAR TOOLBAR + FULL BG + TÍTULO LOGIN
+# ESTILOS (UI) + OCULTAR TOOLBAR + FULL BG + TÍTULO LOGIN + SIDEBAR CENTRAL
 # =========================
 def aplicar_estilos():
     try:
@@ -329,6 +329,46 @@ def aplicar_estilos():
                 margin-bottom: 10px;
                 font-size: 14px;
                 opacity: 0.9;
+            }}
+
+            /* CENTRALIZAÇÃO TOTAL DO SIDEBAR */
+            [data-testid="stSidebar"] [data-testid="stSidebarContent"] {{
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: flex-start;
+                text-align: center;
+            }}
+            [data-testid="stSidebar"] .sidebar-center {{
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 10px;
+                text-align: center;
+                padding: 4px 6px;
+            }}
+            [data-testid="stSidebar"] .sidebar-center img {{
+                display: block;
+                margin: 6px auto 2px auto;
+            }}
+            [data-testid="stSidebar"] .sidebar-center h1,
+            [data-testid="stSidebar"] .sidebar-center h2,
+            [data-testid="stSidebar"] .sidebar-center h3 {{
+                width: 100%;
+                text-align: center !important;
+                margin: 0.3rem 0 0.7rem 0;
+            }}
+            [data-testid="stSidebar"] .sidebar-center .stButton {{
+                width: 100%;
+                display: flex;
+                justify-content: center;
+            }}
+            [data-testid="stSidebar"] .sidebar-center .stButton > button {{
+                width: 85%;
+                max-width: 260px;
+                margin: 4px auto;
+                text-align: center;
             }}
             </style>
             """,
@@ -560,17 +600,19 @@ def user_is_superadmin():
 
 def renderizar_sidebar():
     with st.sidebar:
+        st.markdown("<div class='sidebar-center'>", unsafe_allow_html=True)
         try: st.image("logo_sidebar.png", width=100)
         except Exception: pass
         st.header("Menu de Navegação")
         if user_is_admin():
-            st.button("👤 Gerenciar Usuários", on_click=ir_para_admin, use_container_width=True)
-        st.button("🏠 Voltar para Home", on_click=ir_para_home, use_container_width=True)
+            st.button("👤 Gerenciar Usuários", on_click=ir_para_admin)
+        st.button("🏠 Voltar para Home", on_click=ir_para_home)
         if st.session_state.tela == "calc_comparativa":
-            st.button("🔄 Limpar Comparação", on_click=limpar_dados_comparativos, use_container_width=True)
+            st.button("🔄 Limpar Comparação", on_click=limpar_dados_comparativos)
         if st.session_state.tela == "calc_simples":
-            st.button("🔄 Limpar Cálculo", on_click=limpar_dados_simples, use_container_width=True)
-        st.button("🚪 Sair (Logout)", on_click=logout, use_container_width=True, type="secondary")
+            st.button("🔄 Limpar Cálculo", on_click=limpar_dados_simples)
+        st.button("🚪 Sair (Logout)", on_click=logout, type="secondary")
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # =========================
 # ESTADO INICIAL / ESTILOS
@@ -591,19 +633,16 @@ if incoming_token and not st.session_state.get("ignore_reset_qp"):
 # TELAS
 # =========================
 if st.session_state.tela == "login":
-    # Linha do topo (logo à direita, se existir)
     col1, col2, col3 = st.columns([6, 1, 1])
     with col3:
         try: st.image("fleetvamossla.png", width=120)
         except Exception: pass
 
-    # Espaço antes do formulário
     st.markdown("<br><br>", unsafe_allow_html=True)
 
-    # Título moderno centralizado "Frotas Vamos SLA"
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown("<div class='brand-title'>Frotas Vamos SLA</div>", unsafe_allow_html=True)
+        st.markdown("<div class='brand-title'>Fleet Vamos SLA</div>", unsafe_allow_html=True)
         st.markdown("<div class='brand-subtitle'>Soluções Inteligentes para Frotas</div>", unsafe_allow_html=True)
 
         with st.form("login_form"):
@@ -880,7 +919,6 @@ elif st.session_state.tela == "terms_consent":
     st.title("Termos e Condições de Uso e Política de Privacidade (LGPD)")
     st.info("Para seu primeiro acesso, é necessário ler e aceitar os termos de uso e a política de privacidade desta plataforma.")
 
-    # Renderização dos Termos (sem caixa preta)
     terms_html = dedent("""
     <div class="terms-box" style="color:#fff;font-family:Segoe UI,Arial,sans-serif;">
         <p><b>Última atualização:</b> 28 de Setembro de 2025</p>
@@ -973,6 +1011,7 @@ elif st.session_state.tela == "terms_consent":
     st.markdown("</div>", unsafe_allow_html=True)
 
 else:
+    # Conteúdo autenticado
     renderizar_sidebar()
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
 
@@ -1148,7 +1187,7 @@ else:
             use_container_width=True
         )
 
-        # NOVO: Admin e Superadmin podem conceder papel de admin para outros usuários
+        # Promoção a admin (admin e superadmin podem promover)
         st.markdown("#### Conceder acesso de administrador")
         promote_candidates = df_users[
             (df_users["role"].str.lower() != "admin") &
@@ -1160,7 +1199,6 @@ else:
             if not selected_to_promote:
                 st.warning("Nenhum usuário selecionado para promoção.")
             else:
-                # Admin e Superadmin podem promover; proteger a conta superadmin
                 changed = []
                 for uname in selected_to_promote:
                     if uname == SUPERADMIN_USERNAME:
@@ -1209,6 +1247,120 @@ else:
                     st.rerun()
                 else:
                     st.warning("Nenhum usuário pôde ser removido pelas regras de proteção.")
+
+    # =========================
+    # NOVO: TELA SLA MENSAL (calc_simples) - restaurada/implementada
+    # =========================
+    elif st.session_state.tela == "calc_simples":
+        st.title("🖩 SLA Mensal")
+
+        df_base = carregar_base()
+        mensalidade = 0.0
+        cliente = ""
+        placa = ""
+
+        with st.expander("🔍 Consultar Clientes e Placas"):
+            if df_base is not None and not df_base.empty:
+                df_display = df_base[['CLIENTE', 'PLACA', 'VALOR MENSALIDADE']].copy()
+                df_display['VALOR MENSALIDADE'] = df_display['VALOR MENSALIDADE'].apply(formatar_moeda)
+                st.dataframe(df_display, use_container_width=True, hide_index=True)
+            else:
+                st.info("Base De Clientes Faturamento.xlsx não encontrada. Você poderá digitar os dados manualmente.")
+
+        col_left, col_right = st.columns([2, 1])
+
+        with col_left:
+            st.subheader("1) Identificação")
+            placa_in = st.text_input("Placa do veículo (digite e tecle Enter)", key="placa_simples").strip().upper()
+            if placa_in and df_base is not None and not df_base.empty:
+                hit = df_base[df_base["PLACA"].astype(str).str.upper() == placa_in]
+                if not hit.empty:
+                    placa = placa_in
+                    cliente = str(hit.iloc[0]["CLIENTE"])
+                    mensalidade = moeda_para_float(hit.iloc[0]["VALOR MENSALIDADE"])
+                    st.success(f"Cliente: {cliente} | Mensalidade: {formatar_moeda(mensalidade)}")
+                else:
+                    st.warning("Placa não encontrada na base. Preencha os dados manualmente abaixo.")
+
+            cliente = st.text_input("Cliente (caso não tenha sido localizado)", value=cliente)
+            mensalidade = st.number_input("Mensalidade (R$)", min_value=0.0, step=0.01, format="%.2f",
+                                          value=float(mensalidade) if mensalidade else 0.0)
+
+            st.subheader("2) Período e Serviço")
+            c1, c2 = st.columns(2)
+            data_entrada = c1.date_input("Data de entrada", datetime.now())
+            data_saida = c2.date_input("Data de saída", datetime.now() + timedelta(days=3))
+            feriados = c1.number_input("Feriados no período", min_value=0, step=1, value=0)
+
+            tipo_servico = c2.selectbox("Tipo de serviço (SLA)", [
+                "Preventiva – 2 dias úteis",
+                "Corretiva – 3 dias úteis",
+                "Preventiva + Corretiva – 5 dias úteis",
+                "Motor – 15 dias úteis"
+            ])
+            sla_map = {
+                "Preventiva – 2 dias úteis": 2,
+                "Corretiva – 3 dias úteis": 3,
+                "Preventiva + Corretiva – 5 dias úteis": 5,
+                "Motor – 15 dias úteis": 15
+            }
+            prazo_sla = sla_map.get(tipo_servico, 0)
+
+            st.markdown("---")
+            calc = st.button("Calcular SLA", type="primary")
+
+            if calc:
+                if not placa_in and not cliente:
+                    st.error("Informe ao menos a placa ou o cliente.")
+                elif data_entrada >= data_saida:
+                    st.error("A data de saída deve ser posterior à data de entrada.")
+                elif mensalidade <= 0:
+                    st.error("Informe um valor de mensalidade válido.")
+                else:
+                    dias_uteis_manut, status, desconto, dias_exc = calcular_sla_simples(
+                        data_entrada, data_saida, prazo_sla, mensalidade, feriados
+                    )
+                    st.session_state.resultado_sla = {
+                        "cliente": cliente or "-",
+                        "placa": placa_in or "-",
+                        "tipo_servico": tipo_servico,
+                        "dias_uteis_manut": int(dias_uteis_manut),
+                        "prazo_sla": int(prazo_sla),
+                        "dias_excedente": int(dias_exc),
+                        "mensalidade": float(mensalidade),
+                        "desconto": float(desconto),
+                        "status": status
+                    }
+                    st.success("Cálculo realizado com sucesso!")
+
+        with col_right:
+            st.subheader("Resultado")
+            res = st.session_state.get("resultado_sla")
+            if not res:
+                st.info("Preencha os dados à esquerda e clique em 'Calcular SLA'.")
+            else:
+                st.write(f"- Status: {res['status']}")
+                st.write(f"- Dias úteis da manutenção: {res['dias_uteis_manut']} dia(s)")
+                st.write(f"- Prazo SLA: {res['prazo_sla']} dia(s)")
+                st.write(f"- Dias excedidos: {res['dias_excedente']} dia(s)")
+                st.write(f"- Mensalidade: {formatar_moeda(res['mensalidade'])}")
+                st.write(f"- Desconto: {formatar_moeda(res['desconto'])}")
+
+                pdf_buf = gerar_pdf_sla_simples(
+                    res["cliente"], res["placa"], res["tipo_servico"],
+                    res["dias_uteis_manut"], res["prazo_sla"], res["dias_excedente"],
+                    res["mensalidade"], res["desconto"]
+                )
+                st.download_button(
+                    "📥 Baixar PDF do Resultado",
+                    data=pdf_buf,
+                    file_name=f"sla_{res['placa'] or 'veiculo'}.pdf",
+                    mime="application/pdf"
+                )
+
+                if st.button("Limpar resultado"):
+                    limpar_dados_simples()
+                    st.rerun()
 
     elif st.session_state.tela == "calc_comparativa":
         st.title("📊 Calculadora Comparativa de Cenários")
@@ -1328,5 +1480,3 @@ else:
                             st.warning("Nenhuma peça foi selecionada.")
 
     st.markdown("</div>", unsafe_allow_html=True)
-
-
