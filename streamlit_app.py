@@ -410,11 +410,8 @@ def aplicar_estilos():
 # =========================
 # AUTENTICAÇÃO E USUÁRIOS
 # =========================
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
-
-def check_password(hashed_password, user_password):
-    return hashed_password == hash_password(user_password)
+# As funções de senha (hash_password e verify_password) já foram definidas acima com bcrypt.
+# Não redefinir aqui para não sobrescrever.
 
 REQUIRED_USER_COLUMNS = [
     "username", "password", "role", "full_name", "matricula",
@@ -698,30 +695,43 @@ if st.session_state.tela == "login":
             st.button("Esqueci minha senha", on_click=ir_para_forgot, use_container_width=True)
 
         if submit_login:
-            df_users = load_user_db()
-            user_data = df_users[df_users["username"] == username]
-            if user_data.empty:
-                st.error("❌ Usuário ou senha incorretos.")
+    df_users = load_user_db()
+    user_data = df_users[df_users["username"] == username]
+    if user_data.empty:
+        st.error("❌ Usuário ou senha incorretos.")
+    else:
+        row = user_data.iloc[0]
+        valid, needs_up = verify_password(row["password"], password)
+        if not valid:
+            st.error("❌ Usuário ou senha incorretos.")
+        else:
+            # Upgrade automático do hash legado (SHA-256) para bcrypt
+            try:
+                if needs_up:
+                    idx = df_users.index[df_users["username"] == username][0]
+                    df_users.loc[idx, "password"] = hash_password(password)
+                    df_users.loc[idx, "last_password_change"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                    save_user_db(df_users)
+                    # opcional: manter 'row' coerente após upgrade
+                    row["password"] = df_users.loc[idx, "password"]
+            except Exception:
+                pass
+
+            if row.get("status", "") != "aprovado":
+                st.warning("⏳ Seu cadastro ainda está pendente de aprovação pelo administrador.")
             else:
-                row = user_data.iloc[0]
-                if not check_password(row["password"], password):
-                    st.error("❌ Usuário ou senha incorretos.")
-                else:
-                    if row.get("status", "") != "aprovado":
-                        st.warning("⏳ Seu cadastro ainda está pendente de aprovação pelo administrador.")
-                    else:
-                        st.session_state.logado = True
-                        st.session_state.username = row["username"]
-                        st.session_state.role = row.get("role", "user")
-                        st.session_state.email = row.get("email", "")
-                        if not str(row.get("accepted_terms_on", "")).strip():
-                            st.session_state.tela = "terms_consent"
-                            st.rerun()
-                        if is_password_expired(row) or str(row.get("force_password_reset", "")).strip():
-                            st.session_state.tela = "force_change_password"
-                            st.rerun()
-                        st.session_state.tela = "home"
-                        st.rerun()
+                st.session_state.logado = True
+                st.session_state.username = row["username"]
+                st.session_state.role = row.get("role", "user")
+                st.session_state.email = row.get("email", "")
+                if not str(row.get("accepted_terms_on", "")).strip():
+                    st.session_state.tela = "terms_consent"
+                    st.rerun()
+                if is_password_expired(row) or str(row.get("force_password_reset", "")).strip():
+                    st.session_state.tela = "force_change_password"
+                    st.rerun()
+                st.session_state.tela = "home"
+                st.rerun()
 
 elif st.session_state.tela == "register":
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
@@ -935,20 +945,27 @@ elif st.session_state.tela == "force_change_password":
         else:
             idx = rows.index[0]
             email = df.loc[idx, "email"]
+
             if not new_pass or not new_pass2:
                 st.error("Preencha os campos de senha."); st.stop()
             if new_pass != new_pass2:
                 st.error("As senhas não conferem."); st.stop()
+
             ok, errs = validate_password_policy(new_pass, username=uname, email=email)
             if not ok:
                 st.error("Regras de senha não atendidas:\n- " + "\n- ".join(errs)); st.stop()
-            _same, _ = verify_password(df.loc[idx, "password"], new_pass)
-if _same:
-    st.error("A nova senha não pode ser igual à senha atual."); st.stop()
+
+            # Aqui entra a verificação com bcrypt/legado:
+            same, _ = verify_password(df.loc[idx, "password"], new_pass)
+            if same:
+                st.error("A nova senha não pode ser igual à senha atual."); st.stop()
+
+            # Atualiza senha
             df.loc[idx, "password"] = hash_password(new_pass)
             df.loc[idx, "last_password_change"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             df.loc[idx, "force_password_reset"] = ""
             save_user_db(df)
+
             st.success("Senha atualizada com sucesso.")
             if not str(df.loc[idx, "accepted_terms_on"]).strip():
                 st.session_state.tela = "terms_consent"
@@ -1523,5 +1540,6 @@ else:
                             st.warning("Nenhuma peça foi selecionada.")
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
