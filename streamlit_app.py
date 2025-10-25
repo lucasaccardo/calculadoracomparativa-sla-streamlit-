@@ -694,44 +694,44 @@ if st.session_state.tela == "login":
         with cols[1]:
             st.button("Esqueci minha senha", on_click=ir_para_forgot, use_container_width=True)
 
-        if submit_login:
-    df_users = load_user_db()
-    user_data = df_users[df_users["username"] == username]
-    if user_data.empty:
-        st.error("❌ Usuário ou senha incorretos.")
-    else:
-        row = user_data.iloc[0]
-        valid, needs_up = verify_password(row["password"], password)
-        if not valid:
-            st.error("❌ Usuário ou senha incorretos.")
-        else:
-            # Upgrade automático do hash legado (SHA-256) para bcrypt
-            try:
-                if needs_up:
-                    idx = df_users.index[df_users["username"] == username][0]
-                    df_users.loc[idx, "password"] = hash_password(password)
-                    df_users.loc[idx, "last_password_change"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-                    save_user_db(df_users)
-                    # opcional: manter 'row' coerente após upgrade
-                    row["password"] = df_users.loc[idx, "password"]
-            except Exception:
-                pass
-
-            if row.get("status", "") != "aprovado":
-                st.warning("⏳ Seu cadastro ainda está pendente de aprovação pelo administrador.")
+                if submit_login:
+            df_users = load_user_db()
+            user_data = df_users[df_users["username"] == username]
+            if user_data.empty:
+                st.error("❌ Usuário ou senha incorretos.")
             else:
-                st.session_state.logado = True
-                st.session_state.username = row["username"]
-                st.session_state.role = row.get("role", "user")
-                st.session_state.email = row.get("email", "")
-                if not str(row.get("accepted_terms_on", "")).strip():
-                    st.session_state.tela = "terms_consent"
-                    st.rerun()
-                if is_password_expired(row) or str(row.get("force_password_reset", "")).strip():
-                    st.session_state.tela = "force_change_password"
-                    st.rerun()
-                st.session_state.tela = "home"
-                st.rerun()
+                row = user_data.iloc[0]
+                valid, needs_up = verify_password(row["password"], password)
+                if not valid:
+                    st.error("❌ Usuário ou senha incorretos.")
+                else:
+                    # Upgrade automático do hash legado (SHA-256) para bcrypt
+                    try:
+                        if needs_up:
+                            idx = df_users.index[df_users["username"] == username][0]
+                            df_users.loc[idx, "password"] = hash_password(password)
+                            df_users.loc[idx, "last_password_change"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                            save_user_db(df_users)
+                            # mantém 'row' coerente após upgrade
+                            row["password"] = df_users.loc[idx, "password"]
+                    except Exception:
+                        pass
+
+                    if row.get("status", "") != "aprovado":
+                        st.warning("⏳ Seu cadastro ainda está pendente de aprovação pelo administrador.")
+                    else:
+                        st.session_state.logado = True
+                        st.session_state.username = row["username"]
+                        st.session_state.role = row.get("role", "user")
+                        st.session_state.email = row.get("email", "")
+                        if not str(row.get("accepted_terms_on", "")).strip():
+                            st.session_state.tela = "terms_consent"
+                            st.rerun()
+                        if is_password_expired(row) or str(row.get("force_password_reset", "")).strip():
+                            st.session_state.tela = "force_change_password"
+                            st.rerun()
+                        st.session_state.tela = "home"
+                        st.rerun()
 
 elif st.session_state.tela == "register":
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
@@ -1540,6 +1540,7 @@ else:
                             st.warning("Nenhuma peça foi selecionada.")
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
