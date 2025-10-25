@@ -18,6 +18,33 @@ from textwrap import dedent
 import re
 from streamlit.components.v1 import html as components_html
 
+# ==== Senhas: bcrypt com compatibilidade SHA-256 ====
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def is_bcrypt_hash(s: str) -> bool:
+    return isinstance(s, str) and s.startswith("$2")
+
+def hash_password(password: str) -> str:
+    # Novo padrão: bcrypt
+    return pwd_context.hash(password)
+
+def verify_password(stored_hash: str, provided_password: str) -> tuple[bool, bool]:
+    """
+    Retorna (valido, precisa_upgrade).
+    - Se já for bcrypt: verifica com passlib e indica upgrade se necessário.
+    - Se for SHA-256 antigo: compara e marca precisa_upgrade=True quando acertar (para migrar).
+    """
+    if is_bcrypt_hash(stored_hash):
+        try:
+            ok = pwd_context.verify(provided_password, stored_hash)
+            return ok, (ok and pwd_context.needs_update(stored_hash))
+        except Exception:
+            return False, False
+    # Compat com SHA-256 legado
+    legacy = hashlib.sha256(provided_password.encode()).hexdigest()
+    ok = (stored_hash == legacy)
+    return ok, bool(ok)
+    
 # =========================
 # CONFIGURAÇÃO DA PÁGINA
 # =========================
@@ -873,9 +900,10 @@ elif st.session_state.tela == "reset_password":
                     if not ok:
                         st.error("Regras de senha não atendidas:\n- " + "\n- ".join(errs))
                         st.stop()
-                    if check_password(df.loc[idx, "password"], new_pass):
-                        st.error("A nova senha não pode ser igual à senha atual.")
-                        st.stop()
+                    _same, _ = verify_password(df.loc[idx, "password"], new_pass)
+if _same:
+    st.error("A nova senha não pode ser igual à senha atual.")
+    st.stop()
 
                     df.loc[idx, "password"] = hash_password(new_pass)
                     df.loc[idx, "reset_token"] = ""
@@ -914,8 +942,9 @@ elif st.session_state.tela == "force_change_password":
             ok, errs = validate_password_policy(new_pass, username=uname, email=email)
             if not ok:
                 st.error("Regras de senha não atendidas:\n- " + "\n- ".join(errs)); st.stop()
-            if check_password(df.loc[idx, "password"], new_pass):
-                st.error("A nova senha não pode ser igual à senha atual."); st.stop()
+            _same, _ = verify_password(df.loc[idx, "password"], new_pass)
+if _same:
+    st.error("A nova senha não pode ser igual à senha atual."); st.stop()
             df.loc[idx, "password"] = hash_password(new_pass)
             df.loc[idx, "last_password_change"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             df.loc[idx, "force_password_reset"] = ""
