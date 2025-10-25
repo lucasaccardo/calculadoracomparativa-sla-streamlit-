@@ -1,4 +1,0 @@
-# Não versionar dados sensíveis ou específicos de ambiente
-users.csv
-.streamlit/secrets.toml
-secrets.toml
