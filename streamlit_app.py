@@ -398,9 +398,12 @@ SUPERADMIN_USERNAME = "lucas.sureira"
 
 @st.cache_data
 def load_user_db():
+    # Senha inicial do superadmin vem de st.secrets (se existir).
+    tmp_pwd = (st.secrets.get("SUPERADMIN_DEFAULT_PASSWORD", "") or "").strip()
     admin_defaults = {
         "username": SUPERADMIN_USERNAME,
-        "password": hash_password("Brasil@@2609"),
+        # Se houver senha em secrets, usa; senão cria sem senha e força troca.
+        "password": hash_password(tmp_pwd) if tmp_pwd else "",
         "role": "superadmin",
         "full_name": "Lucas Mateus Sureira",
         "matricula": "30159179",
@@ -409,21 +412,24 @@ def load_user_db():
         "accepted_terms_on": "",
         "reset_token": "",
         "reset_expires_at": "",
-        "last_password_change": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-        "force_password_reset": ""
+        "last_password_change": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S") if tmp_pwd else "",
+        "force_password_reset": "" if tmp_pwd else "1",
     }
 
     if os.path.exists("users.csv") and os.path.getsize("users.csv") > 0:
         df = pd.read_csv("users.csv", dtype=str).fillna("")
     else:
+        # Cria base inicial de usuários (apenas superadmin)
         df = pd.DataFrame([admin_defaults])
         df.to_csv("users.csv", index=False)
         return df
 
+    # Garante colunas obrigatórias
     for col in REQUIRED_USER_COLUMNS:
         if col not in df.columns:
             df[col] = ""
 
+    # Garante superadmin aprovado
     if SUPERADMIN_USERNAME in df["username"].values:
         idx = df.index[df["username"] == SUPERADMIN_USERNAME][0]
         df.loc[idx, "role"] = "superadmin"
@@ -1487,3 +1493,4 @@ else:
                             st.warning("Nenhuma peça foi selecionada.")
 
     st.markdown("</div>", unsafe_allow_html=True)
+
