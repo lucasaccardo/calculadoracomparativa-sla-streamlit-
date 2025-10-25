@@ -694,7 +694,8 @@ if st.session_state.tela == "login":
         with cols[1]:
             st.button("Esqueci minha senha", on_click=ir_para_forgot, use_container_width=True)
 
-                if submit_login:
+        # Correção de indentação: este bloco deve ficar dentro de 'with col2:'
+        if submit_login:
             df_users = load_user_db()
             user_data = df_users[df_users["username"] == username]
             if user_data.empty:
@@ -906,7 +907,7 @@ elif st.session_state.tela == "reset_password":
                 else:
                     username = df.loc[idx, "username"]
                     email = df.loc[idx, "email"]
-                                        ok, errs = validate_password_policy(new_pass, username=username, email=email)
+                    ok, errs = validate_password_policy(new_pass, username=username, email=email)
                     if not ok:
                         st.error("Regras de senha não atendidas:\n- " + "\n- ".join(errs))
                         st.stop()
@@ -1130,7 +1131,7 @@ else:
         if pendentes.empty:
             st.info("Não há cadastros pendentes.")
         else:
-            st.dataframe(pendentes[["username", "full_name", "email", "matricula"]], use_container_width=True, hide_index=True)
+            st.dataframe(pendentes["username full_name email matricula".split()], use_container_width=True, hide_index=True)
             pendentes_list = pendentes["username"].tolist()
             to_approve = st.multiselect("Selecione usuários para aprovar:", options=pendentes_list)
             colap1, colap2 = st.columns(2)
@@ -1544,8 +1545,3 @@ else:
                             st.warning("Nenhuma peça foi selecionada.")
 
     st.markdown("</div>", unsafe_allow_html=True)
-
-
-
-
-
