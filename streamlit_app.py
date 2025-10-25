@@ -906,21 +906,25 @@ elif st.session_state.tela == "reset_password":
                 else:
                     username = df.loc[idx, "username"]
                     email = df.loc[idx, "email"]
-                    ok, errs = validate_password_policy(new_pass, username=username, email=email)
+                                        ok, errs = validate_password_policy(new_pass, username=username, email=email)
                     if not ok:
                         st.error("Regras de senha não atendidas:\n- " + "\n- ".join(errs))
                         st.stop()
-                    _same, _ = verify_password(df.loc[idx, "password"], new_pass)
-if _same:
-    st.error("A nova senha não pode ser igual à senha atual.")
-    st.stop()
 
+                    # Verifica se nova senha é igual à atual (bcrypt/legado)
+                    _same, _ = verify_password(df.loc[idx, "password"], new_pass)
+                    if _same:
+                        st.error("A nova senha não pode ser igual à senha atual.")
+                        st.stop()
+
+                    # Atualiza e limpa token
                     df.loc[idx, "password"] = hash_password(new_pass)
                     df.loc[idx, "reset_token"] = ""
                     df.loc[idx, "reset_expires_at"] = ""
                     df.loc[idx, "last_password_change"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
                     df.loc[idx, "force_password_reset"] = ""
                     save_user_db(df)
+
                     st.success("Senha redefinida com sucesso! Faça login novamente.")
                     if st.button("Ir para login", type="primary"):
                         st.session_state.ignore_reset_qp = True
@@ -1540,6 +1544,7 @@ else:
                             st.warning("Nenhuma peça foi selecionada.")
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
