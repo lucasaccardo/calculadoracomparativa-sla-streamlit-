@@ -1,2 +1,2 @@
-# calculadoracomparativa-sla-streamlit-
+# frotas-sla-streamlit-
 Aplicativo para calcular SLA de serviços e realizar comparações.
