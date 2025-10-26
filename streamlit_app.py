@@ -25,8 +25,17 @@ def is_bcrypt_hash(s: str) -> bool:
     return isinstance(s, str) and s.startswith("$2")
 
 def hash_password(password: str) -> str:
-    # Novo padrão: bcrypt
-    return pwd_context.hash(password)
+    """
+    Tenta bcrypt. Se o backend não estiver disponível no ambiente,
+    faz fallback para SHA-256 para não derrubar o app.
+    O verify_password já aceita SHA-256 e fará upgrade para bcrypt
+    no próximo login bem-sucedido quando o backend estiver OK.
+    """
+    try:
+        return pwd_context.hash(password)
+    except Exception:
+        # fallback compatível com verify_password()
+        return hashlib.sha256(password.encode()).hexdigest()
 
 def verify_password(stored_hash: str, provided_password: str) -> tuple[bool, bool]:
     """
