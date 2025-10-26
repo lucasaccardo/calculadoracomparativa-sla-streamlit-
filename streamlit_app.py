@@ -44,7 +44,7 @@ def verify_password(stored_hash: str, provided_password: str) -> tuple[bool, boo
     legacy = hashlib.sha256(provided_password.encode()).hexdigest()
     ok = (stored_hash == legacy)
     return ok, bool(ok)
-    
+
 # =========================
 # CONFIGURAÇÃO DA PÁGINA
 # =========================
@@ -118,10 +118,10 @@ def smtp_available():
     return bool(host and user and password)
 
 def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label: str = "", cta_url: str = "", footer: str = ""):
-    primary = "#e63946"
+    primary = "#2563eb"
     brand = "#0d1117"
-    text = "#0b1f2a"
-    light = "#f6f8fa"
+    text = "#e5e7eb"
+    light = "#0b1220"
     button_html = ""
     if cta_label and cta_url:
         button_html = f"""
@@ -134,14 +134,14 @@ def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label
         </tr>
         """
     body_html = "".join([f'<p style="margin:8px 0 8px 0">{line}</p>' for line in body_lines])
-    footer_html = f'<p style="color:#6b7280;font-size:12px">{footer}</p>' if footer else ""
+    footer_html = f'<p style="color:#9aa4b2;font-size:12px">{footer}</p>' if footer else ""
     return f"""<!DOCTYPE html>
 <html>
   <body style="margin:0;padding:0;background:{light}">
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="100%" style="background:{light};padding:24px 0">
       <tr>
         <td>
-          <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="600" style="margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="600" style="margin:0 auto;background:#0f172a;border-radius:12px;overflow:hidden;border:1px solid #1f2937">
             <tr>
               <td style="background:{brand};padding:18px 24px;color:#ffffff;">
                 <div style="display:flex;align-items:center;gap:12px">
@@ -152,13 +152,13 @@ def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label
             <tr>
               <td style="padding:24px 24px 0 24px;color:{text};font-family:Segoe UI,Arial,sans-serif">
                 <h2 style="margin:0 0 6px 0;font-weight:700">{title}</h2>
-                <p style="margin:0 0 12px 0;color:#475569">{subtitle}</p>
+                <p style="margin:0 0 12px 0;color:#cbd5e1">{subtitle}</p>
                 {body_html}
               </td>
             </tr>
             {button_html}
             <tr>
-              <td style="padding:12px 24px 24px 24px;color:#334155;font-family:Segoe UI,Arial,sans-serif">
+              <td style="padding:12px 24px 24px 24px;color:#cbd5e1;font-family:Segoe UI,Arial,sans-serif">
                 {footer_html}
               </td>
             </tr>
@@ -267,10 +267,10 @@ Bom trabalho!
     return send_email(dest_email, subject, plain, html)
 
 # =========================
-# ESTILOS (UI) + OCULTAR TOOLBAR + BG + LOGIN + SIDEBAR
+# ESTILOS (UI)
 # =========================
 def aplicar_estilos():
-    # Carrega o background se existir (mantido)
+    # Carrega o background se existir (para telas públicas)
     bg_image_base64 = ""
     try:
         if os.path.exists("background.png"):
@@ -279,23 +279,46 @@ def aplicar_estilos():
     except Exception:
         pass
 
-    # Variáveis de tema (paleta sóbria)
+    # Mostra bg só no login/registro/esqueci/reset/termos
+    tela = st.session_state.get("tela", "login")
+    show_bg = tela in {"login", "register", "forgot_password", "reset_password", "terms_consent"}
+
+    if show_bg and bg_image_base64:
+        app_bg_css = f"""
+          background-image: url(data:image/png;base64,{bg_image_base64});
+          background-size: cover;
+          background-repeat: no-repeat;
+          background-position: center top;
+          background-attachment: fixed;
+        """
+        overlay_css = """
+          content: "";
+          position: fixed;
+          inset: 0;
+          background: radial-gradient(1200px 700px at 10% 10%, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.6) 60%, rgba(0,0,0,0.7) 100%),
+                      linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.35));
+          pointer-events: none;
+          z-index: -1;
+        """
+    else:
+        # Telas internas: fundo sólido, sem imagem
+        app_bg_css = "background: #0b1220;"
+        overlay_css = "content: none;"
+
     st.markdown(
         f"""
         <style>
         :root {{
           --bg: #0b1220;
-          --bg-2: #0e1525;
           --sidebar: #101826;
-          --card: #0f172a;              /* fundo de cartões: opaco */
+          --card: #0f172a;
           --surface: #111827;
           --border: rgba(255,255,255,0.08);
           --text: #e5e7eb;
           --muted: #9aa4b2;
-          --primary: #2563eb;           /* azul corporativo */
+          --primary: #2563eb;
           --primary-700: #1d4ed8;
           --primary-600: #2563eb;
-          --primary-500: #3b82f6;
         }}
 
         html, body {{
@@ -304,56 +327,28 @@ def aplicar_estilos():
           height: 100%;
         }}
 
-        /* Container principal com imagem + overlay escuro sutil para legibilidade */
         [data-testid="stAppViewContainer"] {{
-          background-image: url(data:image/png;base64,{bg_image_base64});
-          background-size: cover;
-          background-repeat: no-repeat;
-          background-position: center top;
-          background-attachment: fixed;
+          {app_bg_css}
           min-height: 100vh;
           position: relative;
           isolation: isolate;
         }}
         [data-testid="stAppViewContainer"]::before {{
-          content: "";
-          position: fixed;
-          inset: 0;
-          /* gradiente escuro leve para “dim” do fundo */
-          background: radial-gradient(1200px 700px at 10% 10%, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.55) 60%, rgba(0,0,0,0.65) 100%),
-                      linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.35));
-          pointer-events: none;
-          z-index: -1;
+          {overlay_css}
         }}
 
-        /* Cartões e formulários: remover transparência, deixar sólido e limpo */
-        .main-container, [data-testid="stForm"], [data-testid="stExpander"] > div, .stTabs, .stDataFrame, .element-container:has(.stAlert) {{
+        /* Cartões opacos e limpos */
+        .main-container, [data-testid="stForm"], [data-testid="stExpander"] > div, .stDataFrame, .element-container:has(.stAlert) {{
           background-color: var(--card) !important;
           border: 1px solid var(--border) !important;
           border-radius: 12px !important;
           box-shadow: 0 10px 30px rgba(0,0,0,0.35) !important;
         }}
-        .main-container {{
-          padding: 24px !important;
-        }}
+        .main-container {{ padding: 24px !important; }}
+        .main-container, .main-container * {{ color: var(--text) !important; }}
+        h1, h2, h3 {{ letter-spacing: 0.2px !important; text-shadow: none !important; }}
 
-        /* Tipografia mais sóbria (sem exagero de brilho) */
-        .main-container, .main-container * {{
-          color: var(--text) !important;
-        }}
-        h1, h2, h3 {{
-          letter-spacing: 0.2px !important;
-          text-shadow: none !important;
-        }}
-
-        /* Tabelas */
-        .stDataFrame, .stTable {{
-          background-color: var(--card) !important;
-          border-radius: 10px !important;
-          border: 1px solid var(--border) !important;
-        }}
-
-        /* Sidebar mais discreto */
+        /* Sidebar discreta */
         [data-testid="stSidebar"] {{
           background: var(--sidebar) !important;
           border-right: 1px solid var(--border) !important;
@@ -361,7 +356,6 @@ def aplicar_estilos():
         [data-testid="stSidebar"] [data-testid="stSidebarContent"] {{
           display: flex !important;
           flex-direction: column !important;
-          align-items: stretch !important;
           gap: 12px !important;
           padding: 16px 12px !important;
         }}
@@ -378,8 +372,8 @@ def aplicar_estilos():
           background: #0f2138 !important;
         }}
 
-        /* Botões principais no conteúdo */
-        .stButton > button[kind="primary"], .stButton > button:where(.css-*) {{
+        /* Botões principais */
+        .stButton > button[kind="primary"] {{
           background: var(--primary) !important;
           border: 1px solid var(--primary-700) !important;
           color: #fff !important;
@@ -402,7 +396,7 @@ def aplicar_estilos():
           color: var(--text) !important;
         }}
 
-        /* Remover elementos de UI do Streamlit que “poluem” */
+        /* Remover UI Streamlit padrão */
         [data-testid="stToolbar"] {{ display: none !important; }}
         header[data-testid="stHeader"] {{ display: none !important; }}
         #MainMenu {{ visibility: hidden; }}
@@ -416,7 +410,7 @@ def aplicar_estilos():
           padding-bottom: 2rem !important;
         }}
 
-        /* Título do login pode continuar com a marca (já usado só no login) */
+        /* Somente login mantém o título com leve gradiente */
         .brand-title {{
           background: linear-gradient(90deg, #ffffff 0%, #dbeafe 40%, #93c5fd 80%) !important;
           -webkit-background-clip: text;
@@ -449,7 +443,6 @@ def load_user_db():
     tmp_pwd = (st.secrets.get("SUPERADMIN_DEFAULT_PASSWORD", "") or "").strip()
     admin_defaults = {
         "username": SUPERADMIN_USERNAME,
-        # Se houver senha em secrets, usa; senão cria sem senha e força troca.
         "password": hash_password(tmp_pwd) if tmp_pwd else "",
         "role": "superadmin",
         "full_name": "Lucas Mateus Sureira",
@@ -463,12 +456,24 @@ def load_user_db():
         "force_password_reset": "" if tmp_pwd else "1",
     }
 
+    def recreate_df():
+        df_new = pd.DataFrame([admin_defaults])
+        df_new.to_csv("users.csv", index=False)
+        return df_new
+
     if os.path.exists("users.csv") and os.path.getsize("users.csv") > 0:
-        df = pd.read_csv("users.csv", dtype=str).fillna("")
+        try:
+            df = pd.read_csv("users.csv", dtype=str).fillna("")
+        except Exception:
+            # Faz backup e recria do zero se a leitura falhar
+            try:
+                os.replace("users.csv", f"users.csv.bak.{int(datetime.utcnow().timestamp())}")
+            except Exception:
+                pass
+            df = recreate_df()
+            return df
     else:
-        # Cria base inicial de usuários (apenas superadmin)
-        df = pd.DataFrame([admin_defaults])
-        df.to_csv("users.csv", index=False)
+        df = recreate_df()
         return df
 
     # Garante colunas obrigatórias
@@ -716,7 +721,7 @@ if st.session_state.tela == "login":
         with cols[1]:
             st.button("Esqueci minha senha", on_click=ir_para_forgot, use_container_width=True)
 
-        # Correção de indentação: este bloco deve ficar dentro de 'with col2:'
+        # Processa login
         if submit_login:
             df_users = load_user_db()
             user_data = df_users[df_users["username"] == username]
@@ -735,7 +740,6 @@ if st.session_state.tela == "login":
                             df_users.loc[idx, "password"] = hash_password(password)
                             df_users.loc[idx, "last_password_change"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
                             save_user_db(df_users)
-                            # mantém 'row' coerente após upgrade
                             row["password"] = df_users.loc[idx, "password"]
                     except Exception:
                         pass
@@ -1567,4 +1571,3 @@ else:
                             st.warning("Nenhuma peça foi selecionada.")
 
     st.markdown("</div>", unsafe_allow_html=True)
-
