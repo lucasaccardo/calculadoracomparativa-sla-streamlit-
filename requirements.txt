@@ -2,6 +2,6 @@ streamlit==1.35.0
 pandas
 numpy
 openpyxl
-
 reportlab
-passlib[bcrypt]
+passlib[bcrypt]>=1.7.4
+bcrypt>=4.1.3
