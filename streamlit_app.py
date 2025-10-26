@@ -270,7 +270,7 @@ Bom trabalho!
 # ESTILOS (UI) + OCULTAR TOOLBAR + BG + LOGIN + SIDEBAR
 # =========================
 def aplicar_estilos():
-    # Carrega o background se existir
+    # Carrega o background se existir (para telas públicas)
     bg_image_base64 = ""
     try:
         if os.path.exists("background.png"):
@@ -278,35 +278,125 @@ def aplicar_estilos():
                 bg_image_base64 = base64.b64encode(f.read()).decode()
     except Exception:
         pass
-    bg_css = f"background-image: url(data:image/png;base64,{bg_image_base64});" if bg_image_base64 else ""
+
+    # Mostra bg só no login/registro/esqueci/reset/termos
+    tela = st.session_state.get("tela", "login")
+    show_bg = tela in {"login", "register", "forgot_password", "reset_password", "terms_consent"}
+
+    if show_bg and bg_image_base64:
+        app_bg_css = f"""
+          background-image: url(data:image/png;base64,{bg_image_base64});
+          background-size: cover;
+          background-repeat: no-repeat;
+          background-position: center top;
+          background-attachment: fixed;
+        """
+        overlay_css = """
+          content: "";
+          position: fixed;
+          inset: 0;
+          background: radial-gradient(1200px 700px at 10% 10%, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.6) 60%, rgba(0,0,0,0.7) 100%),
+                      linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.35));
+          pointer-events: none;
+          z-index: -1;
+        """
+    else:
+        # Telas internas: fundo sólido, sem imagem
+        app_bg_css = "background: #0b1220;"
+        overlay_css = "content: none;"
 
     st.markdown(
         f"""
         <style>
-        /* Fundo geral */
+        :root {{
+          --bg: #0b1220;
+          --sidebar: #101826;
+          --card: #0f172a;
+          --surface: #111827;
+          --border: rgba(255,255,255,0.08);
+          --text: #e5e7eb;
+          --muted: #9aa4b2;
+          --primary: #2563eb;
+          --primary-700: #1d4ed8;
+          --primary-600: #2563eb;
+        }}
+
         html, body {{
-            background-color: #0b1220 !important;
-            height: 100%;
+          background: var(--bg) !important;
+          color: var(--text) !important;
+          height: 100%;
         }}
+
         [data-testid="stAppViewContainer"] {{
-            {bg_css}
-            background-size: cover;
-            background-repeat: no-repeat;
-            background-position: center top;
-            background-attachment: fixed;
-            min-height: 100vh;
+          {app_bg_css}
+          min-height: 100vh;
+          position: relative;
+          isolation: isolate;
+        }}
+        [data-testid="stAppViewContainer"]::before {{
+          {overlay_css}
         }}
 
-        /* Cartões */
-        .main-container, [data-testid="stForm"] {{
-            background-color: rgba(13, 17, 23, 0.85);
-            padding: 25px;
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+        /* Cartões opacos e limpos */
+        .main-container, [data-testid="stForm"], [data-testid="stExpander"] > div, .stDataFrame, .element-container:has(.stAlert) {{
+          background-color: var(--card) !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 12px !important;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.35) !important;
         }}
-        .main-container, .main-container * {{ color: #fff !important; }}
+        .main-container {{ padding: 24px !important; }}
+        .main-container, .main-container * {{ color: var(--text) !important; }}
+        h1, h2, h3 {{ letter-spacing: 0.2px !important; text-shadow: none !important; }}
 
-        /* Ocultar UI padrão do Streamlit */
+        /* Sidebar discreta */
+        [data-testid="stSidebar"] {{
+          background: var(--sidebar) !important;
+          border-right: 1px solid var(--border) !important;
+        }}
+        [data-testid="stSidebar"] [data-testid="stSidebarContent"] {{
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 12px !important;
+          padding: 16px 12px !important;
+        }}
+        [data-testid="stSidebar"] .stButton > button {{
+          width: 100% !important;
+          background: var(--surface) !important;
+          color: var(--text) !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 10px !important;
+          padding: 10px 12px !important;
+        }}
+        [data-testid="stSidebar"] .stButton > button:hover {{
+          border-color: rgba(255,255,255,0.18) !important;
+          background: #0f2138 !important;
+        }}
+
+        /* Botões principais */
+        .stButton > button[kind="primary"] {{
+          background: var(--primary) !important;
+          border: 1px solid var(--primary-700) !important;
+          color: #fff !important;
+          border-radius: 10px !important;
+          padding: 10px 14px !important;
+          box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25) !important;
+        }}
+        .stButton > button[kind="primary"]:hover {{
+          background: var(--primary-700) !important;
+          border-color: var(--primary-600) !important;
+        }}
+
+        /* Inputs */
+        .stTextInput > div > div, .stNumberInput > div, .stDateInput > div, .stSelectbox > div, .stMultiSelect > div {{
+          background: #0d1321 !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 10px !important;
+        }}
+        .stTextInput input, .stNumberInput input, .stDateInput input {{
+          color: var(--text) !important;
+        }}
+
+        /* Remover UI Streamlit padrão */
         [data-testid="stToolbar"] {{ display: none !important; }}
         header[data-testid="stHeader"] {{ display: none !important; }}
         #MainMenu {{ visibility: hidden; }}
@@ -314,94 +404,61 @@ def aplicar_estilos():
         div[class*="viewerBadge"] {{ display: none !important; }}
         a[href*="streamlit.io"] {{ display: none !important; }}
 
-        /* Títulos login */
-        .brand-title {{
-            width: 100%;
-            text-align: center;
-            font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
-            font-weight: 800;
-            font-size: clamp(28px, 5vw, 52px);
-            letter-spacing: 0.6px;
-            line-height: 1.1;
-            margin: 0 auto 16px auto;
-            background: linear-gradient(90deg, #ffffff 0%, #bfe1ff 40%, #7bc6ff 70%, #e6f2ff 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0 4px 24px rgba(0,0,0,0.35);
-            filter: drop-shadow(0 6px 18px rgba(0,0,0,0.25));
-        }}
-        .brand-subtitle {{
-            text-align: center;
-            color: #c8d7e1;
-            margin-top: -6px;
-            margin-bottom: 10px;
-            font-size: 14px;
-            opacity: 0.9;
-        }}
-
-        /* ======= AJUSTES DO SIDEBAR (mínimos p/ não quebrar o recolhimento) ======= */
-
-        /* Container interno do sidebar */
-        [data-testid="stSidebar"] [data-testid="stSidebarContent"] {{
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: center !important;
-            gap: 10px !important;
-            text-align: center !important;
-            padding-left: 8px !important;
-            padding-right: 8px !important;
-        }}
-
-        /* Cada bloco ocupa largura do container */
-        [data-testid="stSidebar"] .element-container,
-        [data-testid="stSidebar"] .block-container,
-        [data-testid="stSidebar"] .stButton,
-        [data-testid="stSidebar"] .stMarkdown {{
-            width: 100% !important;
-        }}
-
-        /* Botões do sidebar: horizontais e sem quebrar por letra,
-           sem min-width para não travar o recolhimento */
-        [data-testid="stSidebar"] .stButton > button {{
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 4px auto !important;
-
-            writing-mode: horizontal-tb !important;
-            white-space: nowrap !important;
-            word-break: keep-all !important;
-            overflow-wrap: normal !important;
-            text-align: center !important;
-            line-height: 1.1 !important;
-        }}
-        [data-testid="stSidebar"] .stButton > button span {{
-            white-space: nowrap !important;
-            word-break: keep-all !important;
-            overflow-wrap: normal !important;
-        }}
-
-        /* Remover botão de fullscreen das imagens (evita bolha/overlay cinza) */
-        [data-testid="stImage"] button,
-        [data-testid="StyledFullScreenButton"],
-        button[title*="full"],
-        button[title*="tela cheia"],
-        button[aria-label*="full"],
-        button[aria-label*="tela cheia"] {{
-            display: none !important;
-        }}
-
-        /* NÃO definir width/min-width/transform no próprio [data-testid="stSidebar"].
-           Assim o X (fechar) funciona com o comportamento padrão do Streamlit. */
-
         /* Espaçamento do conteúdo principal */
         section.main > div.block-container {{
-            padding-top: 2rem !important;
-            padding-bottom: 2rem !important;
+          padding-top: 1.6rem !important;
+          padding-bottom: 2rem !important;
         }}
+
+        /* ===== Login (hero + card central) ===== */
+        .login-hero {{
+          max-width: 560px;
+          margin: 6vh auto 0;
+          padding: 0 16px;
+          text-align: center;
+        }}
+        .login-title {{
+          font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+          font-weight: 800;
+          font-size: clamp(28px, 5vw, 48px);
+          letter-spacing: .3px;
+          color: var(--text);
+          margin: 0 0 6px 0;
+        }}
+        .login-subtitle {{
+          color: var(--muted);
+          font-size: 14px;
+          margin-bottom: 18px;
+        }}
+        .login-card {{
+          background: var(--card);
+          border: 1px solid var(--border);
+          border-radius: 14px;
+          box-shadow: 0 10px 30px rgba(0,0,0,.35);
+          padding: 18px;
+        }}
+        /* Inputs do login */
+        .login-card .stTextInput > div > div,
+        .login-card .stPassword > div > div {{
+          background: #0d1321 !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 10px !important;
+        }}
+        .login-actions {{
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 14px;
+          margin-top: 14px;
+        }}
+
+        /* Somente login mantém o título com leve gradiente opcional (se quiser remover, apague este bloco) */
+        .brand-title {{
+          background: linear-gradient(90deg, #ffffff 0%, #dbeafe 40%, #93c5fd 80%) !important;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          text-shadow: none !important;
+        }}
+        .brand-subtitle {{ color: #cbd5e1 !important; }}
         </style>
         """,
         unsafe_allow_html=True
@@ -671,68 +728,69 @@ if incoming_token and not st.session_state.get("ignore_reset_qp"):
 # TELAS
 # =========================
 if st.session_state.tela == "login":
-    col1, col2, col3 = st.columns([6, 1, 1])
-    with col3:
-        if os.path.exists("frotasvamossla.png"):
-            st.image("frotasvamossla.png", width=120)
+    # Cabeçalho compacto centralizado
+    st.markdown(
+        """
+        <div class="login-hero">
+          <h1 class="login-title">Frotas Vamos SLA</h1>
+          <div class="login-subtitle">Acesso restrito | Soluções inteligentes para frotas</div>
+          <div class="login-card">
+        """,
+        unsafe_allow_html=True
+    )
 
-    st.markdown("<br><br>", unsafe_allow_html=True)
+    # Formulário de login
+    with st.form("login_form"):
+        username = st.text_input("Usuário", placeholder="Usuário")
+        password = st.text_input("Senha", type="password", placeholder="Senha")
+        submit_login = st.form_submit_button("Entrar", type="primary", use_container_width=True)
 
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.markdown("<div class='brand-title'>Frotas Vamos SLA</div>", unsafe_allow_html=True)
-        st.markdown("<div class='brand-subtitle'>Soluções Inteligentes para Frotas</div>", unsafe_allow_html=True)
+    # Ações secundárias (cadastro / esqueci)
+    colA, colB = st.columns(2)
+    with colA:
+        if st.button("Criar cadastro", use_container_width=True):
+            ir_para_register(); st.rerun()
+    with colB:
+        if st.button("Esqueci minha senha", use_container_width=True):
+            ir_para_forgot(); st.rerun()
 
-        with st.form("login_form"):
-            username = st.text_input("Usuário", label_visibility="collapsed", placeholder="Usuário")
-            password = st.text_input("Senha", type="password", label_visibility="collapsed", placeholder="Senha")
-            submit_login = st.form_submit_button("Entrar 🚀", use_container_width=True)
+    st.markdown("</div></div>", unsafe_allow_html=True)
 
-        cols = st.columns(2)
-        with cols[0]:
-            st.button("Criar cadastro", on_click=ir_para_register, use_container_width=True)
-        with cols[1]:
-            st.button("Esqueci minha senha", on_click=ir_para_forgot, use_container_width=True)
-
-        # Correção de indentação: este bloco deve ficar dentro de 'with col2:'
-        if submit_login:
-            df_users = load_user_db()
-            user_data = df_users[df_users["username"] == username]
-            if user_data.empty:
+    # Processamento do login (mesma lógica já validada)
+    if submit_login:
+        df_users = load_user_db()
+        user_data = df_users[df_users["username"] == username]
+        if user_data.empty:
+            st.error("❌ Usuário ou senha incorretos.")
+        else:
+            row = user_data.iloc[0]
+            valid, needs_up = verify_password(row["password"], password)
+            if not valid:
                 st.error("❌ Usuário ou senha incorretos.")
             else:
-                row = user_data.iloc[0]
-                valid, needs_up = verify_password(row["password"], password)
-                if not valid:
-                    st.error("❌ Usuário ou senha incorretos.")
-                else:
-                    # Upgrade automático do hash legado (SHA-256) para bcrypt
-                    try:
-                        if needs_up:
-                            idx = df_users.index[df_users["username"] == username][0]
-                            df_users.loc[idx, "password"] = hash_password(password)
-                            df_users.loc[idx, "last_password_change"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-                            save_user_db(df_users)
-                            # mantém 'row' coerente após upgrade
-                            row["password"] = df_users.loc[idx, "password"]
-                    except Exception:
-                        pass
+                # Upgrade automático do hash legado (SHA-256) para bcrypt
+                try:
+                    if needs_up:
+                        idx = df_users.index[df_users["username"] == username][0]
+                        df_users.loc[idx, "password"] = hash_password(password)
+                        df_users.loc[idx, "last_password_change"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                        save_user_db(df_users)
+                        row["password"] = df_users.loc[idx, "password"]
+                except Exception:
+                    pass
 
-                    if row.get("status", "") != "aprovado":
-                        st.warning("⏳ Seu cadastro ainda está pendente de aprovação pelo administrador.")
-                    else:
-                        st.session_state.logado = True
-                        st.session_state.username = row["username"]
-                        st.session_state.role = row.get("role", "user")
-                        st.session_state.email = row.get("email", "")
-                        if not str(row.get("accepted_terms_on", "")).strip():
-                            st.session_state.tela = "terms_consent"
-                            st.rerun()
-                        if is_password_expired(row) or str(row.get("force_password_reset", "")).strip():
-                            st.session_state.tela = "force_change_password"
-                            st.rerun()
-                        st.session_state.tela = "home"
-                        st.rerun()
+                if row.get("status", "") != "aprovado":
+                    st.warning("⏳ Seu cadastro ainda está pendente de aprovação pelo administrador.")
+                else:
+                    st.session_state.logado = True
+                    st.session_state.username = row["username"]
+                    st.session_state.role = row.get("role", "user")
+                    st.session_state.email = row.get("email", "")
+                    if not str(row.get("accepted_terms_on", "")).strip():
+                        st.session_state.tela = "terms_consent"; st.rerun()
+                    if is_password_expired(row) or str(row.get("force_password_reset", "")).strip():
+                        st.session_state.tela = "force_change_password"; st.rerun()
+                    st.session_state.tela = "home"; st.rerun()
 
 elif st.session_state.tela == "register":
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
