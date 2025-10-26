@@ -48,7 +48,6 @@ def verify_password(stored_hash: str, provided_password: str) -> tuple[bool, boo
             return ok, (ok and pwd_context.needs_update(stored_hash))
         except Exception:
             return False, False
-    # Compat com SHA-256 legado
     legacy = hashlib.sha256(provided_password.encode()).hexdigest()
     ok = (stored_hash == legacy)
     return ok, bool(ok)
@@ -292,24 +291,25 @@ def aplicar_estilos():
     show_bg = tela in {"login", "register", "forgot_password", "reset_password", "terms_consent"}
 
     if show_bg and bg_image_base64:
+        # Sem background-attachment: fixed (evita travar rolagem)
         app_bg_css = f"""
           background-image: url(data:image/png;base64,{bg_image_base64});
-          background-size: cover;
           background-repeat: no-repeat;
-          background-position: center top;
-          background-attachment: fixed;
+          background-position: right center;   /* ancora o caminhão à direita */
+          background-size: auto 100vh;         /* ajusta pela altura da tela mantendo proporção */
+          background-attachment: scroll;
+          background-color: #0b1220;          /* cor de base nas áreas sem imagem */
         """
         overlay_css = """
           content: "";
           position: fixed;
           inset: 0;
-          background: radial-gradient(1200px 700px at 10% 10%, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.6) 60%, rgba(0,0,0,0.7) 100%),
-                      linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.35));
+          background: radial-gradient(900px 600px at 15% 20%, rgba(0,0,0,0.50) 0%, rgba(0,0,0,0.65) 60%, rgba(0,0,0,0.75) 100%),
+                      linear-gradient(180deg, rgba(0,0,0,0.20), rgba(0,0,0,0.30));
           pointer-events: none;
           z-index: -1;
         """
     else:
-        # Telas internas: fundo sólido, sem imagem
         app_bg_css = "background: #0b1220;"
         overlay_css = "content: none;"
 
@@ -333,17 +333,37 @@ def aplicar_estilos():
           background: var(--bg) !important;
           color: var(--text) !important;
           height: 100%;
+          overflow-y: auto !important;   /* garante rolagem */
         }}
 
+        /* Contêiner principal sempre rolável */
         [data-testid="stAppViewContainer"] {{
           {app_bg_css}
           min-height: 100vh;
           position: relative;
           isolation: isolate;
+          overflow-y: auto !important;
         }}
         [data-testid="stAppViewContainer"]::before {{
           {overlay_css}
         }}
+
+        /* Limita a largura do conteúdo para evitar títulos gigantes */
+        section.main > div.block-container {{
+          max-width: 1200px !important;
+          margin-left: auto !important;
+          margin-right: auto !important;
+          padding-top: 1.2rem !important;
+          padding-bottom: 2rem !important;
+        }}
+
+        /* Tamanho dos títulos em todo o app (mantém legível em telas grandes) */
+        h1 {{ font-size: clamp(24px, 2.2vw + 16px, 36px) !important; }}
+        h2 {{ font-size: clamp(20px, 1.6vw + 12px, 28px) !important; }}
+        h3 {{ font-size: clamp(18px, 1.2vw + 10px, 22px) !important; }}
+
+        /* Corrige proporção de imagens e SVGs */
+        img, svg {{ max-width: 100% !important; height: auto !important; }}
 
         /* Card para qualquer st.form (inclui o login) */
         [data-testid="stForm"] {{
@@ -364,7 +384,6 @@ def aplicar_estilos():
         }}
         .main-container {{ padding: 24px !important; }}
         .main-container, .main-container * {{ color: var(--text) !important; }}
-        h1, h2, h3 {{ letter-spacing: 0.2px !important; text-shadow: none !important; }}
 
         /* Sidebar discreta */
         [data-testid="stSidebar"] {{
@@ -408,6 +427,15 @@ def aplicar_estilos():
           border-color: var(--primary-600) !important;
         }}
 
+        /* Ações sob o card do login (alinha os 2 botões) */
+        .login-actions {{
+          max-width: 640px;
+          margin: 10px auto 0 auto;
+        }}
+        .login-actions [data-testid="column"] > div:nth-child(1) {{
+          width: 100% !important;
+        }}
+
         /* Remover UI padrão do Streamlit */
         [data-testid="stToolbar"] {{ display: none !important; }}
         header[data-testid="stHeader"] {{ display: none !important; }}
@@ -416,12 +444,6 @@ def aplicar_estilos():
         div[class*="viewerBadge"] {{ display: none !important; }}
         a[href*="streamlit.io"] {{ display: none !important; }}
 
-        /* Espaçamento do conteúdo principal */
-        section.main > div.block-container {{
-          padding-top: 1.6rem !important;
-          padding-bottom: 2rem !important;
-        }}
-
         /* Títulos do login (fora do card) */
         .login-title {{
           text-align: center;
@@ -429,13 +451,13 @@ def aplicar_estilos():
           font-weight: 800;
           font-size: clamp(28px, 5vw, 48px);
           color: var(--text);
-          margin: 5vh auto 6px auto;
+          margin: 6vh auto 6px auto;
         }}
         .login-subtitle {{
           text-align: center;
           color: var(--muted);
           font-size: 14px;
-          margin-bottom: 10px;
+          margin-bottom: 6px;
         }}
         </style>
         """,
@@ -481,7 +503,6 @@ def load_user_db():
         try:
             df = pd.read_csv("users.csv", dtype=str).fillna("")
         except Exception:
-            # Faz backup e recria do zero se a leitura falhar
             try:
                 os.replace("users.csv", f"users.csv.bak.{int(datetime.utcnow().timestamp())}")
             except Exception:
@@ -722,13 +743,16 @@ if st.session_state.tela == "login":
         password = st.text_input("Senha", type="password", placeholder="Senha")
         submit_login = st.form_submit_button("Entrar")
 
-    cols = st.columns(2)
-    with cols[0]:
+    # Ações sob o card (alinhadas ao mesmo width)
+    st.markdown('<div class="login-actions">', unsafe_allow_html=True)
+    colA, colB = st.columns(2)
+    with colA:
         if st.button("Criar cadastro", use_container_width=True):
             ir_para_register(); st.rerun()
-    with cols[1]:
+    with colB:
         if st.button("Esqueci minha senha", use_container_width=True):
             ir_para_forgot(); st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
     if submit_login:
         df_users = load_user_db()
@@ -943,13 +967,11 @@ elif st.session_state.tela == "reset_password":
                         st.error("Regras de senha não atendidas:\n- " + "\n- ".join(errs))
                         st.stop()
 
-                    # Verifica se nova senha é igual à atual (bcrypt/legado)
                     _same, _ = verify_password(df.loc[idx, "password"], new_pass)
                     if _same:
                         st.error("A nova senha não pode ser igual à senha atual.")
                         st.stop()
 
-                    # Atualiza e limpa token
                     df.loc[idx, "password"] = hash_password(new_pass)
                     df.loc[idx, "reset_token"] = ""
                     df.loc[idx, "reset_expires_at"] = ""
@@ -991,12 +1013,10 @@ elif st.session_state.tela == "force_change_password":
             if not ok:
                 st.error("Regras de senha não atendidas:\n- " + "\n- ".join(errs)); st.stop()
 
-            # Verifica com bcrypt/legado:
             same, _ = verify_password(df.loc[idx, "password"], new_pass)
             if same:
                 st.error("A nova senha não pode ser igual à senha atual."); st.stop()
 
-            # Atualiza senha
             df.loc[idx, "password"] = hash_password(new_pass)
             df.loc[idx, "last_password_change"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             df.loc[idx, "force_password_reset"] = ""
