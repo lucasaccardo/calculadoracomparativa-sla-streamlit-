@@ -277,188 +277,137 @@ Bom trabalho!
 # ESTILOS (UI) + BG
 # =========================
 def aplicar_estilos():
-    # Carrega o background se existir (para telas públicas)
-    bg_image_base64 = ""
-    try:
-        if os.path.exists("background.png"):
-            with open("background.png", "rb") as f:
-                bg_image_base64 = base64.b64encode(f.read()).decode()
-    except Exception:
-        pass
-
-    # Mostra bg só no login/registro/esqueci/reset/termos
-    tela = st.session_state.get("tela", "login")
-    show_bg = tela in {"login", "register", "forgot_password", "reset_password", "terms_consent"}
-
-    if show_bg and bg_image_base64:
-        # Sem background-attachment: fixed (evita travar rolagem)
-        app_bg_css = f"""
-          background-image: url(data:image/png;base64,{bg_image_base64});
-          background-repeat: no-repeat;
-          background-position: right center;   /* ancora o caminhão à direita */
-          background-size: auto 100vh;         /* ajusta pela altura da tela mantendo proporção */
-          background-attachment: scroll;
-          background-color: #0b1220;          /* cor de base nas áreas sem imagem */
-        """
-        overlay_css = """
-          content: "";
-          position: fixed;
-          inset: 0;
-          background: radial-gradient(900px 600px at 15% 20%, rgba(0,0,0,0.50) 0%, rgba(0,0,0,0.65) 60%, rgba(0,0,0,0.75) 100%),
-                      linear-gradient(180deg, rgba(0,0,0,0.20), rgba(0,0,0,0.30));
-          pointer-events: none;
-          z-index: -1;
-        """
-    else:
-        app_bg_css = "background: #0b1220;"
-        overlay_css = "content: none;"
-
+    # Tema corporativo clean (sem imagem de fundo)
     st.markdown(
-        f"""
+        """
         <style>
-        :root {{
-          --bg: #0b1220;
-          --sidebar: #101826;
-          --card: #0f172a;
-          --surface: #111827;
+        :root {
+          --bg: #0B0F17;         /* fundo sólido discreto */
+          --sidebar: #111827;    /* sidebar */
+          --card: #0F172A;       /* blocos */
+          --surface: #0F172A;    /* botões/inputs */
           --border: rgba(255,255,255,0.08);
-          --text: #e5e7eb;
-          --muted: #9aa4b2;
-          --primary: #2563eb;
-          --primary-700: #1d4ed8;
-          --primary-600: #2563eb;
-        }}
+          --text: #E5E7EB;
+          --muted: #94A3B8;
+          --primary: #2563EB;
+        }
 
-        html, body {{
+        html, body {
           background: var(--bg) !important;
           color: var(--text) !important;
           height: 100%;
-          overflow-y: auto !important;   /* garante rolagem */
-        }}
-
-        /* Contêiner principal sempre rolável */
-        [data-testid="stAppViewContainer"] {{
-          {app_bg_css}
-          min-height: 100vh;
-          position: relative;
-          isolation: isolate;
           overflow-y: auto !important;
-        }}
-        [data-testid="stAppViewContainer"]::before {{
-          {overlay_css}
-        }}
+        }
 
-        /* Limita a largura do conteúdo para evitar títulos gigantes */
-        section.main > div.block-container {{
-          max-width: 1200px !important;
-          margin-left: auto !important;
-          margin-right: auto !important;
-          padding-top: 1.2rem !important;
+        /* Conteúdo central com largura controlada (mais corporativo) */
+        section.main > div.block-container {
+          max-width: 980px !important;
+          margin: 0 auto !important;
+          padding-top: 1rem !important;
           padding-bottom: 2rem !important;
-        }}
+        }
 
-        /* Tamanho dos títulos em todo o app (mantém legível em telas grandes) */
-        h1 {{ font-size: clamp(24px, 2.2vw + 16px, 36px) !important; }}
-        h2 {{ font-size: clamp(20px, 1.6vw + 12px, 28px) !important; }}
-        h3 {{ font-size: clamp(18px, 1.2vw + 10px, 22px) !important; }}
+        /* Títulos discretos (sem exagero de tamanho) */
+        h1 { font-size: clamp(22px, 2.0vw + 14px, 30px) !important; font-weight: 700 !important; }
+        h2 { font-size: clamp(18px, 1.4vw + 12px, 22px) !important; font-weight: 700 !important; }
+        h3 { font-size: clamp(16px, 1.0vw + 10px, 18px) !important; font-weight: 600 !important; }
 
-        /* Corrige proporção de imagens e SVGs */
-        img, svg {{ max-width: 100% !important; height: auto !important; }}
-
-        /* Card para qualquer st.form (inclui o login) */
-        [data-testid="stForm"] {{
+        /* Blocos padrão (cards) */
+        .main-container, [data-testid="stForm"], [data-testid="stExpander"] > div, .element-container:has(.stAlert) {
           background-color: var(--card) !important;
           border: 1px solid var(--border) !important;
-          border-radius: 14px !important;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.35) !important;
-          padding: 18px 18px 12px 18px !important;
-          max-width: 640px !important;
-          margin: 12px auto 12px auto !important;
-        }}
+          border-radius: 8px !important;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.25) !important;
+        }
+        .main-container { padding: 20px !important; }
+        .main-container, .main-container * { color: var(--text) !important; }
 
-        .main-container, [data-testid="stExpander"] > div, .stDataFrame, .element-container:has(.stAlert) {{
-          background-color: var(--card) !important;
-          border: 1px solid var(--border) !important;
-          border-radius: 12px !important;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.35) !important;
-        }}
-        .main-container {{ padding: 24px !important; }}
-        .main-container, .main-container * {{ color: var(--text) !important; }}
-
-        /* Sidebar discreta */
-        [data-testid="stSidebar"] {{
+        /* Sidebar */
+        [data-testid="stSidebar"] {
           background: var(--sidebar) !important;
           border-right: 1px solid var(--border) !important;
-        }}
+        }
 
         /* Inputs */
         .stTextInput > div > div, .stPassword > div > div,
-        .stNumberInput > div, .stDateInput > div, .stSelectbox > div, .stMultiSelect > div {{
-          background: #0d1321 !important;
+        .stNumberInput > div, .stDateInput > div, .stSelectbox > div, .stMultiSelect > div {
+          background: #0D1321 !important;
           border: 1px solid var(--border) !important;
-          border-radius: 10px !important;
-        }}
-        .stTextInput input, .stPassword input, .stNumberInput input, .stDateInput input {{
-          color: var(--text) !important;
-        }}
+          border-radius: 8px !important;
+        }
 
-        /* Botões padrão */
-        .stButton > button {{
+        /* Botões */
+        .stButton > button {
           background: var(--surface) !important;
           color: var(--text) !important;
           border: 1px solid var(--border) !important;
-          border-radius: 10px !important;
-          padding: 10px 14px !important;
-        }}
-        .stButton > button:hover {{
-          border-color: rgba(255,255,255,0.18) !important;
-          background: #0f2138 !important;
-        }}
-        /* Dentro de forms (ex.: login), o botão vira primário e 100% largura */
-        [data-testid="stForm"] .stButton > button {{
+          border-radius: 8px !important;
+          padding: 8px 12px !important;
+          box-shadow: none !important;
+        }
+        .stButton > button:hover {
+          background: #0E223D !important;
+          border-color: rgba(255,255,255,0.16) !important;
+        }
+
+        /* Botão primário dentro de forms (ex.: login) */
+        [data-testid="stForm"] .stButton > button {
           width: 100% !important;
           background: var(--primary) !important;
-          border: 1px solid var(--primary-700) !important;
+          border: 1px solid rgba(37,99,235,0.6) !important;
           color: #fff !important;
-          box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25) !important;
-        }}
-        [data-testid="stForm"] .stButton > button:hover {{
-          background: var(--primary-700) !important;
-          border-color: var(--primary-600) !important;
-        }}
+        }
+        [data-testid="stForm"] .stButton > button:hover {
+          background: #1D4ED8 !important;
+        }
 
-        /* Ações sob o card do login (alinha os 2 botões) */
-        .login-actions {{
-          max-width: 640px;
-          margin: 10px auto 0 auto;
-        }}
-        .login-actions [data-testid="column"] > div:nth-child(1) {{
-          width: 100% !important;
-        }}
-
-        /* Remover UI padrão do Streamlit */
-        [data-testid="stToolbar"] {{ display: none !important; }}
-        header[data-testid="stHeader"] {{ display: none !important; }}
-        #MainMenu {{ visibility: hidden; }}
-        footer {{ visibility: hidden; }}
-        div[class*="viewerBadge"] {{ display: none !important; }}
-        a[href*="streamlit.io"] {{ display: none !important; }}
-
-        /* Títulos do login (fora do card) */
-        .login-title {{
+        /* Login titles (sem fundo, sem overlay) */
+        .login-title {
           text-align: center;
-          font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
           font-weight: 800;
-          font-size: clamp(28px, 5vw, 48px);
+          font-size: clamp(24px, 4vw, 36px);
           color: var(--text);
-          margin: 6vh auto 6px auto;
-        }}
-        .login-subtitle {{
+          margin: 6vh auto 2px auto;
+        }
+        .login-subtitle {
           text-align: center;
           color: var(--muted);
-          font-size: 14px;
-          margin-bottom: 6px;
-        }}
+          font-size: 13px;
+          margin-bottom: 10px;
+        }
+
+        /* Card do login com layout compacto */
+        [data-testid="stForm"] {
+          max-width: 420px !important;
+          margin: 14px auto !important;
+          padding: 16px 16px 12px 16px !important;
+        }
+
+        /* Links discretos abaixo do card de login */
+        .login-links {
+          max-width: 420px;
+          margin: 6px auto 0 auto;
+          text-align: center;
+          color: var(--muted);
+          font-size: 13px;
+        }
+        .login-links .stButton > button {
+          background: transparent !important;
+          color: var(--primary) !important;
+          border: 0 !important;
+          padding: 0 !important;
+          box-shadow: none !important;
+          text-decoration: none !important;
+        }
+
+        /* Remover UI padrão do Streamlit */
+        [data-testid="stToolbar"] { display: none !important; }
+        header[data-testid="stHeader"] { display: none !important; }
+        #MainMenu { visibility: hidden; }
+        footer { visibility: hidden; }
+
+        /* Imagens sem distorção */
+        img, svg { max-width: 100% !important; height: auto !important; }
         </style>
         """,
         unsafe_allow_html=True
@@ -743,15 +692,24 @@ if st.session_state.tela == "login":
         password = st.text_input("Senha", type="password", placeholder="Senha")
         submit_login = st.form_submit_button("Entrar")
 
-    # Ações sob o card (alinhadas ao mesmo width)
-    st.markdown('<div class="login-actions">', unsafe_allow_html=True)
-    colA, colB = st.columns(2)
-    with colA:
-        if st.button("Criar cadastro", use_container_width=True):
-            ir_para_register(); st.rerun()
-    with colB:
-        if st.button("Esqueci minha senha", use_container_width=True):
-            ir_para_forgot(); st.rerun()
+    # Links discretos abaixo do card (dentro do bloco de login)
+    st.markdown('<div class="login-links">', unsafe_allow_html=True)
+    # Se sua versão de Streamlit reclamar do vertical_alignment, remova o argumento
+    try:
+        c1, c2, c3 = st.columns([1, 1, 1], vertical_alignment="center")
+    except TypeError:
+        c1, c2, c3 = st.columns([1, 1, 1])
+
+    with c1:
+        st.write("")  # espaçador
+    with c2:
+        if st.button("Criar cadastro"):
+            ir_para_register()
+            st.rerun()
+    with c3:
+        if st.button("Esqueci minha senha"):
+            ir_para_forgot()
+            st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
     if submit_login:
@@ -784,10 +742,13 @@ if st.session_state.tela == "login":
                     st.session_state.role = row.get("role", "user")
                     st.session_state.email = row.get("email", "")
                     if not str(row.get("accepted_terms_on", "")).strip():
-                        st.session_state.tela = "terms_consent"; st.rerun()
+                        st.session_state.tela = "terms_consent"
+                        st.rerun()
                     if is_password_expired(row) or str(row.get("force_password_reset", "")).strip():
-                        st.session_state.tela = "force_change_password"; st.rerun()
-                    st.session_state.tela = "home"; st.rerun()
+                        st.session_state.tela = "force_change_password"
+                        st.rerun()
+                    st.session_state.tela = "home"
+                    st.rerun()
 
 elif st.session_state.tela == "register":
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
