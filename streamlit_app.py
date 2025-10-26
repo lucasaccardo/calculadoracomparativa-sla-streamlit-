@@ -44,7 +44,7 @@ def verify_password(stored_hash: str, provided_password: str) -> tuple[bool, boo
     legacy = hashlib.sha256(provided_password.encode()).hexdigest()
     ok = (stored_hash == legacy)
     return ok, bool(ok)
-
+    
 # =========================
 # CONFIGURAÇÃO DA PÁGINA
 # =========================
@@ -118,10 +118,10 @@ def smtp_available():
     return bool(host and user and password)
 
 def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label: str = "", cta_url: str = "", footer: str = ""):
-    primary = "#2563eb"
+    primary = "#e63946"
     brand = "#0d1117"
-    text = "#e5e7eb"
-    light = "#0b1220"
+    text = "#0b1f2a"
+    light = "#f6f8fa"
     button_html = ""
     if cta_label and cta_url:
         button_html = f"""
@@ -134,14 +134,14 @@ def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label
         </tr>
         """
     body_html = "".join([f'<p style="margin:8px 0 8px 0">{line}</p>' for line in body_lines])
-    footer_html = f'<p style="color:#9aa4b2;font-size:12px">{footer}</p>' if footer else ""
+    footer_html = f'<p style="color:#6b7280;font-size:12px">{footer}</p>' if footer else ""
     return f"""<!DOCTYPE html>
 <html>
   <body style="margin:0;padding:0;background:{light}">
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="100%" style="background:{light};padding:24px 0">
       <tr>
         <td>
-          <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="600" style="margin:0 auto;background:#0f172a;border-radius:12px;overflow:hidden;border:1px solid #1f2937">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="600" style="margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
             <tr>
               <td style="background:{brand};padding:18px 24px;color:#ffffff;">
                 <div style="display:flex;align-items:center;gap:12px">
@@ -152,13 +152,13 @@ def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label
             <tr>
               <td style="padding:24px 24px 0 24px;color:{text};font-family:Segoe UI,Arial,sans-serif">
                 <h2 style="margin:0 0 6px 0;font-weight:700">{title}</h2>
-                <p style="margin:0 0 12px 0;color:#cbd5e1">{subtitle}</p>
+                <p style="margin:0 0 12px 0;color:#475569">{subtitle}</p>
                 {body_html}
               </td>
             </tr>
             {button_html}
             <tr>
-              <td style="padding:12px 24px 24px 24px;color:#cbd5e1;font-family:Segoe UI,Arial,sans-serif">
+              <td style="padding:12px 24px 24px 24px;color:#334155;font-family:Segoe UI,Arial,sans-serif">
                 {footer_html}
               </td>
             </tr>
@@ -267,10 +267,10 @@ Bom trabalho!
     return send_email(dest_email, subject, plain, html)
 
 # =========================
-# ESTILOS (UI)
+# ESTILOS (UI) + OCULTAR TOOLBAR + BG + LOGIN + SIDEBAR
 # =========================
 def aplicar_estilos():
-    # Carrega o background se existir (para telas públicas)
+    # Carrega o background se existir
     bg_image_base64 = ""
     try:
         if os.path.exists("background.png"):
@@ -278,125 +278,35 @@ def aplicar_estilos():
                 bg_image_base64 = base64.b64encode(f.read()).decode()
     except Exception:
         pass
-
-    # Mostra bg só no login/registro/esqueci/reset/termos
-    tela = st.session_state.get("tela", "login")
-    show_bg = tela in {"login", "register", "forgot_password", "reset_password", "terms_consent"}
-
-    if show_bg and bg_image_base64:
-        app_bg_css = f"""
-          background-image: url(data:image/png;base64,{bg_image_base64});
-          background-size: cover;
-          background-repeat: no-repeat;
-          background-position: center top;
-          background-attachment: fixed;
-        """
-        overlay_css = """
-          content: "";
-          position: fixed;
-          inset: 0;
-          background: radial-gradient(1200px 700px at 10% 10%, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.6) 60%, rgba(0,0,0,0.7) 100%),
-                      linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.35));
-          pointer-events: none;
-          z-index: -1;
-        """
-    else:
-        # Telas internas: fundo sólido, sem imagem
-        app_bg_css = "background: #0b1220;"
-        overlay_css = "content: none;"
+    bg_css = f"background-image: url(data:image/png;base64,{bg_image_base64});" if bg_image_base64 else ""
 
     st.markdown(
         f"""
         <style>
-        :root {{
-          --bg: #0b1220;
-          --sidebar: #101826;
-          --card: #0f172a;
-          --surface: #111827;
-          --border: rgba(255,255,255,0.08);
-          --text: #e5e7eb;
-          --muted: #9aa4b2;
-          --primary: #2563eb;
-          --primary-700: #1d4ed8;
-          --primary-600: #2563eb;
-        }}
-
+        /* Fundo geral */
         html, body {{
-          background: var(--bg) !important;
-          color: var(--text) !important;
-          height: 100%;
+            background-color: #0b1220 !important;
+            height: 100%;
         }}
-
         [data-testid="stAppViewContainer"] {{
-          {app_bg_css}
-          min-height: 100vh;
-          position: relative;
-          isolation: isolate;
-        }}
-        [data-testid="stAppViewContainer"]::before {{
-          {overlay_css}
-        }}
-
-        /* Cartões opacos e limpos */
-        .main-container, [data-testid="stForm"], [data-testid="stExpander"] > div, .stDataFrame, .element-container:has(.stAlert) {{
-          background-color: var(--card) !important;
-          border: 1px solid var(--border) !important;
-          border-radius: 12px !important;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.35) !important;
-        }}
-        .main-container {{ padding: 24px !important; }}
-        .main-container, .main-container * {{ color: var(--text) !important; }}
-        h1, h2, h3 {{ letter-spacing: 0.2px !important; text-shadow: none !important; }}
-
-        /* Sidebar discreta */
-        [data-testid="stSidebar"] {{
-          background: var(--sidebar) !important;
-          border-right: 1px solid var(--border) !important;
-        }}
-        [data-testid="stSidebar"] [data-testid="stSidebarContent"] {{
-          display: flex !important;
-          flex-direction: column !important;
-          gap: 12px !important;
-          padding: 16px 12px !important;
-        }}
-        [data-testid="stSidebar"] .stButton > button {{
-          width: 100% !important;
-          background: var(--surface) !important;
-          color: var(--text) !important;
-          border: 1px solid var(--border) !important;
-          border-radius: 10px !important;
-          padding: 10px 12px !important;
-        }}
-        [data-testid="stSidebar"] .stButton > button:hover {{
-          border-color: rgba(255,255,255,0.18) !important;
-          background: #0f2138 !important;
+            {bg_css}
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-position: center top;
+            background-attachment: fixed;
+            min-height: 100vh;
         }}
 
-        /* Botões principais */
-        .stButton > button[kind="primary"] {{
-          background: var(--primary) !important;
-          border: 1px solid var(--primary-700) !important;
-          color: #fff !important;
-          border-radius: 10px !important;
-          padding: 10px 14px !important;
-          box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25) !important;
+        /* Cartões */
+        .main-container, [data-testid="stForm"] {{
+            background-color: rgba(13, 17, 23, 0.85);
+            padding: 25px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }}
-        .stButton > button[kind="primary"]:hover {{
-          background: var(--primary-700) !important;
-          border-color: var(--primary-600) !important;
-        }}
+        .main-container, .main-container * {{ color: #fff !important; }}
 
-        /* Inputs */
-        .stTextInput > div > div, .stNumberInput > div, .stDateInput > div, .stSelectbox > div, .stMultiSelect > div {{
-          background: #0d1321 !important;
-          border: 1px solid var(--border) !important;
-          border-radius: 10px !important;
-        }}
-        .stTextInput input, .stNumberInput input, .stDateInput input {{
-          color: var(--text) !important;
-        }}
-
-        /* Remover UI Streamlit padrão */
+        /* Ocultar UI padrão do Streamlit */
         [data-testid="stToolbar"] {{ display: none !important; }}
         header[data-testid="stHeader"] {{ display: none !important; }}
         #MainMenu {{ visibility: hidden; }}
@@ -404,20 +314,94 @@ def aplicar_estilos():
         div[class*="viewerBadge"] {{ display: none !important; }}
         a[href*="streamlit.io"] {{ display: none !important; }}
 
-        /* Espaçamento do conteúdo principal */
-        section.main > div.block-container {{
-          padding-top: 1.6rem !important;
-          padding-bottom: 2rem !important;
+        /* Títulos login */
+        .brand-title {{
+            width: 100%;
+            text-align: center;
+            font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+            font-weight: 800;
+            font-size: clamp(28px, 5vw, 52px);
+            letter-spacing: 0.6px;
+            line-height: 1.1;
+            margin: 0 auto 16px auto;
+            background: linear-gradient(90deg, #ffffff 0%, #bfe1ff 40%, #7bc6ff 70%, #e6f2ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 4px 24px rgba(0,0,0,0.35);
+            filter: drop-shadow(0 6px 18px rgba(0,0,0,0.25));
+        }}
+        .brand-subtitle {{
+            text-align: center;
+            color: #c8d7e1;
+            margin-top: -6px;
+            margin-bottom: 10px;
+            font-size: 14px;
+            opacity: 0.9;
         }}
 
-        /* Somente login mantém o título com leve gradiente */
-        .brand-title {{
-          background: linear-gradient(90deg, #ffffff 0%, #dbeafe 40%, #93c5fd 80%) !important;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          text-shadow: none !important;
+        /* ======= AJUSTES DO SIDEBAR (mínimos p/ não quebrar o recolhimento) ======= */
+
+        /* Container interno do sidebar */
+        [data-testid="stSidebar"] [data-testid="stSidebarContent"] {{
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 10px !important;
+            text-align: center !important;
+            padding-left: 8px !important;
+            padding-right: 8px !important;
         }}
-        .brand-subtitle {{ color: #cbd5e1 !important; }}
+
+        /* Cada bloco ocupa largura do container */
+        [data-testid="stSidebar"] .element-container,
+        [data-testid="stSidebar"] .block-container,
+        [data-testid="stSidebar"] .stButton,
+        [data-testid="stSidebar"] .stMarkdown {{
+            width: 100% !important;
+        }}
+
+        /* Botões do sidebar: horizontais e sem quebrar por letra,
+           sem min-width para não travar o recolhimento */
+        [data-testid="stSidebar"] .stButton > button {{
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 4px auto !important;
+
+            writing-mode: horizontal-tb !important;
+            white-space: nowrap !important;
+            word-break: keep-all !important;
+            overflow-wrap: normal !important;
+            text-align: center !important;
+            line-height: 1.1 !important;
+        }}
+        [data-testid="stSidebar"] .stButton > button span {{
+            white-space: nowrap !important;
+            word-break: keep-all !important;
+            overflow-wrap: normal !important;
+        }}
+
+        /* Remover botão de fullscreen das imagens (evita bolha/overlay cinza) */
+        [data-testid="stImage"] button,
+        [data-testid="StyledFullScreenButton"],
+        button[title*="full"],
+        button[title*="tela cheia"],
+        button[aria-label*="full"],
+        button[aria-label*="tela cheia"] {{
+            display: none !important;
+        }}
+
+        /* NÃO definir width/min-width/transform no próprio [data-testid="stSidebar"].
+           Assim o X (fechar) funciona com o comportamento padrão do Streamlit. */
+
+        /* Espaçamento do conteúdo principal */
+        section.main > div.block-container {{
+            padding-top: 2rem !important;
+            padding-bottom: 2rem !important;
+        }}
         </style>
         """,
         unsafe_allow_html=True
@@ -443,6 +427,7 @@ def load_user_db():
     tmp_pwd = (st.secrets.get("SUPERADMIN_DEFAULT_PASSWORD", "") or "").strip()
     admin_defaults = {
         "username": SUPERADMIN_USERNAME,
+        # Se houver senha em secrets, usa; senão cria sem senha e força troca.
         "password": hash_password(tmp_pwd) if tmp_pwd else "",
         "role": "superadmin",
         "full_name": "Lucas Mateus Sureira",
@@ -456,24 +441,12 @@ def load_user_db():
         "force_password_reset": "" if tmp_pwd else "1",
     }
 
-    def recreate_df():
-        df_new = pd.DataFrame([admin_defaults])
-        df_new.to_csv("users.csv", index=False)
-        return df_new
-
     if os.path.exists("users.csv") and os.path.getsize("users.csv") > 0:
-        try:
-            df = pd.read_csv("users.csv", dtype=str).fillna("")
-        except Exception:
-            # Faz backup e recria do zero se a leitura falhar
-            try:
-                os.replace("users.csv", f"users.csv.bak.{int(datetime.utcnow().timestamp())}")
-            except Exception:
-                pass
-            df = recreate_df()
-            return df
+        df = pd.read_csv("users.csv", dtype=str).fillna("")
     else:
-        df = recreate_df()
+        # Cria base inicial de usuários (apenas superadmin)
+        df = pd.DataFrame([admin_defaults])
+        df.to_csv("users.csv", index=False)
         return df
 
     # Garante colunas obrigatórias
@@ -721,7 +694,7 @@ if st.session_state.tela == "login":
         with cols[1]:
             st.button("Esqueci minha senha", on_click=ir_para_forgot, use_container_width=True)
 
-        # Processa login
+        # Correção de indentação: este bloco deve ficar dentro de 'with col2:'
         if submit_login:
             df_users = load_user_db()
             user_data = df_users[df_users["username"] == username]
@@ -740,6 +713,7 @@ if st.session_state.tela == "login":
                             df_users.loc[idx, "password"] = hash_password(password)
                             df_users.loc[idx, "last_password_change"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
                             save_user_db(df_users)
+                            # mantém 'row' coerente após upgrade
                             row["password"] = df_users.loc[idx, "password"]
                     except Exception:
                         pass
