@@ -18,7 +18,7 @@ from textwrap import dedent
 import re
 from streamlit.components.v1 import html as components_html
 
-# ==== Senhas: bcrypt com compatibilidade SHA-256 ====
+# ==== Senhas: bcrypt com compatibilidade SHA-256 (com fallback seguro) ====
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def is_bcrypt_hash(s: str) -> bool:
@@ -34,7 +34,6 @@ def hash_password(password: str) -> str:
     try:
         return pwd_context.hash(password)
     except Exception:
-        # fallback compatível com verify_password()
         return hashlib.sha256(password.encode()).hexdigest()
 
 def verify_password(stored_hash: str, provided_password: str) -> tuple[bool, bool]:
@@ -53,7 +52,7 @@ def verify_password(stored_hash: str, provided_password: str) -> tuple[bool, boo
     legacy = hashlib.sha256(provided_password.encode()).hexdigest()
     ok = (stored_hash == legacy)
     return ok, bool(ok)
-    
+
 # =========================
 # CONFIGURAÇÃO DA PÁGINA
 # =========================
@@ -127,10 +126,10 @@ def smtp_available():
     return bool(host and user and password)
 
 def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label: str = "", cta_url: str = "", footer: str = ""):
-    primary = "#e63946"
+    primary = "#2563eb"
     brand = "#0d1117"
-    text = "#0b1f2a"
-    light = "#f6f8fa"
+    text = "#e5e7eb"
+    light = "#0b1220"
     button_html = ""
     if cta_label and cta_url:
         button_html = f"""
@@ -143,14 +142,14 @@ def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label
         </tr>
         """
     body_html = "".join([f'<p style="margin:8px 0 8px 0">{line}</p>' for line in body_lines])
-    footer_html = f'<p style="color:#6b7280;font-size:12px">{footer}</p>' if footer else ""
+    footer_html = f'<p style="color:#9aa4b2;font-size:12px">{footer}</p>' if footer else ""
     return f"""<!DOCTYPE html>
 <html>
   <body style="margin:0;padding:0;background:{light}">
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="100%" style="background:{light};padding:24px 0">
       <tr>
         <td>
-          <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="600" style="margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="600" style="margin:0 auto;background:#0f172a;border-radius:12px;overflow:hidden;border:1px solid #1f2937">
             <tr>
               <td style="background:{brand};padding:18px 24px;color:#ffffff;">
                 <div style="display:flex;align-items:center;gap:12px">
@@ -161,13 +160,13 @@ def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label
             <tr>
               <td style="padding:24px 24px 0 24px;color:{text};font-family:Segoe UI,Arial,sans-serif">
                 <h2 style="margin:0 0 6px 0;font-weight:700">{title}</h2>
-                <p style="margin:0 0 12px 0;color:#475569">{subtitle}</p>
+                <p style="margin:0 0 12px 0;color:#cbd5e1">{subtitle}</p>
                 {body_html}
               </td>
             </tr>
             {button_html}
             <tr>
-              <td style="padding:12px 24px 24px 24px;color:#334155;font-family:Segoe UI,Arial,sans-serif">
+              <td style="padding:12px 24px 24px 24px;color:#cbd5e1;font-family:Segoe UI,Arial,sans-serif">
                 {footer_html}
               </td>
             </tr>
@@ -276,7 +275,7 @@ Bom trabalho!
     return send_email(dest_email, subject, plain, html)
 
 # =========================
-# ESTILOS (UI) + OCULTAR TOOLBAR + BG + LOGIN + SIDEBAR
+# ESTILOS (UI) + BG
 # =========================
 def aplicar_estilos():
     # Carrega o background se existir (para telas públicas)
@@ -346,8 +345,18 @@ def aplicar_estilos():
           {overlay_css}
         }}
 
-        /* Cartões opacos e limpos */
-        .main-container, [data-testid="stForm"], [data-testid="stExpander"] > div, .stDataFrame, .element-container:has(.stAlert) {{
+        /* Card para qualquer st.form (inclui o login) */
+        [data-testid="stForm"] {{
+          background-color: var(--card) !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 14px !important;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.35) !important;
+          padding: 18px 18px 12px 18px !important;
+          max-width: 640px !important;
+          margin: 12px auto 12px auto !important;
+        }}
+
+        .main-container, [data-testid="stExpander"] > div, .stDataFrame, .element-container:has(.stAlert) {{
           background-color: var(--card) !important;
           border: 1px solid var(--border) !important;
           border-radius: 12px !important;
@@ -362,50 +371,44 @@ def aplicar_estilos():
           background: var(--sidebar) !important;
           border-right: 1px solid var(--border) !important;
         }}
-        [data-testid="stSidebar"] [data-testid="stSidebarContent"] {{
-          display: flex !important;
-          flex-direction: column !important;
-          gap: 12px !important;
-          padding: 16px 12px !important;
-        }}
-        [data-testid="stSidebar"] .stButton > button {{
-          width: 100% !important;
-          background: var(--surface) !important;
-          color: var(--text) !important;
-          border: 1px solid var(--border) !important;
-          border-radius: 10px !important;
-          padding: 10px 12px !important;
-        }}
-        [data-testid="stSidebar"] .stButton > button:hover {{
-          border-color: rgba(255,255,255,0.18) !important;
-          background: #0f2138 !important;
-        }}
-
-        /* Botões principais */
-        .stButton > button[kind="primary"] {{
-          background: var(--primary) !important;
-          border: 1px solid var(--primary-700) !important;
-          color: #fff !important;
-          border-radius: 10px !important;
-          padding: 10px 14px !important;
-          box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25) !important;
-        }}
-        .stButton > button[kind="primary"]:hover {{
-          background: var(--primary-700) !important;
-          border-color: var(--primary-600) !important;
-        }}
 
         /* Inputs */
-        .stTextInput > div > div, .stNumberInput > div, .stDateInput > div, .stSelectbox > div, .stMultiSelect > div {{
+        .stTextInput > div > div, .stPassword > div > div,
+        .stNumberInput > div, .stDateInput > div, .stSelectbox > div, .stMultiSelect > div {{
           background: #0d1321 !important;
           border: 1px solid var(--border) !important;
           border-radius: 10px !important;
         }}
-        .stTextInput input, .stNumberInput input, .stDateInput input {{
+        .stTextInput input, .stPassword input, .stNumberInput input, .stDateInput input {{
           color: var(--text) !important;
         }}
 
-        /* Remover UI Streamlit padrão */
+        /* Botões padrão */
+        .stButton > button {{
+          background: var(--surface) !important;
+          color: var(--text) !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 10px !important;
+          padding: 10px 14px !important;
+        }}
+        .stButton > button:hover {{
+          border-color: rgba(255,255,255,0.18) !important;
+          background: #0f2138 !important;
+        }}
+        /* Dentro de forms (ex.: login), o botão vira primário e 100% largura */
+        [data-testid="stForm"] .stButton > button {{
+          width: 100% !important;
+          background: var(--primary) !important;
+          border: 1px solid var(--primary-700) !important;
+          color: #fff !important;
+          box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25) !important;
+        }}
+        [data-testid="stForm"] .stButton > button:hover {{
+          background: var(--primary-700) !important;
+          border-color: var(--primary-600) !important;
+        }}
+
+        /* Remover UI padrão do Streamlit */
         [data-testid="stToolbar"] {{ display: none !important; }}
         header[data-testid="stHeader"] {{ display: none !important; }}
         #MainMenu {{ visibility: hidden; }}
@@ -419,55 +422,21 @@ def aplicar_estilos():
           padding-bottom: 2rem !important;
         }}
 
-        /* ===== Login (hero + card central) ===== */
-        .login-hero {{
-          max-width: 560px;
-          margin: 6vh auto 0;
-          padding: 0 16px;
-          text-align: center;
-        }}
+        /* Títulos do login (fora do card) */
         .login-title {{
+          text-align: center;
           font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
           font-weight: 800;
           font-size: clamp(28px, 5vw, 48px);
-          letter-spacing: .3px;
           color: var(--text);
-          margin: 0 0 6px 0;
+          margin: 5vh auto 6px auto;
         }}
         .login-subtitle {{
+          text-align: center;
           color: var(--muted);
           font-size: 14px;
-          margin-bottom: 18px;
+          margin-bottom: 10px;
         }}
-        .login-card {{
-          background: var(--card);
-          border: 1px solid var(--border);
-          border-radius: 14px;
-          box-shadow: 0 10px 30px rgba(0,0,0,.35);
-          padding: 18px;
-        }}
-        /* Inputs do login */
-        .login-card .stTextInput > div > div,
-        .login-card .stPassword > div > div {{
-          background: #0d1321 !important;
-          border: 1px solid var(--border) !important;
-          border-radius: 10px !important;
-        }}
-        .login-actions {{
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 14px;
-          margin-top: 14px;
-        }}
-
-        /* Somente login mantém o título com leve gradiente opcional (se quiser remover, apague este bloco) */
-        .brand-title {{
-          background: linear-gradient(90deg, #ffffff 0%, #dbeafe 40%, #93c5fd 80%) !important;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          text-shadow: none !important;
-        }}
-        .brand-subtitle {{ color: #cbd5e1 !important; }}
         </style>
         """,
         unsafe_allow_html=True
@@ -476,9 +445,6 @@ def aplicar_estilos():
 # =========================
 # AUTENTICAÇÃO E USUÁRIOS
 # =========================
-# As funções de senha (hash_password e verify_password) já foram definidas acima com bcrypt.
-# Não redefinir aqui para não sobrescrever.
-
 REQUIRED_USER_COLUMNS = [
     "username", "password", "role", "full_name", "matricula",
     "email", "status", "accepted_terms_on", "reset_token", "reset_expires_at",
@@ -493,7 +459,6 @@ def load_user_db():
     tmp_pwd = (st.secrets.get("SUPERADMIN_DEFAULT_PASSWORD", "") or "").strip()
     admin_defaults = {
         "username": SUPERADMIN_USERNAME,
-        # Se houver senha em secrets, usa; senão cria sem senha e força troca.
         "password": hash_password(tmp_pwd) if tmp_pwd else "",
         "role": "superadmin",
         "full_name": "Lucas Mateus Sureira",
@@ -507,13 +472,24 @@ def load_user_db():
         "force_password_reset": "" if tmp_pwd else "1",
     }
 
+    def recreate_df():
+        df_new = pd.DataFrame([admin_defaults])
+        df_new.to_csv("users.csv", index=False)
+        return df_new
+
     if os.path.exists("users.csv") and os.path.getsize("users.csv") > 0:
-        df = pd.read_csv("users.csv", dtype=str).fillna("")
+        try:
+            df = pd.read_csv("users.csv", dtype=str).fillna("")
+        except Exception:
+            # Faz backup e recria do zero se a leitura falhar
+            try:
+                os.replace("users.csv", f"users.csv.bak.{int(datetime.utcnow().timestamp())}")
+            except Exception:
+                pass
+            df = recreate_df()
+            return df
     else:
-        # Cria base inicial de usuários (apenas superadmin)
-        df = pd.DataFrame([admin_defaults])
-        df.to_csv("users.csv", index=False)
-        return df
+        return recreate_df()
 
     # Garante colunas obrigatórias
     for col in REQUIRED_USER_COLUMNS:
@@ -737,35 +713,23 @@ if incoming_token and not st.session_state.get("ignore_reset_qp"):
 # TELAS
 # =========================
 if st.session_state.tela == "login":
-    # Cabeçalho compacto centralizado
-    st.markdown(
-        """
-        <div class="login-hero">
-          <h1 class="login-title">Frotas Vamos SLA</h1>
-          <div class="login-subtitle">Acesso restrito | Soluções inteligentes para frotas</div>
-          <div class="login-card">
-        """,
-        unsafe_allow_html=True
-    )
+    st.markdown('<h1 class="login-title">Frotas Vamos SLA</h1>', unsafe_allow_html=True)
+    st.markdown('<div class="login-subtitle">Acesso restrito | Soluções inteligentes para frotas</div>', unsafe_allow_html=True)
 
-    # Formulário de login
+    # Formulário de login (estilizado como card via CSS)
     with st.form("login_form"):
         username = st.text_input("Usuário", placeholder="Usuário")
         password = st.text_input("Senha", type="password", placeholder="Senha")
-        submit_login = st.form_submit_button("Entrar", type="primary", use_container_width=True)
+        submit_login = st.form_submit_button("Entrar")
 
-    # Ações secundárias (cadastro / esqueci)
-    colA, colB = st.columns(2)
-    with colA:
+    cols = st.columns(2)
+    with cols[0]:
         if st.button("Criar cadastro", use_container_width=True):
             ir_para_register(); st.rerun()
-    with colB:
+    with cols[1]:
         if st.button("Esqueci minha senha", use_container_width=True):
             ir_para_forgot(); st.rerun()
 
-    st.markdown("</div></div>", unsafe_allow_html=True)
-
-    # Processamento do login (mesma lógica já validada)
     if submit_login:
         df_users = load_user_db()
         user_data = df_users[df_users["username"] == username]
@@ -777,7 +741,7 @@ if st.session_state.tela == "login":
             if not valid:
                 st.error("❌ Usuário ou senha incorretos.")
             else:
-                # Upgrade automático do hash legado (SHA-256) para bcrypt
+                # Upgrade automático (SHA-256 -> bcrypt) quando possível
                 try:
                     if needs_up:
                         idx = df_users.index[df_users["username"] == username][0]
@@ -1027,7 +991,7 @@ elif st.session_state.tela == "force_change_password":
             if not ok:
                 st.error("Regras de senha não atendidas:\n- " + "\n- ".join(errs)); st.stop()
 
-            # Aqui entra a verificação com bcrypt/legado:
+            # Verifica com bcrypt/legado:
             same, _ = verify_password(df.loc[idx, "password"], new_pass)
             if same:
                 st.error("A nova senha não pode ser igual à senha atual."); st.stop()
