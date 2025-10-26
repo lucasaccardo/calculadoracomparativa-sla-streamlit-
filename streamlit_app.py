@@ -270,7 +270,7 @@ Bom trabalho!
 # ESTILOS (UI) + OCULTAR TOOLBAR + BG + LOGIN + SIDEBAR
 # =========================
 def aplicar_estilos():
-    # Carrega o background se existir
+    # Carrega o background se existir (mantido)
     bg_image_base64 = ""
     try:
         if os.path.exists("background.png"):
@@ -278,35 +278,131 @@ def aplicar_estilos():
                 bg_image_base64 = base64.b64encode(f.read()).decode()
     except Exception:
         pass
-    bg_css = f"background-image: url(data:image/png;base64,{bg_image_base64});" if bg_image_base64 else ""
 
+    # Variáveis de tema (paleta sóbria)
     st.markdown(
         f"""
         <style>
-        /* Fundo geral */
+        :root {{
+          --bg: #0b1220;
+          --bg-2: #0e1525;
+          --sidebar: #101826;
+          --card: #0f172a;              /* fundo de cartões: opaco */
+          --surface: #111827;
+          --border: rgba(255,255,255,0.08);
+          --text: #e5e7eb;
+          --muted: #9aa4b2;
+          --primary: #2563eb;           /* azul corporativo */
+          --primary-700: #1d4ed8;
+          --primary-600: #2563eb;
+          --primary-500: #3b82f6;
+        }}
+
         html, body {{
-            background-color: #0b1220 !important;
-            height: 100%;
+          background: var(--bg) !important;
+          color: var(--text) !important;
+          height: 100%;
         }}
+
+        /* Container principal com imagem + overlay escuro sutil para legibilidade */
         [data-testid="stAppViewContainer"] {{
-            {bg_css}
-            background-size: cover;
-            background-repeat: no-repeat;
-            background-position: center top;
-            background-attachment: fixed;
-            min-height: 100vh;
+          background-image: url(data:image/png;base64,{bg_image_base64});
+          background-size: cover;
+          background-repeat: no-repeat;
+          background-position: center top;
+          background-attachment: fixed;
+          min-height: 100vh;
+          position: relative;
+          isolation: isolate;
+        }}
+        [data-testid="stAppViewContainer"]::before {{
+          content: "";
+          position: fixed;
+          inset: 0;
+          /* gradiente escuro leve para “dim” do fundo */
+          background: radial-gradient(1200px 700px at 10% 10%, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.55) 60%, rgba(0,0,0,0.65) 100%),
+                      linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.35));
+          pointer-events: none;
+          z-index: -1;
         }}
 
-        /* Cartões */
-        .main-container, [data-testid="stForm"] {{
-            background-color: rgba(13, 17, 23, 0.85);
-            padding: 25px;
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+        /* Cartões e formulários: remover transparência, deixar sólido e limpo */
+        .main-container, [data-testid="stForm"], [data-testid="stExpander"] > div, .stTabs, .stDataFrame, .element-container:has(.stAlert) {{
+          background-color: var(--card) !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 12px !important;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.35) !important;
         }}
-        .main-container, .main-container * {{ color: #fff !important; }}
+        .main-container {{
+          padding: 24px !important;
+        }}
 
-        /* Ocultar UI padrão do Streamlit */
+        /* Tipografia mais sóbria (sem exagero de brilho) */
+        .main-container, .main-container * {{
+          color: var(--text) !important;
+        }}
+        h1, h2, h3 {{
+          letter-spacing: 0.2px !important;
+          text-shadow: none !important;
+        }}
+
+        /* Tabelas */
+        .stDataFrame, .stTable {{
+          background-color: var(--card) !important;
+          border-radius: 10px !important;
+          border: 1px solid var(--border) !important;
+        }}
+
+        /* Sidebar mais discreto */
+        [data-testid="stSidebar"] {{
+          background: var(--sidebar) !important;
+          border-right: 1px solid var(--border) !important;
+        }}
+        [data-testid="stSidebar"] [data-testid="stSidebarContent"] {{
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: stretch !important;
+          gap: 12px !important;
+          padding: 16px 12px !important;
+        }}
+        [data-testid="stSidebar"] .stButton > button {{
+          width: 100% !important;
+          background: var(--surface) !important;
+          color: var(--text) !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 10px !important;
+          padding: 10px 12px !important;
+        }}
+        [data-testid="stSidebar"] .stButton > button:hover {{
+          border-color: rgba(255,255,255,0.18) !important;
+          background: #0f2138 !important;
+        }}
+
+        /* Botões principais no conteúdo */
+        .stButton > button[kind="primary"], .stButton > button:where(.css-*) {{
+          background: var(--primary) !important;
+          border: 1px solid var(--primary-700) !important;
+          color: #fff !important;
+          border-radius: 10px !important;
+          padding: 10px 14px !important;
+          box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25) !important;
+        }}
+        .stButton > button[kind="primary"]:hover {{
+          background: var(--primary-700) !important;
+          border-color: var(--primary-600) !important;
+        }}
+
+        /* Inputs */
+        .stTextInput > div > div, .stNumberInput > div, .stDateInput > div, .stSelectbox > div, .stMultiSelect > div {{
+          background: #0d1321 !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 10px !important;
+        }}
+        .stTextInput input, .stNumberInput input, .stDateInput input {{
+          color: var(--text) !important;
+        }}
+
+        /* Remover elementos de UI do Streamlit que “poluem” */
         [data-testid="stToolbar"] {{ display: none !important; }}
         header[data-testid="stHeader"] {{ display: none !important; }}
         #MainMenu {{ visibility: hidden; }}
@@ -314,94 +410,20 @@ def aplicar_estilos():
         div[class*="viewerBadge"] {{ display: none !important; }}
         a[href*="streamlit.io"] {{ display: none !important; }}
 
-        /* Títulos login */
-        .brand-title {{
-            width: 100%;
-            text-align: center;
-            font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
-            font-weight: 800;
-            font-size: clamp(28px, 5vw, 52px);
-            letter-spacing: 0.6px;
-            line-height: 1.1;
-            margin: 0 auto 16px auto;
-            background: linear-gradient(90deg, #ffffff 0%, #bfe1ff 40%, #7bc6ff 70%, #e6f2ff 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0 4px 24px rgba(0,0,0,0.35);
-            filter: drop-shadow(0 6px 18px rgba(0,0,0,0.25));
-        }}
-        .brand-subtitle {{
-            text-align: center;
-            color: #c8d7e1;
-            margin-top: -6px;
-            margin-bottom: 10px;
-            font-size: 14px;
-            opacity: 0.9;
-        }}
-
-        /* ======= AJUSTES DO SIDEBAR (mínimos p/ não quebrar o recolhimento) ======= */
-
-        /* Container interno do sidebar */
-        [data-testid="stSidebar"] [data-testid="stSidebarContent"] {{
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: center !important;
-            gap: 10px !important;
-            text-align: center !important;
-            padding-left: 8px !important;
-            padding-right: 8px !important;
-        }}
-
-        /* Cada bloco ocupa largura do container */
-        [data-testid="stSidebar"] .element-container,
-        [data-testid="stSidebar"] .block-container,
-        [data-testid="stSidebar"] .stButton,
-        [data-testid="stSidebar"] .stMarkdown {{
-            width: 100% !important;
-        }}
-
-        /* Botões do sidebar: horizontais e sem quebrar por letra,
-           sem min-width para não travar o recolhimento */
-        [data-testid="stSidebar"] .stButton > button {{
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 4px auto !important;
-
-            writing-mode: horizontal-tb !important;
-            white-space: nowrap !important;
-            word-break: keep-all !important;
-            overflow-wrap: normal !important;
-            text-align: center !important;
-            line-height: 1.1 !important;
-        }}
-        [data-testid="stSidebar"] .stButton > button span {{
-            white-space: nowrap !important;
-            word-break: keep-all !important;
-            overflow-wrap: normal !important;
-        }}
-
-        /* Remover botão de fullscreen das imagens (evita bolha/overlay cinza) */
-        [data-testid="stImage"] button,
-        [data-testid="StyledFullScreenButton"],
-        button[title*="full"],
-        button[title*="tela cheia"],
-        button[aria-label*="full"],
-        button[aria-label*="tela cheia"] {{
-            display: none !important;
-        }}
-
-        /* NÃO definir width/min-width/transform no próprio [data-testid="stSidebar"].
-           Assim o X (fechar) funciona com o comportamento padrão do Streamlit. */
-
         /* Espaçamento do conteúdo principal */
         section.main > div.block-container {{
-            padding-top: 2rem !important;
-            padding-bottom: 2rem !important;
+          padding-top: 1.6rem !important;
+          padding-bottom: 2rem !important;
         }}
+
+        /* Título do login pode continuar com a marca (já usado só no login) */
+        .brand-title {{
+          background: linear-gradient(90deg, #ffffff 0%, #dbeafe 40%, #93c5fd 80%) !important;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          text-shadow: none !important;
+        }}
+        .brand-subtitle {{ color: #cbd5e1 !important; }}
         </style>
         """,
         unsafe_allow_html=True
@@ -1545,3 +1567,4 @@ else:
                             st.warning("Nenhuma peça foi selecionada.")
 
     st.markdown("</div>", unsafe_allow_html=True)
+
