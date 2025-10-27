@@ -31,6 +31,23 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
+      - name: Create Streamlit secrets
+        shell: bash
+        run: |
+          mkdir -p .streamlit
+          cat > .streamlit/secrets.toml <<EOF
+          APP_BASE_URL = "${{ secrets.APP_BASE_URL }}"
+
+          [email]
+          host = "smtp.gmail.com"
+          port = 587
+          username = "fleetvamossla@gmail.com"
+          password = "${{ secrets.SMTP }}"
+          from = "fleetvamossla@gmail.com"
+          use_tls = false
+          use_starttls = true
+          EOF
+
       - name: Zip artifact for deployment
         run: |
           zip -r release.zip . -x ".git/*" ".github/*"
