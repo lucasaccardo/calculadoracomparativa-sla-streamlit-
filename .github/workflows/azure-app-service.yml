@@ -1,3 +1,41 @@
+name: Deploy to Azure Web App (vamos-frotas-sla)
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+# Evita erro 409: garante 1 deploy por vez e cancela o anterior
+concurrency:
+  group: deploy-vamos-frotas-sla
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.11"
+  APP_NAME: "vamos-frotas-sla"
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
       - name: Create Streamlit secrets (TOP-LEVEL, UPPERCASE)
         shell: bash
         run: |
@@ -13,3 +51,14 @@
           EMAIL_USE_TLS = true
           EOF
           echo "Wrote .streamlit/secrets.toml with APP_BASE_URL and EMAIL_*"
+
+      - name: Zip artifact for deployment
+        run: |
+          zip -r release.zip . -x ".git/*" ".github/*"
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ env.APP_NAME }}
+          package: "release.zip"
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
