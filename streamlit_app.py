@@ -21,8 +21,16 @@ from streamlit.components.v1 import html as components_html
 # ==== Senhas: bcrypt com compatibilidade SHA-256 (com fallback seguro) ====
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+# ==== Helper para acessar secrets de forma segura ====
+def get_secret(key, default=""):
+    """Obtém um valor de st.secrets com fallback seguro."""
+    try:
+        return st.secrets[key]
+    except (KeyError, FileNotFoundError):
+        return default
+
 # ==== USERS_PATH: configurável via secrets para Azure ====
-USERS_PATH = st.secrets.get("USERS_PATH", 
+USERS_PATH = get_secret("USERS_PATH", 
     os.path.join("/home" if os.path.isdir("/home") else os.getcwd(), "data", "users.csv"))
 os.makedirs(os.path.dirname(USERS_PATH), exist_ok=True)
 
@@ -115,7 +123,7 @@ def clear_all_query_params():
             pass
 
 def get_app_base_url():
-    url = (st.secrets.get("APP_BASE_URL", "") or "").strip()
+    url = (get_secret("APP_BASE_URL", "") or "").strip()
     if url.endswith("/"):
         url = url[:-1]
     return url
@@ -124,9 +132,9 @@ def get_app_base_url():
 # EMAIL / SMTP
 # =========================
 def smtp_available():
-    host = st.secrets.get("EMAIL_HOST", "")
-    user = st.secrets.get("EMAIL_USERNAME", "")
-    password = st.secrets.get("EMAIL_PASSWORD", "")
+    host = get_secret("EMAIL_HOST", "")
+    user = get_secret("EMAIL_USERNAME", "")
+    password = get_secret("EMAIL_PASSWORD", "")
     return bool(host and user and password)
 
 def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label: str = "", cta_url: str = "", footer: str = ""):
@@ -185,12 +193,12 @@ def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label
 </html>"""
 
 def send_email(dest_email: str, subject: str, body_plain: str, body_html: str | None = None):
-    host = st.secrets.get("EMAIL_HOST", "")
-    port = int(st.secrets.get("EMAIL_PORT", 587))
-    user = st.secrets.get("EMAIL_USERNAME", "")
-    password = st.secrets.get("EMAIL_PASSWORD", "")
-    use_tls = bool(st.secrets.get("EMAIL_USE_TLS", True))
-    sender = st.secrets.get("EMAIL_FROM", user or "no-reply@example.com")
+    host = get_secret("EMAIL_HOST", "")
+    port = int(get_secret("EMAIL_PORT", 587))
+    user = get_secret("EMAIL_USERNAME", "")
+    password = get_secret("EMAIL_PASSWORD", "")
+    use_tls = bool(get_secret("EMAIL_USE_TLS", True))
+    sender = get_secret("EMAIL_FROM", user or "no-reply@example.com")
 
     if not host or not user or not password:
         st.warning("Configurações de e-mail não definidas em st.secrets. Exibindo conteúdo (teste).")
@@ -424,7 +432,7 @@ SUPERADMIN_USERNAME = "lucas.sureira"
 @st.cache_data
 def load_user_db():
     # Senha inicial do superadmin vem de st.secrets (se existir).
-    tmp_pwd = (st.secrets.get("SUPERADMIN_DEFAULT_PASSWORD", "") or "").strip()
+    tmp_pwd = (get_secret("SUPERADMIN_DEFAULT_PASSWORD", "") or "").strip()
     admin_defaults = {
         "username": SUPERADMIN_USERNAME,
         "password": hash_password(tmp_pwd) if tmp_pwd else "",
