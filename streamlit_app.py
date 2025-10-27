@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from io import BytesIO
+from passlib.context import CryptContext
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
@@ -16,6 +17,69 @@ from email.message import EmailMessage
 from textwrap import dedent
 import re
 from streamlit.components.v1 import html as components_html
+
+# ==== Senhas: bcrypt com compatibilidade SHA-256 (com fallback seguro) ====
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# ==== Helper para acessar secrets de forma segura ====
+def get_secret(key, default=""):
+    """Obtém um valor de st.secrets com fallback seguro."""
+    try:
+        return st.secrets[key]
+    except (KeyError, FileNotFoundError):
+        return default
+
+# ==== USERS_PATH: configurável via secrets para Azure ====
+USERS_PATH = get_secret("USERS_PATH", 
+    os.path.join("/home" if os.path.isdir("/home") else os.getcwd(), "data", "users.csv"))
+try:
+    os.makedirs(os.path.dirname(USERS_PATH), exist_ok=True)
+except (PermissionError, OSError) as e:
+    # Fallback para diretório local se /home não for gravável
+    import sys
+    fallback_path = os.path.join(os.getcwd(), "data", "users.csv")
+    print(f"⚠️  Não foi possível criar diretório de dados: {type(e).__name__}", file=sys.stderr)
+    print(f"→ Usando fallback para diretório local", file=sys.stderr)
+    USERS_PATH = fallback_path
+    try:
+        os.makedirs(os.path.dirname(USERS_PATH), exist_ok=True)
+    except (PermissionError, OSError) as e2:
+        print(f"❌ ERRO: Não foi possível criar diretório local: {type(e2).__name__}", file=sys.stderr)
+        # Último recurso: usar diretório temporário
+        import tempfile
+        USERS_PATH = os.path.join(tempfile.gettempdir(), "users.csv")
+        print(f"→ Usando diretório temporário como último recurso", file=sys.stderr)
+
+def is_bcrypt_hash(s: str) -> bool:
+    return isinstance(s, str) and s.startswith("$2")
+
+def hash_password(password: str) -> str:
+    """
+    Tenta bcrypt. Se o backend não estiver disponível no ambiente,
+    faz fallback para SHA-256 para não derrubar o app.
+    O verify_password já aceita SHA-256 e fará upgrade para bcrypt
+    no próximo login bem-sucedido quando o backend estiver OK.
+    """
+    try:
+        return pwd_context.hash(password)
+    except Exception:
+        return hashlib.sha256(password.encode()).hexdigest()
+
+def verify_password(stored_hash: str, provided_password: str) -> tuple[bool, bool]:
+    """
+    Retorna (valido, precisa_upgrade).
+    - Se já for bcrypt: verifica com passlib e indica upgrade se necessário.
+    - Se for SHA-256 antigo: compara e marca precisa_upgrade=True quando acertar (para migrar).
+    """
+    if is_bcrypt_hash(stored_hash):
+        try:
+            ok = pwd_context.verify(provided_password, stored_hash)
+            return ok, (ok and pwd_context.needs_update(stored_hash))
+        except Exception:
+            return False, False
+    legacy = hashlib.sha256(provided_password.encode()).hexdigest()
+    ok = (stored_hash == legacy)
+    return ok, bool(ok)
 
 # =========================
 # CONFIGURAÇÃO DA PÁGINA
@@ -75,7 +139,7 @@ def clear_all_query_params():
             pass
 
 def get_app_base_url():
-    url = (st.secrets.get("APP_BASE_URL", "") or "").strip()
+    url = (get_secret("APP_BASE_URL", "") or "").strip()
     if url.endswith("/"):
         url = url[:-1]
     return url
@@ -84,16 +148,16 @@ def get_app_base_url():
 # EMAIL / SMTP
 # =========================
 def smtp_available():
-    host = st.secrets.get("EMAIL_HOST", "")
-    user = st.secrets.get("EMAIL_USERNAME", "")
-    password = st.secrets.get("EMAIL_PASSWORD", "")
+    host = get_secret("EMAIL_HOST", "")
+    user = get_secret("EMAIL_USERNAME", "")
+    password = get_secret("EMAIL_PASSWORD", "")
     return bool(host and user and password)
 
 def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label: str = "", cta_url: str = "", footer: str = ""):
-    primary = "#e63946"
+    primary = "#2563eb"
     brand = "#0d1117"
-    text = "#0b1f2a"
-    light = "#f6f8fa"
+    text = "#e5e7eb"
+    light = "#0b1220"
     button_html = ""
     if cta_label and cta_url:
         button_html = f"""
@@ -106,14 +170,14 @@ def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label
         </tr>
         """
     body_html = "".join([f'<p style="margin:8px 0 8px 0">{line}</p>' for line in body_lines])
-    footer_html = f'<p style="color:#6b7280;font-size:12px">{footer}</p>' if footer else ""
+    footer_html = f'<p style="color:#9aa4b2;font-size:12px">{footer}</p>' if footer else ""
     return f"""<!DOCTYPE html>
 <html>
   <body style="margin:0;padding:0;background:{light}">
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="100%" style="background:{light};padding:24px 0">
       <tr>
         <td>
-          <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="600" style="margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="600" style="margin:0 auto;background:#0f172a;border-radius:12px;overflow:hidden;border:1px solid #1f2937">
             <tr>
               <td style="background:{brand};padding:18px 24px;color:#ffffff;">
                 <div style="display:flex;align-items:center;gap:12px">
@@ -124,13 +188,13 @@ def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label
             <tr>
               <td style="padding:24px 24px 0 24px;color:{text};font-family:Segoe UI,Arial,sans-serif">
                 <h2 style="margin:0 0 6px 0;font-weight:700">{title}</h2>
-                <p style="margin:0 0 12px 0;color:#475569">{subtitle}</p>
+                <p style="margin:0 0 12px 0;color:#cbd5e1">{subtitle}</p>
                 {body_html}
               </td>
             </tr>
             {button_html}
             <tr>
-              <td style="padding:12px 24px 24px 24px;color:#334155;font-family:Segoe UI,Arial,sans-serif">
+              <td style="padding:12px 24px 24px 24px;color:#cbd5e1;font-family:Segoe UI,Arial,sans-serif">
                 {footer_html}
               </td>
             </tr>
@@ -145,12 +209,12 @@ def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label
 </html>"""
 
 def send_email(dest_email: str, subject: str, body_plain: str, body_html: str | None = None):
-    host = st.secrets.get("EMAIL_HOST", "")
-    port = int(st.secrets.get("EMAIL_PORT", 587))
-    user = st.secrets.get("EMAIL_USERNAME", "")
-    password = st.secrets.get("EMAIL_PASSWORD", "")
-    use_tls = bool(st.secrets.get("EMAIL_USE_TLS", True))
-    sender = st.secrets.get("EMAIL_FROM", user or "no-reply@example.com")
+    host = get_secret("EMAIL_HOST", "")
+    port = int(get_secret("EMAIL_PORT", 587))
+    user = get_secret("EMAIL_USERNAME", "")
+    password = get_secret("EMAIL_PASSWORD", "")
+    use_tls = bool(get_secret("EMAIL_USE_TLS", True))
+    sender = get_secret("EMAIL_FROM", user or "no-reply@example.com")
 
     if not host or not user or not password:
         st.warning("Configurações de e-mail não definidas em st.secrets. Exibindo conteúdo (teste).")
@@ -239,141 +303,169 @@ Bom trabalho!
     return send_email(dest_email, subject, plain, html)
 
 # =========================
-# ESTILOS (UI) + OCULTAR TOOLBAR + BG + LOGIN + SIDEBAR
+# ESTILOS (UI) + BG
 # =========================
-def aplicar_estilos():
-    # Carrega o background se existir
-    bg_image_base64 = ""
+@st.cache_data
+def load_background_image():
+    """Load and cache background.png as base64-encoded data URI."""
     try:
         if os.path.exists("background.png"):
             with open("background.png", "rb") as f:
-                bg_image_base64 = base64.b64encode(f.read()).decode()
+                img_bytes = f.read()
+            return base64.b64encode(img_bytes).decode("utf-8")
     except Exception:
         pass
-    bg_css = f"background-image: url(data:image/png;base64,{bg_image_base64});" if bg_image_base64 else ""
+    return None
 
+def aplicar_estilos():
+    # Try to load background.png and convert to base64 data URI (cached)
+    img_b64 = load_background_image()
+    
+    if img_b64:
+        # Background with image + dark overlay gradient for readability
+        background_css = f"""
+        html, body {{
+          background: linear-gradient(rgba(11, 15, 23, 0.75), rgba(11, 15, 23, 0.85)),
+                      url(data:image/png;base64,{img_b64}) !important;
+          background-size: cover !important;
+          background-position: center !important;
+          background-repeat: no-repeat !important;
+          background-attachment: fixed !important;
+          color: var(--text) !important;
+          height: 100%;
+          overflow-y: auto !important;
+        }}"""
+    else:
+        # Fallback to solid dark background
+        background_css = """
+        html, body {
+          background: var(--bg) !important;
+          color: var(--text) !important;
+          height: 100%;
+          overflow-y: auto !important;
+        }"""
+    
+    # Tema corporativo com background customizável
     st.markdown(
         f"""
         <style>
-        /* Fundo geral */
-        html, body {{
-            background-color: #0b1220 !important;
-            height: 100%;
-        }}
-        [data-testid="stAppViewContainer"] {{
-            {bg_css}
-            background-size: cover;
-            background-repeat: no-repeat;
-            background-position: center top;
-            background-attachment: fixed;
-            min-height: 100vh;
+        :root {{
+          --bg: #0B0F17;
+          --sidebar: #111827;
+          --card: #0F172A;
+          --surface: #0F172A;
+          --border: rgba(255,255,255,0.08);
+          --text: #E5E7EB;
+          --muted: #94A3B8;
+          --primary: #2563EB;
         }}
 
-        /* Cartões */
-        .main-container, [data-testid="stForm"] {{
-            background-color: rgba(13, 17, 23, 0.85);
-            padding: 25px;
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }}
-        .main-container, .main-container * {{ color: #fff !important; }}
+        {background_css}
 
-        /* Ocultar UI padrão do Streamlit */
+        section.main > div.block-container {{
+          max-width: 980px !important;
+          margin: 0 auto !important;
+          padding-top: 1rem !important;
+          padding-bottom: 2rem !important;
+        }}
+
+        h1 {{ font-size: clamp(22px, 2.0vw + 14px, 30px) !important; font-weight: 700 !important; }}
+        h2 {{ font-size: clamp(18px, 1.4vw + 12px, 22px) !important; font-weight: 700 !important; }}
+        h3 {{ font-size: clamp(16px, 1.0vw + 10px, 18px) !important; font-weight: 600 !important; }}
+
+        .main-container, [data-testid="stForm"], [data-testid="stExpander"] > div, .element-container:has(.stAlert) {{
+          background-color: var(--card) !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 8px !important;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.25) !important;
+        }}
+        .main-container {{ padding: 20px !important; }}
+        .main-container, .main-container * {{ color: var(--text) !important; }}
+
+        [data-testid="stSidebar"] {{
+          background: var(--sidebar) !important;
+          border-right: 1px solid var(--border) !important;
+        }}
+
+        .stTextInput > div > div, .stPassword > div > div,
+        .stNumberInput > div, .stDateInput > div, .stSelectbox > div, .stMultiSelect > div {{
+          background: #0D1321 !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 8px !important;
+        }}
+
+        .stButton > button {{
+          background: var(--surface) !important;
+          color: var(--text) !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 8px !important;
+          padding: 8px 12px !important;
+          box-shadow: none !important;
+        }}
+        .stButton > button:hover {{
+          background: #0E223D !important;
+          border-color: rgba(255,255,255,0.16) !important;
+        }}
+
+        [data-testid="stForm"] .stButton > button {{
+          width: 100% !important;
+          background: var(--primary) !important;
+          border: 1px solid rgba(37,99,235,0.6) !important;
+          color: #fff !important;
+        }}
+        [data-testid="stForm"] .stButton > button:hover {{
+          background: #1D4ED8 !important;
+        }}
+
+        .login-title {{
+          text-align: center;
+          font-weight: 800;
+          font-size: clamp(24px, 4vw, 36px);
+          color: var(--text);
+          margin: 6vh auto 2px auto;
+        }}
+        .login-subtitle {{
+          text-align: center;
+          color: var(--muted);
+          font-size: 13px;
+          margin-bottom: 10px;
+        }}
+
+        [data-testid="stForm"] {{
+          max-width: 420px !important;
+          margin: 14px auto !important;
+          padding: 16px 16px 12px 16px !important;
+          background-color: rgba(15, 23, 42, 0.75) !important;
+          backdrop-filter: blur(4px) !important;
+          -webkit-backdrop-filter: blur(4px) !important;
+        }}
+
+        .login-links {{
+          max-width: 420px;
+          margin: 6px auto 0 auto;
+          text-align: center;
+          color: var(--muted);
+          font-size: 13px;
+        }}
+        .login-links .stButton > button {{
+          background: transparent !important;
+          color: var(--primary) !important;
+          border: 0 !important;
+          padding: 0 !important;
+          box-shadow: none !important;
+          text-decoration: none !important;
+          font-size: 13px !important;
+        }}
+        .login-links .stButton > button:hover {{
+          text-decoration: underline !important;
+        }}
+
         [data-testid="stToolbar"] {{ display: none !important; }}
         header[data-testid="stHeader"] {{ display: none !important; }}
         #MainMenu {{ visibility: hidden; }}
         footer {{ visibility: hidden; }}
-        div[class*="viewerBadge"] {{ display: none !important; }}
-        a[href*="streamlit.io"] {{ display: none !important; }}
 
-        /* Títulos login */
-        .brand-title {{
-            width: 100%;
-            text-align: center;
-            font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
-            font-weight: 800;
-            font-size: clamp(28px, 5vw, 52px);
-            letter-spacing: 0.6px;
-            line-height: 1.1;
-            margin: 0 auto 16px auto;
-            background: linear-gradient(90deg, #ffffff 0%, #bfe1ff 40%, #7bc6ff 70%, #e6f2ff 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0 4px 24px rgba(0,0,0,0.35);
-            filter: drop-shadow(0 6px 18px rgba(0,0,0,0.25));
-        }}
-        .brand-subtitle {{
-            text-align: center;
-            color: #c8d7e1;
-            margin-top: -6px;
-            margin-bottom: 10px;
-            font-size: 14px;
-            opacity: 0.9;
-        }}
-
-        /* ======= AJUSTES DO SIDEBAR (mínimos p/ não quebrar o recolhimento) ======= */
-
-        /* Container interno do sidebar */
-        [data-testid="stSidebar"] [data-testid="stSidebarContent"] {{
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: center !important;
-            gap: 10px !important;
-            text-align: center !important;
-            padding-left: 8px !important;
-            padding-right: 8px !important;
-        }}
-
-        /* Cada bloco ocupa largura do container */
-        [data-testid="stSidebar"] .element-container,
-        [data-testid="stSidebar"] .block-container,
-        [data-testid="stSidebar"] .stButton,
-        [data-testid="stSidebar"] .stMarkdown {{
-            width: 100% !important;
-        }}
-
-        /* Botões do sidebar: horizontais e sem quebrar por letra,
-           sem min-width para não travar o recolhimento */
-        [data-testid="stSidebar"] .stButton > button {{
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 4px auto !important;
-
-            writing-mode: horizontal-tb !important;
-            white-space: nowrap !important;
-            word-break: keep-all !important;
-            overflow-wrap: normal !important;
-            text-align: center !important;
-            line-height: 1.1 !important;
-        }}
-        [data-testid="stSidebar"] .stButton > button span {{
-            white-space: nowrap !important;
-            word-break: keep-all !important;
-            overflow-wrap: normal !important;
-        }}
-
-        /* Remover botão de fullscreen das imagens (evita bolha/overlay cinza) */
-        [data-testid="stImage"] button,
-        [data-testid="StyledFullScreenButton"],
-        button[title*="full"],
-        button[title*="tela cheia"],
-        button[aria-label*="full"],
-        button[aria-label*="tela cheia"] {{
-            display: none !important;
-        }}
-
-        /* NÃO definir width/min-width/transform no próprio [data-testid="stSidebar"].
-           Assim o X (fechar) funciona com o comportamento padrão do Streamlit. */
-
-        /* Espaçamento do conteúdo principal */
-        section.main > div.block-container {{
-            padding-top: 2rem !important;
-            padding-bottom: 2rem !important;
-        }}
+        img, svg {{ max-width: 100% !important; height: auto !important; }}
         </style>
         """,
         unsafe_allow_html=True
@@ -382,12 +474,6 @@ def aplicar_estilos():
 # =========================
 # AUTENTICAÇÃO E USUÁRIOS
 # =========================
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
-
-def check_password(hashed_password, user_password):
-    return hashed_password == hash_password(user_password)
-
 REQUIRED_USER_COLUMNS = [
     "username", "password", "role", "full_name", "matricula",
     "email", "status", "accepted_terms_on", "reset_token", "reset_expires_at",
@@ -399,10 +485,9 @@ SUPERADMIN_USERNAME = "lucas.sureira"
 @st.cache_data
 def load_user_db():
     # Senha inicial do superadmin vem de st.secrets (se existir).
-    tmp_pwd = (st.secrets.get("SUPERADMIN_DEFAULT_PASSWORD", "") or "").strip()
+    tmp_pwd = (get_secret("SUPERADMIN_DEFAULT_PASSWORD", "") or "").strip()
     admin_defaults = {
         "username": SUPERADMIN_USERNAME,
-        # Se houver senha em secrets, usa; senão cria sem senha e força troca.
         "password": hash_password(tmp_pwd) if tmp_pwd else "",
         "role": "superadmin",
         "full_name": "Lucas Mateus Sureira",
@@ -416,13 +501,24 @@ def load_user_db():
         "force_password_reset": "" if tmp_pwd else "1",
     }
 
-    if os.path.exists("users.csv") and os.path.getsize("users.csv") > 0:
-        df = pd.read_csv("users.csv", dtype=str).fillna("")
+    def recreate_df():
+        df_new = pd.DataFrame([admin_defaults])
+        df_new.to_csv(USERS_PATH, index=False)
+        return df_new
+
+    if os.path.exists(USERS_PATH) and os.path.getsize(USERS_PATH) > 0:
+        try:
+            df = pd.read_csv(USERS_PATH, dtype=str).fillna("")
+        except Exception:
+            try:
+                bak_path = os.path.join(os.path.dirname(USERS_PATH), f"users.csv.bak.{int(datetime.utcnow().timestamp())}")
+                os.replace(USERS_PATH, bak_path)
+            except Exception:
+                pass
+            df = recreate_df()
+            return df
     else:
-        # Cria base inicial de usuários (apenas superadmin)
-        df = pd.DataFrame([admin_defaults])
-        df.to_csv("users.csv", index=False)
-        return df
+        return recreate_df()
 
     # Garante colunas obrigatórias
     for col in REQUIRED_USER_COLUMNS:
@@ -437,7 +533,7 @@ def load_user_db():
     else:
         df = pd.concat([df, pd.DataFrame([admin_defaults])], ignore_index=True)
 
-    df.to_csv("users.csv", index=False)
+    df.to_csv(USERS_PATH, index=False)
     return df
 
 def save_user_db(df_users):
@@ -445,7 +541,7 @@ def save_user_db(df_users):
         if col not in df_users.columns:
             df_users[col] = ""
     df_users = df_users[REQUIRED_USER_COLUMNS]
-    df_users.to_csv("users.csv", index=False)
+    df_users.to_csv(USERS_PATH, index=False)
     st.cache_data.clear()
 
 def is_password_expired(row) -> bool:
@@ -646,54 +742,72 @@ if incoming_token and not st.session_state.get("ignore_reset_qp"):
 # TELAS
 # =========================
 if st.session_state.tela == "login":
-    col1, col2, col3 = st.columns([6, 1, 1])
-    with col3:
-        if os.path.exists("frotasvamossla.png"):
-            st.image("frotasvamossla.png", width=120)
+    st.markdown('<h1 class="login-title">Frotas Vamos SLA</h1>', unsafe_allow_html=True)
+    st.markdown('<div class="login-subtitle">Acesso restrito | Soluções inteligentes para frotas</div>', unsafe_allow_html=True)
 
-    st.markdown("<br><br>", unsafe_allow_html=True)
+    # Formulário de login (estilizado como card via CSS)
+    with st.form("login_form"):
+        username = st.text_input("Usuário", placeholder="Usuário")
+        password = st.text_input("Senha", type="password", placeholder="Senha")
+        submit_login = st.form_submit_button("Entrar")
 
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.markdown("<div class='brand-title'>Frotas Vamos SLA</div>", unsafe_allow_html=True)
-        st.markdown("<div class='brand-subtitle'>Soluções Inteligentes para Frotas</div>", unsafe_allow_html=True)
+    # Links discretos abaixo do card (dentro do bloco de login)
+    st.markdown('<div class="login-links">', unsafe_allow_html=True)
+    # Se sua versão de Streamlit reclamar do vertical_alignment, remova o argumento
+    try:
+        c1, c2, c3 = st.columns([1, 1, 1], vertical_alignment="center")
+    except TypeError:
+        c1, c2, c3 = st.columns([1, 1, 1])
 
-        with st.form("login_form"):
-            username = st.text_input("Usuário", label_visibility="collapsed", placeholder="Usuário")
-            password = st.text_input("Senha", type="password", label_visibility="collapsed", placeholder="Senha")
-            submit_login = st.form_submit_button("Entrar 🚀", use_container_width=True)
+    with c1:
+        st.write("")  # espaçador
+    with c2:
+        if st.button("Criar cadastro"):
+            ir_para_register()
+            st.rerun()
+    with c3:
+        if st.button("Esqueci minha senha"):
+            ir_para_forgot()
+            st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
-        cols = st.columns(2)
-        with cols[0]:
-            st.button("Criar cadastro", on_click=ir_para_register, use_container_width=True)
-        with cols[1]:
-            st.button("Esqueci minha senha", on_click=ir_para_forgot, use_container_width=True)
-
-        if submit_login:
-            df_users = load_user_db()
-            user_data = df_users[df_users["username"] == username]
-            if user_data.empty:
+    if submit_login:
+        df_users = load_user_db()
+        user_data = df_users[df_users["username"] == username]
+        if user_data.empty:
+            st.error("❌ Usuário ou senha incorretos.")
+        else:
+            row = user_data.iloc[0]
+            valid, needs_up = verify_password(row["password"], password)
+            if not valid:
                 st.error("❌ Usuário ou senha incorretos.")
             else:
-                row = user_data.iloc[0]
-                if not check_password(row["password"], password):
-                    st.error("❌ Usuário ou senha incorretos.")
+                # Upgrade automático (SHA-256 -> bcrypt) quando possível
+                try:
+                    if needs_up:
+                        idx = df_users.index[df_users["username"] == username][0]
+                        df_users.loc[idx, "password"] = hash_password(password)
+                        df_users.loc[idx, "last_password_change"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                        save_user_db(df_users)
+                        row["password"] = df_users.loc[idx, "password"]
+                except Exception:
+                    pass
+
+                if row.get("status", "") != "aprovado":
+                    st.warning("⏳ Seu cadastro ainda está pendente de aprovação pelo administrador.")
                 else:
-                    if row.get("status", "") != "aprovado":
-                        st.warning("⏳ Seu cadastro ainda está pendente de aprovação pelo administrador.")
-                    else:
-                        st.session_state.logado = True
-                        st.session_state.username = row["username"]
-                        st.session_state.role = row.get("role", "user")
-                        st.session_state.email = row.get("email", "")
-                        if not str(row.get("accepted_terms_on", "")).strip():
-                            st.session_state.tela = "terms_consent"
-                            st.rerun()
-                        if is_password_expired(row) or str(row.get("force_password_reset", "")).strip():
-                            st.session_state.tela = "force_change_password"
-                            st.rerun()
-                        st.session_state.tela = "home"
+                    st.session_state.logado = True
+                    st.session_state.username = row["username"]
+                    st.session_state.role = row.get("role", "user")
+                    st.session_state.email = row.get("email", "")
+                    if not str(row.get("accepted_terms_on", "")).strip():
+                        st.session_state.tela = "terms_consent"
                         st.rerun()
+                    if is_password_expired(row) or str(row.get("force_password_reset", "")).strip():
+                        st.session_state.tela = "force_change_password"
+                        st.rerun()
+                    st.session_state.tela = "home"
+                    st.rerun()
 
 elif st.session_state.tela == "register":
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
@@ -872,7 +986,9 @@ elif st.session_state.tela == "reset_password":
                     if not ok:
                         st.error("Regras de senha não atendidas:\n- " + "\n- ".join(errs))
                         st.stop()
-                    if check_password(df.loc[idx, "password"], new_pass):
+
+                    _same, _ = verify_password(df.loc[idx, "password"], new_pass)
+                    if _same:
                         st.error("A nova senha não pode ser igual à senha atual.")
                         st.stop()
 
@@ -882,6 +998,7 @@ elif st.session_state.tela == "reset_password":
                     df.loc[idx, "last_password_change"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
                     df.loc[idx, "force_password_reset"] = ""
                     save_user_db(df)
+
                     st.success("Senha redefinida com sucesso! Faça login novamente.")
                     if st.button("Ir para login", type="primary"):
                         st.session_state.ignore_reset_qp = True
@@ -906,19 +1023,25 @@ elif st.session_state.tela == "force_change_password":
         else:
             idx = rows.index[0]
             email = df.loc[idx, "email"]
+
             if not new_pass or not new_pass2:
                 st.error("Preencha os campos de senha."); st.stop()
             if new_pass != new_pass2:
                 st.error("As senhas não conferem."); st.stop()
+
             ok, errs = validate_password_policy(new_pass, username=uname, email=email)
             if not ok:
                 st.error("Regras de senha não atendidas:\n- " + "\n- ".join(errs)); st.stop()
-            if check_password(df.loc[idx, "password"], new_pass):
+
+            same, _ = verify_password(df.loc[idx, "password"], new_pass)
+            if same:
                 st.error("A nova senha não pode ser igual à senha atual."); st.stop()
+
             df.loc[idx, "password"] = hash_password(new_pass)
             df.loc[idx, "last_password_change"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             df.loc[idx, "force_password_reset"] = ""
             save_user_db(df)
+
             st.success("Senha atualizada com sucesso.")
             if not str(df.loc[idx, "accepted_terms_on"]).strip():
                 st.session_state.tela = "terms_consent"
@@ -1079,7 +1202,7 @@ else:
         if pendentes.empty:
             st.info("Não há cadastros pendentes.")
         else:
-            st.dataframe(pendentes[["username", "full_name", "email", "matricula"]], use_container_width=True, hide_index=True)
+            st.dataframe(pendentes["username full_name email matricula".split()], use_container_width=True, hide_index=True)
             pendentes_list = pendentes["username"].tolist()
             to_approve = st.multiselect("Selecione usuários para aprovar:", options=pendentes_list)
             colap1, colap2 = st.columns(2)
@@ -1493,4 +1616,3 @@ else:
                             st.warning("Nenhuma peça foi selecionada.")
 
     st.markdown("</div>", unsafe_allow_html=True)
-
