@@ -21,6 +21,11 @@ from streamlit.components.v1 import html as components_html
 # ==== Senhas: bcrypt com compatibilidade SHA-256 (com fallback seguro) ====
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+# ==== USERS_PATH: configurável via secrets para Azure ====
+USERS_PATH = st.secrets.get("USERS_PATH", 
+    os.path.join("/home" if os.path.isdir("/home") else os.getcwd(), "data", "users.csv"))
+os.makedirs(os.path.dirname(USERS_PATH), exist_ok=True)
+
 def is_bcrypt_hash(s: str) -> bool:
     return isinstance(s, str) and s.startswith("$2")
 
@@ -277,15 +282,15 @@ Bom trabalho!
 # ESTILOS (UI) + BG
 # =========================
 def aplicar_estilos():
-    # Tema corporativo clean (sem imagem de fundo)
+    # Tema corporativo clean (sem imagem de fundo, design profissional)
     st.markdown(
         """
         <style>
         :root {
-          --bg: #0B0F17;         /* fundo sólido discreto */
-          --sidebar: #111827;    /* sidebar */
-          --card: #0F172A;       /* blocos */
-          --surface: #0F172A;    /* botões/inputs */
+          --bg: #0B0F17;
+          --sidebar: #111827;
+          --card: #0F172A;
+          --surface: #0F172A;
           --border: rgba(255,255,255,0.08);
           --text: #E5E7EB;
           --muted: #94A3B8;
@@ -299,7 +304,6 @@ def aplicar_estilos():
           overflow-y: auto !important;
         }
 
-        /* Conteúdo central com largura controlada (mais corporativo) */
         section.main > div.block-container {
           max-width: 980px !important;
           margin: 0 auto !important;
@@ -307,12 +311,10 @@ def aplicar_estilos():
           padding-bottom: 2rem !important;
         }
 
-        /* Títulos discretos (sem exagero de tamanho) */
         h1 { font-size: clamp(22px, 2.0vw + 14px, 30px) !important; font-weight: 700 !important; }
         h2 { font-size: clamp(18px, 1.4vw + 12px, 22px) !important; font-weight: 700 !important; }
         h3 { font-size: clamp(16px, 1.0vw + 10px, 18px) !important; font-weight: 600 !important; }
 
-        /* Blocos padrão (cards) */
         .main-container, [data-testid="stForm"], [data-testid="stExpander"] > div, .element-container:has(.stAlert) {
           background-color: var(--card) !important;
           border: 1px solid var(--border) !important;
@@ -322,13 +324,11 @@ def aplicar_estilos():
         .main-container { padding: 20px !important; }
         .main-container, .main-container * { color: var(--text) !important; }
 
-        /* Sidebar */
         [data-testid="stSidebar"] {
           background: var(--sidebar) !important;
           border-right: 1px solid var(--border) !important;
         }
 
-        /* Inputs */
         .stTextInput > div > div, .stPassword > div > div,
         .stNumberInput > div, .stDateInput > div, .stSelectbox > div, .stMultiSelect > div {
           background: #0D1321 !important;
@@ -336,7 +336,6 @@ def aplicar_estilos():
           border-radius: 8px !important;
         }
 
-        /* Botões */
         .stButton > button {
           background: var(--surface) !important;
           color: var(--text) !important;
@@ -350,7 +349,6 @@ def aplicar_estilos():
           border-color: rgba(255,255,255,0.16) !important;
         }
 
-        /* Botão primário dentro de forms (ex.: login) */
         [data-testid="stForm"] .stButton > button {
           width: 100% !important;
           background: var(--primary) !important;
@@ -361,7 +359,6 @@ def aplicar_estilos():
           background: #1D4ED8 !important;
         }
 
-        /* Login titles (sem fundo, sem overlay) */
         .login-title {
           text-align: center;
           font-weight: 800;
@@ -376,14 +373,12 @@ def aplicar_estilos():
           margin-bottom: 10px;
         }
 
-        /* Card do login com layout compacto */
         [data-testid="stForm"] {
           max-width: 420px !important;
           margin: 14px auto !important;
           padding: 16px 16px 12px 16px !important;
         }
 
-        /* Links discretos abaixo do card de login */
         .login-links {
           max-width: 420px;
           margin: 6px auto 0 auto;
@@ -398,15 +393,17 @@ def aplicar_estilos():
           padding: 0 !important;
           box-shadow: none !important;
           text-decoration: none !important;
+          font-size: 13px !important;
+        }
+        .login-links .stButton > button:hover {
+          text-decoration: underline !important;
         }
 
-        /* Remover UI padrão do Streamlit */
         [data-testid="stToolbar"] { display: none !important; }
         header[data-testid="stHeader"] { display: none !important; }
         #MainMenu { visibility: hidden; }
         footer { visibility: hidden; }
 
-        /* Imagens sem distorção */
         img, svg { max-width: 100% !important; height: auto !important; }
         </style>
         """,
@@ -445,15 +442,16 @@ def load_user_db():
 
     def recreate_df():
         df_new = pd.DataFrame([admin_defaults])
-        df_new.to_csv("users.csv", index=False)
+        df_new.to_csv(USERS_PATH, index=False)
         return df_new
 
-    if os.path.exists("users.csv") and os.path.getsize("users.csv") > 0:
+    if os.path.exists(USERS_PATH) and os.path.getsize(USERS_PATH) > 0:
         try:
-            df = pd.read_csv("users.csv", dtype=str).fillna("")
+            df = pd.read_csv(USERS_PATH, dtype=str).fillna("")
         except Exception:
             try:
-                os.replace("users.csv", f"users.csv.bak.{int(datetime.utcnow().timestamp())}")
+                bak_path = os.path.join(os.path.dirname(USERS_PATH), f"users.csv.bak.{int(datetime.utcnow().timestamp())}")
+                os.replace(USERS_PATH, bak_path)
             except Exception:
                 pass
             df = recreate_df()
@@ -474,7 +472,7 @@ def load_user_db():
     else:
         df = pd.concat([df, pd.DataFrame([admin_defaults])], ignore_index=True)
 
-    df.to_csv("users.csv", index=False)
+    df.to_csv(USERS_PATH, index=False)
     return df
 
 def save_user_db(df_users):
@@ -482,7 +480,7 @@ def save_user_db(df_users):
         if col not in df_users.columns:
             df_users[col] = ""
     df_users = df_users[REQUIRED_USER_COLUMNS]
-    df_users.to_csv("users.csv", index=False)
+    df_users.to_csv(USERS_PATH, index=False)
     st.cache_data.clear()
 
 def is_password_expired(row) -> bool:

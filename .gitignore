@@ -2,3 +2,9 @@
 users.csv
 .streamlit/secrets.toml
 secrets.toml
+
+# Diretório de dados (para Azure)
+data/
+
+# Backups de usuários
+*.bak.*

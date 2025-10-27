@@ -1,0 +1,65 @@
+# GitHub Actions workflow para deploy no Azure App Service
+#
+# Este workflow realiza o deploy automático do aplicativo Streamlit no Azure App Service
+# sempre que há um push na branch main.
+#
+# CONFIGURAÇÃO NECESSÁRIA:
+# 1. No portal do Azure, vá até seu Web App > Centro de Implantação
+# 2. Baixe o perfil de publicação (botão "Obter perfil de publicação")
+# 3. No GitHub, vá em Settings > Secrets and variables > Actions
+# 4. Crie um novo secret chamado AZURE_WEBAPP_PUBLISH_PROFILE com o conteúdo do arquivo baixado
+# 5. Crie outro secret chamado APP_NAME com o nome do seu Web App (ex: frotas-vamos-sla)
+#
+# NOTA: Este workflow é opcional. Se os secrets não estiverem configurados,
+# o workflow não executará o deploy (mas não causará erro).
+
+name: Deploy to Azure App Service
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Permite execução manual
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    # O job só executa se o secret estiver configurado
+    if: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE != '' }}
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Instalar dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Opcional: executar testes se existirem
+      # - name: Executar testes
+      #   run: |
+      #     pip install pytest
+      #     pytest
+
+      - name: Deploy para Azure Web App
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ secrets.APP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: .
+
+      - name: Notificar conclusão
+        run: |
+          echo "✅ Deploy concluído com sucesso!"
+          echo "🌐 Aplicação disponível em: https://${{ secrets.APP_NAME }}.azurewebsites.net"
