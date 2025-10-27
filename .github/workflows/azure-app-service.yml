@@ -31,14 +31,13 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: Create Streamlit secrets (top-level keys expected by the app)
+      - name: Create Streamlit secrets (TOP-LEVEL, UPPERCASE)
         shell: bash
         run: |
           mkdir -p .streamlit
           cat > .streamlit/secrets.toml <<EOF
           APP_BASE_URL = "${{ secrets.APP_BASE_URL }}"
 
-          # SMTP settings expected by streamlit_app.py (top-level, UPPERCASE)
           EMAIL_HOST = "smtp.gmail.com"
           EMAIL_PORT = 587
           EMAIL_USERNAME = "fleetvamossla@gmail.com"
@@ -46,6 +45,7 @@ jobs:
           EMAIL_FROM = "fleetvamossla@gmail.com"
           EMAIL_USE_TLS = true
           EOF
+          echo "Wrote .streamlit/secrets.toml with APP_BASE_URL and EMAIL_*"
 
       - name: Zip artifact for deployment
         run: |
