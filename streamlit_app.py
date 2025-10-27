@@ -34,10 +34,21 @@ USERS_PATH = get_secret("USERS_PATH",
     os.path.join("/home" if os.path.isdir("/home") else os.getcwd(), "data", "users.csv"))
 try:
     os.makedirs(os.path.dirname(USERS_PATH), exist_ok=True)
-except (PermissionError, OSError):
+except (PermissionError, OSError) as e:
     # Fallback para diretório local se /home não for gravável
-    USERS_PATH = os.path.join(os.getcwd(), "data", "users.csv")
-    os.makedirs(os.path.dirname(USERS_PATH), exist_ok=True)
+    import sys
+    fallback_path = os.path.join(os.getcwd(), "data", "users.csv")
+    print(f"⚠️  Não foi possível criar {os.path.dirname(USERS_PATH)}: {e}", file=sys.stderr)
+    print(f"→ Usando fallback: {fallback_path}", file=sys.stderr)
+    USERS_PATH = fallback_path
+    try:
+        os.makedirs(os.path.dirname(USERS_PATH), exist_ok=True)
+    except (PermissionError, OSError) as e2:
+        print(f"❌ ERRO: Não foi possível criar {os.path.dirname(USERS_PATH)}: {e2}", file=sys.stderr)
+        # Último recurso: usar diretório temporário
+        import tempfile
+        USERS_PATH = os.path.join(tempfile.gettempdir(), "users.csv")
+        print(f"→ Usando diretório temporário: {USERS_PATH}", file=sys.stderr)
 
 def is_bcrypt_hash(s: str) -> bool:
     return isinstance(s, str) and s.startswith("$2")
