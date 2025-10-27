@@ -305,12 +305,51 @@ Bom trabalho!
 # =========================
 # ESTILOS (UI) + BG
 # =========================
+@st.cache_data
+def load_background_image():
+    """Load and cache background.png as base64-encoded data URI."""
+    try:
+        if os.path.exists("background.png"):
+            with open("background.png", "rb") as f:
+                img_bytes = f.read()
+            return base64.b64encode(img_bytes).decode("utf-8")
+    except Exception:
+        pass
+    return None
+
 def aplicar_estilos():
-    # Tema corporativo clean (sem imagem de fundo, design profissional)
+    # Try to load background.png and convert to base64 data URI (cached)
+    img_b64 = load_background_image()
+    
+    if img_b64:
+        # Background with image + dark overlay gradient for readability
+        background_css = f"""
+        html, body {{
+          background: linear-gradient(rgba(11, 15, 23, 0.75), rgba(11, 15, 23, 0.85)),
+                      url(data:image/png;base64,{img_b64}) !important;
+          background-size: cover !important;
+          background-position: center !important;
+          background-repeat: no-repeat !important;
+          background-attachment: fixed !important;
+          color: var(--text) !important;
+          height: 100%;
+          overflow-y: auto !important;
+        }}"""
+    else:
+        # Fallback to solid dark background
+        background_css = """
+        html, body {
+          background: var(--bg) !important;
+          color: var(--text) !important;
+          height: 100%;
+          overflow-y: auto !important;
+        }"""
+    
+    # Tema corporativo com background customizável
     st.markdown(
-        """
+        f"""
         <style>
-        :root {
+        :root {{
           --bg: #0B0F17;
           --sidebar: #111827;
           --card: #0F172A;
@@ -319,98 +358,96 @@ def aplicar_estilos():
           --text: #E5E7EB;
           --muted: #94A3B8;
           --primary: #2563EB;
-        }
+        }}
 
-        html, body {
-          background: var(--bg) !important;
-          color: var(--text) !important;
-          height: 100%;
-          overflow-y: auto !important;
-        }
+        {background_css}
 
-        section.main > div.block-container {
+        section.main > div.block-container {{
           max-width: 980px !important;
           margin: 0 auto !important;
           padding-top: 1rem !important;
           padding-bottom: 2rem !important;
-        }
+        }}
 
-        h1 { font-size: clamp(22px, 2.0vw + 14px, 30px) !important; font-weight: 700 !important; }
-        h2 { font-size: clamp(18px, 1.4vw + 12px, 22px) !important; font-weight: 700 !important; }
-        h3 { font-size: clamp(16px, 1.0vw + 10px, 18px) !important; font-weight: 600 !important; }
+        h1 {{ font-size: clamp(22px, 2.0vw + 14px, 30px) !important; font-weight: 700 !important; }}
+        h2 {{ font-size: clamp(18px, 1.4vw + 12px, 22px) !important; font-weight: 700 !important; }}
+        h3 {{ font-size: clamp(16px, 1.0vw + 10px, 18px) !important; font-weight: 600 !important; }}
 
-        .main-container, [data-testid="stForm"], [data-testid="stExpander"] > div, .element-container:has(.stAlert) {
+        .main-container, [data-testid="stForm"], [data-testid="stExpander"] > div, .element-container:has(.stAlert) {{
           background-color: var(--card) !important;
           border: 1px solid var(--border) !important;
           border-radius: 8px !important;
           box-shadow: 0 1px 2px rgba(0,0,0,0.25) !important;
-        }
-        .main-container { padding: 20px !important; }
-        .main-container, .main-container * { color: var(--text) !important; }
+        }}
+        .main-container {{ padding: 20px !important; }}
+        .main-container, .main-container * {{ color: var(--text) !important; }}
 
-        [data-testid="stSidebar"] {
+        [data-testid="stSidebar"] {{
           background: var(--sidebar) !important;
           border-right: 1px solid var(--border) !important;
-        }
+        }}
 
         .stTextInput > div > div, .stPassword > div > div,
-        .stNumberInput > div, .stDateInput > div, .stSelectbox > div, .stMultiSelect > div {
+        .stNumberInput > div, .stDateInput > div, .stSelectbox > div, .stMultiSelect > div {{
           background: #0D1321 !important;
           border: 1px solid var(--border) !important;
           border-radius: 8px !important;
-        }
+        }}
 
-        .stButton > button {
+        .stButton > button {{
           background: var(--surface) !important;
           color: var(--text) !important;
           border: 1px solid var(--border) !important;
           border-radius: 8px !important;
           padding: 8px 12px !important;
           box-shadow: none !important;
-        }
-        .stButton > button:hover {
+        }}
+        .stButton > button:hover {{
           background: #0E223D !important;
           border-color: rgba(255,255,255,0.16) !important;
-        }
+        }}
 
-        [data-testid="stForm"] .stButton > button {
+        [data-testid="stForm"] .stButton > button {{
           width: 100% !important;
           background: var(--primary) !important;
           border: 1px solid rgba(37,99,235,0.6) !important;
           color: #fff !important;
-        }
-        [data-testid="stForm"] .stButton > button:hover {
+        }}
+        [data-testid="stForm"] .stButton > button:hover {{
           background: #1D4ED8 !important;
-        }
+        }}
 
-        .login-title {
+        .login-title {{
           text-align: center;
           font-weight: 800;
           font-size: clamp(24px, 4vw, 36px);
           color: var(--text);
           margin: 6vh auto 2px auto;
-        }
-        .login-subtitle {
+        }}
+        .login-subtitle {{
           text-align: center;
           color: var(--muted);
           font-size: 13px;
           margin-bottom: 10px;
-        }
+        }}
 
-        [data-testid="stForm"] {
+        [data-testid="stForm"] {{
           max-width: 420px !important;
           margin: 14px auto !important;
           padding: 16px 16px 12px 16px !important;
-        }
+          background-color: rgba(15, 23, 42, 0.75) !important;
+          backdrop-filter: blur(4px) !important;
+          -webkit-backdrop-filter: blur(4px) !important;
+        }}
 
-        .login-links {
+        .login-links {{
           max-width: 420px;
           margin: 6px auto 0 auto;
           text-align: center;
           color: var(--muted);
           font-size: 13px;
-        }
-        .login-links .stButton > button {
+        }}
+        .login-links .stButton > button {{
           background: transparent !important;
           color: var(--primary) !important;
           border: 0 !important;
@@ -418,17 +455,17 @@ def aplicar_estilos():
           box-shadow: none !important;
           text-decoration: none !important;
           font-size: 13px !important;
-        }
-        .login-links .stButton > button:hover {
+        }}
+        .login-links .stButton > button:hover {{
           text-decoration: underline !important;
-        }
+        }}
 
-        [data-testid="stToolbar"] { display: none !important; }
-        header[data-testid="stHeader"] { display: none !important; }
-        #MainMenu { visibility: hidden; }
-        footer { visibility: hidden; }
+        [data-testid="stToolbar"] {{ display: none !important; }}
+        header[data-testid="stHeader"] {{ display: none !important; }}
+        #MainMenu {{ visibility: hidden; }}
+        footer {{ visibility: hidden; }}
 
-        img, svg { max-width: 100% !important; height: auto !important; }
+        img, svg {{ max-width: 100% !important; height: auto !important; }}
         </style>
         """,
         unsafe_allow_html=True
