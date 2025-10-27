@@ -32,7 +32,12 @@ def get_secret(key, default=""):
 # ==== USERS_PATH: configurável via secrets para Azure ====
 USERS_PATH = get_secret("USERS_PATH", 
     os.path.join("/home" if os.path.isdir("/home") else os.getcwd(), "data", "users.csv"))
-os.makedirs(os.path.dirname(USERS_PATH), exist_ok=True)
+try:
+    os.makedirs(os.path.dirname(USERS_PATH), exist_ok=True)
+except (PermissionError, OSError):
+    # Fallback para diretório local se /home não for gravável
+    USERS_PATH = os.path.join(os.getcwd(), "data", "users.csv")
+    os.makedirs(os.path.dirname(USERS_PATH), exist_ok=True)
 
 def is_bcrypt_hash(s: str) -> bool:
     return isinstance(s, str) and s.startswith("$2")
