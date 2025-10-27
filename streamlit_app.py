@@ -305,16 +305,25 @@ Bom trabalho!
 # =========================
 # ESTILOS (UI) + BG
 # =========================
-def aplicar_estilos():
-    # Try to load background.png and convert to base64 data URI
-    background_css = ""
+@st.cache_data
+def load_background_image():
+    """Load and cache background.png as base64-encoded data URI."""
     try:
         if os.path.exists("background.png"):
             with open("background.png", "rb") as f:
                 img_bytes = f.read()
-            img_b64 = base64.b64encode(img_bytes).decode("utf-8")
-            # Background with image + dark overlay gradient for readability
-            background_css = f"""
+            return base64.b64encode(img_bytes).decode("utf-8")
+    except Exception:
+        pass
+    return None
+
+def aplicar_estilos():
+    # Try to load background.png and convert to base64 data URI (cached)
+    img_b64 = load_background_image()
+    
+    if img_b64:
+        # Background with image + dark overlay gradient for readability
+        background_css = f"""
         html, body {{
           background: linear-gradient(rgba(11, 15, 23, 0.75), rgba(11, 15, 23, 0.85)),
                       url(data:image/png;base64,{img_b64}) !important;
@@ -326,17 +335,8 @@ def aplicar_estilos():
           height: 100%;
           overflow-y: auto !important;
         }}"""
-        else:
-            # Fallback to solid dark background
-            background_css = """
-        html, body {
-          background: var(--bg) !important;
-          color: var(--text) !important;
-          height: 100%;
-          overflow-y: auto !important;
-        }"""
-    except Exception:
-        # Fallback to solid dark background on any error
+    else:
+        # Fallback to solid dark background
         background_css = """
         html, body {
           background: var(--bg) !important;
