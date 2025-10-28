@@ -6,16 +6,15 @@ import streamlit as st
 
 def resource_path(filename: str) -> str:
     """
-    Retorna o caminho absoluto para um recurso localizado no mesmo diretório deste arquivo.
-    Útil para Azure App Service onde o cwd pode variar.
+    Retorna caminho absoluto para um recurso no mesmo diretório deste arquivo.
+    Útil em deploys onde o cwd pode variar.
     """
     base_dir = os.path.dirname(__file__)
     return os.path.join(base_dir, filename)
 
 def set_background_png(png_filename: str):
     """
-    Aplica o background somente uma vez por sessão para evitar reinjeções que causam
-    duplicação/rolagem. Marca st.session_state['login_bg_applied'] = True.
+    Aplica o background apenas uma vez por sessão (flag st.session_state['login_bg_applied']).
     """
     try:
         if st.session_state.get("login_bg_applied"):
@@ -34,7 +33,6 @@ def set_background_png(png_filename: str):
         encoded = base64.b64encode(data).decode()
         css = f"""
         <style id="login-bg">
-        /* Background aplicado apenas ao container da app (não modifica altura/overflow global) */
         .stApp {{
             background-image: url("data:image/png;base64,{encoded}");
             background-size: cover;
@@ -54,8 +52,7 @@ def set_background_png(png_filename: str):
 
 def clear_login_background():
     """
-    Marca que o background de login deve ser considerado removido.
-    Aplicar aplicar_estilos() sobrescreverá o background injetado.
+    Marca flag para permitir reaplicar/limpar o background do login.
     """
     try:
         st.session_state["login_bg_applied"] = False
@@ -64,7 +61,7 @@ def clear_login_background():
 
 def show_logo(logo_filename: str, width: int = 120, use_caption: bool = False):
     """
-    Exibe a logo a partir de arquivo. Usa resource_path por segurança em deploys.
+    Exibe a logo a partir de arquivo local usando resource_path.
     """
     try:
         path = logo_filename
@@ -79,9 +76,8 @@ def show_logo(logo_filename: str, width: int = 120, use_caption: bool = False):
 
 def inject_login_css():
     """
-    CSS específico para a tela de login: centraliza o cartão, define largura fixa/responsiva,
-    organiza os botões abaixo do cartão e evita rolagem da página (o card poderá rolar internamente).
-    Chame somente quando estiver exibindo a tela de login.
+    CSS específico para a tela de login: centraliza o cartão, define largura/responsiva,
+    evita rolagem global e permite scroll interno no card se necessário.
     """
     css = """
     <style id="login-css">
@@ -90,7 +86,6 @@ def inject_login_css():
         margin: 0;
         padding: 0;
     }
-    /* Wrapper ocupa toda a viewport; evita rolagem global */
     .login-wrapper {
         display: flex;
         align-items: center;
@@ -98,23 +93,22 @@ def inject_login_css():
         min-height: 100vh;
         padding: 4vh 16px;
         box-sizing: border-box;
-        overflow: hidden; /* evita scroll da página */
+        overflow: hidden;
     }
-    /* Card do login: se for menor que a viewport, centraliza; se maior, rola internamente */
     .login-card {
         width: 420px;
         max-width: calc(100% - 32px);
         max-height: calc(100vh - 80px);
-        overflow: auto; /* scroll interno se necessário */
-        background: rgba(15, 23, 42, 0.90);
+        overflow: auto;
+        background: rgba(15, 23, 42, 0.95);
         border-radius: 12px;
         padding: 20px 22px;
         box-shadow: 0 8px 30px rgba(0,0,0,0.55);
         border: 1px solid rgba(255,255,255,0.04);
     }
     .login-logo { display:flex; align-items:center; justify-content:center; margin-bottom:8px; }
-    .login-title { text-align:center; margin-top:8px; margin-bottom:4px; color: #E5E7EB; }
-    .login-subtitle { text-align:center; color: rgba(255,255,255,0.65); margin-bottom:14px; }
+    .login-title { text-align:center; margin-top:8px; margin-bottom:4px; color: #E5E7EB; font-size: 20px; }
+    .login-subtitle { text-align:center; color: rgba(255,255,255,0.65); margin-bottom:14px; font-size:13px; }
 
     .login-links {
         display:flex;
