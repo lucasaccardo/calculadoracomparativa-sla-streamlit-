@@ -317,15 +317,58 @@ def load_background_image():
         pass
     return None
 
+# ==== Helpers de Imagem (com cache) ====
+import os, base64
+import streamlit as st
+
+@st.cache_data(show_spinner=False)
+def load_image_b64(path: str) -> str | None:
+    """Lê um arquivo binário (imagem) e retorna base64 (string) com cache."""
+    try:
+        if os.path.exists(path):
+            with open(path, "rb") as f:
+                return base64.b64encode(f.read()).decode("utf-8")
+    except Exception:
+        pass
+    return None
+
+@st.cache_data(show_spinner=False)
+def load_background_image() -> str | None:
+    """Retorna o base64 de background.png se existir."""
+    return load_image_b64("background.png")
+
+@st.cache_data(show_spinner=False)
+def load_logo_image() -> tuple[str, str] | None:
+    """
+    Tenta carregar o logo da raiz do projeto na ordem:
+    - fleetvamossla.png
+    - logo.jpg
+    - logo.png
+    Retorna (mime, base64) ou None.
+    """
+    candidates = [("image/png", "fleetvamossla.png"),
+                  ("image/jpeg", "logo.jpg"),
+                  ("image/png", "logo.png")]
+    for mime, path in candidates:
+        b64 = load_image_b64(path)
+        if b64:
+            return (mime, b64)
+    return None
+
+# =========================
+# ESTILOS (UI) + BG
+# =========================
 def aplicar_estilos():
-    # Try to load background.png and convert to base64 data URI (cached)
+    """
+    Injeta tema corporativo global e aplica o background com overlay.
+    Não altera a lógica do app; apenas estilização.
+    """
+    # Background
     img_b64 = load_background_image()
-    
     if img_b64:
-        # Background with image + dark overlay gradient for readability
         background_css = f"""
         html, body {{
-          background: linear-gradient(rgba(11, 15, 23, 0.75), rgba(11, 15, 23, 0.85)),
+          background: linear-gradient(0deg, rgba(9,12,20,0.78), rgba(9,12,20,0.86)),
                       url(data:image/png;base64,{img_b64}) !important;
           background-size: cover !important;
           background-position: center !important;
@@ -336,7 +379,6 @@ def aplicar_estilos():
           overflow-y: auto !important;
         }}"""
     else:
-        # Fallback to solid dark background
         background_css = """
         html, body {
           background: var(--bg) !important;
@@ -344,132 +386,233 @@ def aplicar_estilos():
           height: 100%;
           overflow-y: auto !important;
         }"""
-    
-    # Tema corporativo com background customizável
-    st.markdown(
-        f"""
-        <style>
-        :root {{
-          --bg: #0B0F17;
-          --sidebar: #111827;
-          --card: #0F172A;
-          --surface: #0F172A;
-          --border: rgba(255,255,255,0.08);
-          --text: #E5E7EB;
-          --muted: #94A3B8;
-          --primary: #2563EB;
-        }}
 
-        {background_css}
+    # Logo (selo de marca fixo, opcional)
+    logo_rule = ""
+    if (logo := load_logo_image()):
+        mime, logo_b64 = logo
+        logo_rule = f"""
+        .brand-badge {{
+          position: fixed;
+          top: 16px;
+          left: 16px;
+          width: 140px;
+          height: 44px;
+          background-image: url(data:{mime};base64,{logo_b64});
+          background-size: contain;
+          background-position: left center;
+          background-repeat: no-repeat;
+          z-index: 1000;
+          filter: drop-shadow(0 4px 12px rgba(0,0,0,0.6));
+          opacity: 0.98;
+          pointer-events: none; /* não intercepta cliques */
+        }}"""
 
-        section.main > div.block-container {{
-          max-width: 980px !important;
-          margin: 0 auto !important;
-          padding-top: 1rem !important;
-          padding-bottom: 2rem !important;
-        }}
+    # Tokens e tema corporativo
+    css = f"""
+    <style>
+      :root {{
+        --bg: #0B0F17;
+        --sidebar: #111827;
+        --card: #0F172A;
+        --surface: #0F172A;
+        --border: rgba(255,255,255,0.08);
+        --text: #E5E7EB;
+        --muted: #94A3B8;
+        --primary: #2563EB;
+        --primary-600: #1D4ED8;
+        --focus: rgba(37,99,235,0.45);
+        --success: #10B981;
+        --danger: #EF4444;
+      }}
 
-        h1 {{ font-size: clamp(22px, 2.0vw + 14px, 30px) !important; font-weight: 700 !important; }}
-        h2 {{ font-size: clamp(18px, 1.4vw + 12px, 22px) !important; font-weight: 700 !important; }}
-        h3 {{ font-size: clamp(16px, 1.0vw + 10px, 18px) !important; font-weight: 600 !important; }}
+      {background_css}
 
-        .main-container, [data-testid="stForm"], [data-testid="stExpander"] > div, .element-container:has(.stAlert) {{
-          background-color: var(--card) !important;
-          border: 1px solid var(--border) !important;
-          border-radius: 8px !important;
-          box-shadow: 0 1px 2px rgba(0,0,0,0.25) !important;
-        }}
-        .main-container {{ padding: 20px !important; }}
-        .main-container, .main-container * {{ color: var(--text) !important; }}
+      /* Layout principal */
+      section.main > div.block-container {{
+        max-width: 1040px !important;
+        margin: 0 auto !important;
+        padding-top: 1.0rem !important;
+        padding-bottom: 2.0rem !important;
+      }}
 
-        [data-testid="stSidebar"] {{
-          background: var(--sidebar) !important;
-          border-right: 1px solid var(--border) !important;
-        }}
+      /* Tipografia */
+      h1 {{ font-size: clamp(24px, 2.0vw + 14px, 32px) !important; font-weight: 800 !important; letter-spacing: .1px; }}
+      h2 {{ font-size: clamp(20px, 1.4vw + 12px, 24px) !important; font-weight: 700 !important; }}
+      h3 {{ font-size: clamp(16px, 1.0vw + 10px, 18px) !important; font-weight: 600 !important; }}
 
-        .stTextInput > div > div, .stPassword > div > div,
-        .stNumberInput > div, .stDateInput > div, .stSelectbox > div, .stMultiSelect > div {{
-          background: #0D1321 !important;
-          border: 1px solid var(--border) !important;
-          border-radius: 8px !important;
-        }}
+      /* Containers/card padrão */
+      .main-container,
+      [data-testid="stForm"],
+      [data-testid="stExpander"] > div,
+      .element-container:has(.stAlert) {{
+        background-color: var(--card) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 10px !important;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.30) !important;
+      }}
+      .main-container {{ padding: 20px !important; }}
+      .main-container, .main-container * {{ color: var(--text) !important; }}
 
-        .stButton > button {{
-          background: var(--surface) !important;
-          color: var(--text) !important;
-          border: 1px solid var(--border) !important;
-          border-radius: 8px !important;
-          padding: 8px 12px !important;
-          box-shadow: none !important;
-        }}
-        .stButton > button:hover {{
-          background: #0E223D !important;
-          border-color: rgba(255,255,255,0.16) !important;
-        }}
+      /* Sidebar */
+      [data-testid="stSidebar"] {{
+        background: var(--sidebar) !important;
+        border-right: 1px solid var(--border) !important;
+      }}
 
-        [data-testid="stForm"] .stButton > button {{
-          width: 100% !important;
-          background: var(--primary) !important;
-          border: 1px solid rgba(37,99,235,0.6) !important;
-          color: #fff !important;
-        }}
-        [data-testid="stForm"] .stButton > button:hover {{
-          background: #1D4ED8 !important;
-        }}
+      /* Campos de formulário */
+      .stTextInput > div > div,
+      .stPassword > div > div,
+      .stNumberInput > div,
+      .stDateInput > div,
+      .stSelectbox > div,
+      .stMultiSelect > div,
+      .stTextArea > div > div {{
+        background: #0D1321 !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 10px !important;
+        outline: none !important;
+      }}
+      .stTextInput input, .stPassword input, .stTextArea textarea {{
+        color: var(--text) !important;
+      }}
+      .stNumberInput button, .stDateInput button {{
+        color: var(--text) !important;
+      }}
+      .stTextInput > div > div:focus-within,
+      .stPassword > div > div:focus-within,
+      .stNumberInput > div:focus-within,
+      .stDateInput > div:focus-within,
+      .stSelectbox > div:focus-within,
+      .stMultiSelect > div:focus-within,
+      .stTextArea > div > div:focus-within {{
+        border-color: var(--focus) !important;
+        box-shadow: 0 0 0 3px rgba(37,99,235,0.20) !important;
+      }}
 
-        .login-title {{
-          text-align: center;
-          font-weight: 800;
-          font-size: clamp(24px, 4vw, 36px);
-          color: var(--text);
-          margin: 6vh auto 2px auto;
-        }}
-        .login-subtitle {{
-          text-align: center;
-          color: var(--muted);
-          font-size: 13px;
-          margin-bottom: 10px;
-        }}
+      /* Botões */
+      .stButton > button {{
+        background: var(--surface) !important;
+        color: var(--text) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 10px !important;
+        padding: 10px 14px !important;
+        font-weight: 600 !important;
+        transition: all .12s ease;
+        box-shadow: none !important;
+      }}
+      .stButton > button:hover {{
+        background: #0E223D !important;
+        border-color: rgba(255,255,255,0.16) !important;
+        transform: translateY(-1px);
+      }}
 
-        [data-testid="stForm"] {{
-          max-width: 420px !important;
-          margin: 14px auto !important;
-          padding: 16px 16px 12px 16px !important;
-          background-color: rgba(15, 23, 42, 0.75) !important;
-          backdrop-filter: blur(4px) !important;
-          -webkit-backdrop-filter: blur(4px) !important;
-        }}
+      /* Botões primários dentro de formulários (ex: login) */
+      [data-testid="stForm"] .stButton > button {{
+        width: 100% !important;
+        background: var(--primary) !important;
+        border: 1px solid rgba(37,99,235,0.6) !important;
+        color: #fff !important;
+      }}
+      [data-testid="stForm"] .stButton > button:hover {{
+        background: var(--primary-600) !important;
+        transform: translateY(-1px);
+      }}
 
-        .login-links {{
-          max-width: 420px;
-          margin: 6px auto 0 auto;
-          text-align: center;
-          color: var(--muted);
-          font-size: 13px;
-        }}
-        .login-links .stButton > button {{
-          background: transparent !important;
-          color: var(--primary) !important;
-          border: 0 !important;
-          padding: 0 !important;
-          box-shadow: none !important;
-          text-decoration: none !important;
-          font-size: 13px !important;
-        }}
-        .login-links .stButton > button:hover {{
-          text-decoration: underline !important;
-        }}
+      /* Login card (com leve blur/vidro) */
+      .login-title {{
+        text-align: center;
+        font-weight: 800;
+        font-size: clamp(24px, 4vw, 36px);
+        color: var(--text);
+        margin: 6vh auto 2px auto;
+      }}
+      .login-subtitle {{
+        text-align: center;
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom: 10px;
+      }}
+      [data-testid="stForm"] {{
+        max-width: 440px !important;
+        margin: 16px auto !important;
+        padding: 18px 18px 14px 18px !important;
+        background-color: rgba(15, 23, 42, 0.72) !important;
+        backdrop-filter: blur(5px) !important;
+        -webkit-backdrop-filter: blur(5px) !important;
+      }}
 
-        [data-testid="stToolbar"] {{ display: none !important; }}
-        header[data-testid="stHeader"] {{ display: none !important; }}
-        #MainMenu {{ visibility: hidden; }}
-        footer {{ visibility: hidden; }}
+      /* Links abaixo do login */
+      .login-links {{
+        max-width: 440px;
+        margin: 6px auto 0 auto;
+        text-align: center;
+        color: var(--muted);
+        font-size: 13px;
+      }}
+      .login-links .stButton > button {{
+        background: transparent !important;
+        color: var(--primary) !important;
+        border: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        text-decoration: none !important;
+        font-size: 13px !important;
+      }}
+      .login-links .stButton > button:hover {{
+        text-decoration: underline !important;
+      }}
 
-        img, svg {{ max-width: 100% !important; height: auto !important; }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
+      /* Expanders */
+      details[open] > summary, [data-testid="stExpander"] > div > div {{
+        border-radius: 10px !important;
+      }}
+
+      /* Tabelas/DataFrames (ajuste suave) */
+      [data-testid="stDataFrame"] div[role="grid"] {{
+        border-radius: 8px !important;
+        overflow: hidden;
+        border: 1px solid var(--border) !important;
+      }}
+      [data-testid="stTable"] table {{
+        border-collapse: separate !important;
+        border-spacing: 0 !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 8px !important;
+        overflow: hidden !important;
+      }}
+      [data-testid="stTable"] th, [data-testid="stTable"] td {{
+        border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+      }}
+
+      /* Esconder elementos padrão do Streamlit para visual de produto */
+      [data-testid="stToolbar"] {{ display: none !important; }}
+      header[data-testid="stHeader"] {{ display: none !important; }}
+      #MainMenu {{ visibility: hidden; }}
+      footer {{ visibility: hidden; }}
+
+      img, svg {{ max-width: 100% !important; height: auto !important; }}
+
+      /* Selo de marca (se logo existir) */
+      {logo_rule}
+    </style>
+    """
+    st.markdown(css, unsafe_allow_html=True)
+
+    # Insere o elemento do selo de marca, se houver imagem carregada
+    if logo_rule:
+        st.markdown("<div class='brand-badge' aria-hidden='true'></div>", unsafe_allow_html=True)
+
+# (Opcional) você pode chamar aplicar_estilos() cedo no app, após set_page_config, para garantir tema global.
+# Exemplo seguro:
+# try:
+#     st.set_page_config(page_title="Frotas Vamos SLA", layout="wide", initial_sidebar_state="expanded")
+# except Exception:
+#     pass
+# try:
+#     aplicar_estilos()
+# except Exception:
+#     pass
 
 # =========================
 # AUTENTICAÇÃO E USUÁRIOS
