@@ -218,7 +218,7 @@ except Exception:
     pass
 
 # =========================
-# POLÍTICA DE SENHA
+# POLÍTICA de senha
 # =========================
 PASSWORD_MIN_LEN = 10
 SPECIAL_CHARS = r"!@#$%^&*()_+\-=\[\]{};':\",.<>/?\\|`~"
@@ -388,152 +388,11 @@ def renderizar_sidebar():
         st.button("🚪 Sair (Logout)", on_click=logout, type="secondary", use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
-# Inicialização de estado
-if "tela" not in st.session_state:
-    st.session_state.tela = "login"
-
-# Token reset via URL
-qp = get_query_params()
-incoming_token = qp.get("reset_token") or qp.get("token") or ""
-if incoming_token and not st.session_state.get("ignore_reset_qp"):
-    st.session_state.incoming_reset_token = incoming_token
-    st.session_state.tela = "reset_password"
-
-# =========================
-# TELAS (parte principal) — LOGIN ÚNICO E CENTRALIZADO
-# =========================
-if st.session_state.tela == "login":
-    # Aplica background e CSS do login (uma única vez)
-    try:
-        set_background_png(resource_path("background.png"))
-    except Exception:
-        pass
-    try:
-        inject_login_css()
-    except Exception:
-        pass
-
-    # Wrapper + card (um único bloco — certifique-se de não duplicar este bloco)
-    st.markdown('<div class="login-wrapper">', unsafe_allow_html=True)
-    st.markdown('<div class="login-card">', unsafe_allow_html=True)
-
-    # Logo (centralizada)
-    try:
-        st.markdown('<div class="login-logo">', unsafe_allow_html=True)
-        show_logo(resource_path("logo.png"), width=140)
-        st.markdown('</div>', unsafe_allow_html=True)
-    except Exception:
-        pass
-
-    st.markdown('<h1 class="login-title">Frotas Vamos SLA</h1>', unsafe_allow_html=True)
-    st.markdown('<div class="login-subtitle">Acesso restrito | Soluções inteligentes para frotas</div>', unsafe_allow_html=True)
-
-    with st.form("login_form"):
-        username = st.text_input("Usuário", placeholder="Usuário")
-        password = st.text_input("Senha", type="password", placeholder="Senha")
-        submit_login = st.form_submit_button("Entrar")
-
-    st.markdown('</div>', unsafe_allow_html=True)  # fecha login-card
-
-    # Links abaixo do card (não duplicar)
-    st.markdown('<div class="login-links">', unsafe_allow_html=True)
-    c1, c2 = st.columns([1, 1])
-    with c1:
-        if st.button("Criar cadastro"):
-            st.session_state.tela = "register"
-            st.experimental_rerun()
-    with c2:
-        if st.button("Esqueci minha senha"):
-            st.session_state.tela = "forgot_password"
-            st.experimental_rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)  # fecha login-wrapper
-
-    if submit_login:
-        df_users = load_user_db()
-        user_data = df_users[df_users["username"] == username]
-        if user_data.empty:
-            st.error("❌ Usuário ou senha incorretos.")
-        else:
-            row = user_data.iloc[0]
-            valid, needs_up = verify_password(row["password"], password)
-            if not valid:
-                st.error("❌ Usuário ou senha incorretos.")
-            else:
-                try:
-                    if needs_up:
-                        idx = df_users.index[df_users["username"] == username][0]
-                        df_users.loc[idx, "password"] = hash_password(password)
-                        df_users.loc[idx, "last_password_change"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-                        save_user_db(df_users)
-                except Exception:
-                    pass
-
-                if row.get("status", "") != "aprovado":
-                    st.warning("⏳ Seu cadastro ainda está pendente de aprovação pelo administrador.")
-                else:
-                    # Limpa background de login e reaplica tema neutro
-                    try:
-                        clear_login_background()
-                    except Exception:
-                        pass
-                    try:
-                        aplicar_estilos()
-                    except Exception:
-                        pass
-
-                    st.session_state.logado = True
-                    st.session_state.username = row["username"]
-                    st.session_state.role = row.get("role", "user")
-                    st.session_state.email = row.get("email", "")
-                    st.session_state.tela = "home"
-                    st.experimental_rerun()
-
-else:
-    # Conteúdo autenticado (todas as telas)
-    renderizar_sidebar()
-    st.markdown("<div class='main-container'>", unsafe_allow_html=True)
-
-    # Restante das telas (mantive sua lógica — register/forgot/reset/force_change/terms/home/admin/calc_simples/calc_comparativa)
-    # ... (se quiser, eu colo o arquivo completo com tudo explicitado novamente)
-    if st.session_state.tela == "home":
-        st.title("🏠 Home")
-        st.write(f"### Bem-vindo, {st.session_state.get('username','')}!")
-        st.write("Selecione abaixo a ferramenta que deseja utilizar.")
-        st.markdown("---")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("📊 Análise de Cenários")
-            st.write("Calcule e compare múltiplos cenários para encontrar a opção com o menor custo final.")
-            st.button("Acessar Análise de Cenários", on_click=ir_para_calc_comparativa, use_container_width=True)
-        with col2:
-            st.subheader("🖩 SLA Mensal")
-            st.write("Calcule rapidamente o desconto de SLA para um único serviço ou veículo.")
-            st.button("Acessar SLA Mensal", on_click=ir_para_calc_simples, use_container_width=True)
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # ... resto das telas (register, forgot, reset, force_change, terms_consent, home, admin_users, calc_simples, calc_comparativa)
-    # Aqui eu mantenho toda a lógica que você já tinha; caso precise, eu colo 100% do restante inline.
-    # Garantimos que carregar_base() e load_user_db() existem antes do uso (resolvido acima).
-
-    # Exemplo: Home (mantido de acordo com sua versão original)
-    if st.session_state.tela == "home":
-        st.title("🏠 Home")
-        st.write(f"### Bem-vindo, {st.session_state.get('username','')}!")
-        st.write("Selecione abaixo a ferramenta que deseja utilizar.")
-        st.markdown("---")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("📊 Análise de Cenários")
-            st.write("Calcule e compare múltiplos cenários para encontrar a opção com o menor custo final.")
-            st.button("Acessar Análise de Cenários", on_click=ir_para_calc_comparativa, use_container_width=True)
-        with col2:
-            st.subheader("🖩 SLA Mensal")
-            st.write("Calcule rapidamente o desconto de SLA para um único serviço ou veículo.")
-            st.button("Acessar SLA Mensal", on_click=ir_para_calc_simples, use_container_width=True)
-
-    st.markdown("</div>", unsafe_allow_html=True)
+#
+#
+# <<< --- O BLOCO DUPLICADO DE CÓDIGO (LINHAS 401-545) FOI REMOVIDO DAQUI --- >>>
+#
+#
 
 # =========================
 # ESTADO INICIAL / ESTILOS
@@ -1428,7 +1287,7 @@ else:
                     st.markdown("---")
                     st.write("Peças adicionadas:")
                     opcoes_pecas = [f"{p['nome']} - {formatar_moeda(p['valor'])}" for p in st.session_state.pecas_atuais]
-                    pecas_para_remover = st.multiselect("Selecione para remover:", options=opcoes_pecas)
+                    pecas_para_remover = st.multiselect("Selecione para remover:", options=opcoes_locas)
                     if st.button("🗑️ Remover Selecionadas", type="secondary", use_container_width=True):
                         if pecas_para_remover:
                             nomes_para_remover = [item.split(' - ')[0] for item in pecas_para_remover]
