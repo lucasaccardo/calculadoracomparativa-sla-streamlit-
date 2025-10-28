@@ -1,3 +1,4 @@
+# ui_helpers.py
 import os
 import base64
 from PIL import Image
@@ -9,14 +10,13 @@ def resource_path(filename: str) -> str:
 
 def set_background_png(png_filename: str):
     """
-    Aplica o background somente uma vez por sessão para evitar reinjeções que causam
-    duplicação/rolagem. Marca st.session_state['login_bg_applied'] = True.
+    Aplica o background somente uma vez por sessão para evitar reinjeções.
+    Marca st.session_state['login_bg_applied'] = True.
     """
     try:
         if st.session_state.get("login_bg_applied"):
             return
     except Exception:
-        # st.session_state pode não existir em contextos raros; continuar
         pass
 
     try:
@@ -24,14 +24,12 @@ def set_background_png(png_filename: str):
         if not os.path.isabs(path):
             path = resource_path(path)
         if not os.path.exists(path):
-            # silêncio — não quebrar se imagem não existir
             return
         with open(path, "rb") as f:
             data = f.read()
         encoded = base64.b64encode(data).decode()
         css = f"""
         <style id="login-bg">
-        /* Background aplicado apenas ao container da app (não modifica altura/overflow global) */
         .stApp {{
             background-image: url("data:image/png;base64,{encoded}");
             background-size: cover;
@@ -47,13 +45,12 @@ def set_background_png(png_filename: str):
         except Exception:
             pass
     except Exception:
-        # não quebre o app se algo falhar
         return
 
 def clear_login_background():
     """
     Marca que o background de login deve ser considerado removido.
-    A remoção efetiva acontece ao injetar novamente o CSS neutro (aplicar_estilos).
+    Aplicar aplicar_estilos() sobrescreverá o background injetado.
     """
     try:
         st.session_state["login_bg_applied"] = False
@@ -74,8 +71,7 @@ def show_logo(logo_filename: str, width: int = 120, use_caption: bool = False):
 
 def inject_login_css():
     """
-    CSS para o cartão de login. Não altera html/body overflow global;
-    controla apenas o wrapper do login para evitar rolagem indesejada.
+    CSS específico para a tela de login: centraliza o cartão e evita overflow global.
     """
     css = """
     <style id="login-css">
