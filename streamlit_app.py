@@ -1,53 +1,68 @@
-import streamlit as st
+# streamlit_app.py
+# Arquivo unificado com as Partes 1 e 2 que você enviou, com as correções necessárias
+# (corrigi a chamada inválida em st.set_page_config, centralizei as chamadas de background/logo/css,
+#  removi duplicações de imports e funções, e mantive toda a lógica original das telas).
+#
+# Observação: este arquivo espera que ui_helpers.py esteja no mesmo diretório e que
+# contenha as funções: set_background_png, show_logo, inject_login_css, resource_path.
+# Também espera que background.png, logo.png e Base De Clientes Faturamento.xlsx estejam
+# disponíveis no diretório do deploy (ou ajustados via st.secrets).
+#
+# NÃO removi a lógica original das telas — apenas integrei as alterações de estilo/bg/logo.
+
+import os
+import sys
+import base64
+import secrets
+import hashlib
+import re
+import smtplib
+from io import BytesIO
+from datetime import datetime, timedelta
+from email.message import EmailMessage
+from textwrap import dedent
+from typing import Optional, Tuple, List
+
 import pandas as pd
 import numpy as np
 import streamlit as st
-from ui_helpers import set_background_png, show_logo, inject_login_css, resource_path
-from datetime import datetime, timedelta
-from io import BytesIO
 from passlib.context import CryptContext
+from PIL import Image
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.pdfgen import canvas
-import hashlib
-import os
-import base64
-import secrets
-import smtplib
-from email.message import EmailMessage
-from textwrap import dedent
-import re
 from streamlit.components.v1 import html as components_html
+
+# Import helpers (arquivo ui_helpers.py que você já criou)
+# ui_helpers deve expor: set_background_png, show_logo, inject_login_css, resource_path
+from ui_helpers import set_background_png, show_logo, inject_login_css, resource_path
 
 # ==== Senhas: bcrypt com compatibilidade SHA-256 (com fallback seguro) ====
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # ==== Helper para acessar secrets de forma segura ====
-def get_secret(key, default=""):
+def get_secret(key: str, default: str = "") -> str:
     """Obtém um valor de st.secrets com fallback seguro."""
     try:
         return st.secrets[key]
-    except (KeyError, FileNotFoundError):
+    except Exception:
         return default
 
 # ==== USERS_PATH: configurável via secrets para Azure ====
-USERS_PATH = get_secret("USERS_PATH", 
-    os.path.join("/home" if os.path.isdir("/home") else os.getcwd(), "data", "users.csv"))
+USERS_PATH = get_secret("USERS_PATH",
+                        os.path.join("/home" if os.path.isdir("/home") else os.getcwd(), "data", "users.csv"))
 try:
     os.makedirs(os.path.dirname(USERS_PATH), exist_ok=True)
 except (PermissionError, OSError) as e:
-    # Fallback para diretório local se /home não for gravável
-    import sys
     fallback_path = os.path.join(os.getcwd(), "data", "users.csv")
     print(f"⚠️  Não foi possível criar diretório de dados: {type(e).__name__}", file=sys.stderr)
     print(f"→ Usando fallback para diretório local", file=sys.stderr)
     USERS_PATH = fallback_path
     try:
         os.makedirs(os.path.dirname(USERS_PATH), exist_ok=True)
-    except (PermissionError, OSError) as e2:
+    except Exception as e2:
         print(f"❌ ERRO: Não foi possível criar diretório local: {type(e2).__name__}", file=sys.stderr)
-        # Último recurso: usar diretório temporário
         import tempfile
         USERS_PATH = os.path.join(tempfile.gettempdir(), "users.csv")
         print(f"→ Usando diretório temporário como último recurso", file=sys.stderr)
@@ -59,15 +74,13 @@ def hash_password(password: str) -> str:
     """
     Tenta bcrypt. Se o backend não estiver disponível no ambiente,
     faz fallback para SHA-256 para não derrubar o app.
-    O verify_password já aceita SHA-256 e fará upgrade para bcrypt
-    no próximo login bem-sucedido quando o backend estiver OK.
     """
     try:
         return pwd_context.hash(password)
     except Exception:
         return hashlib.sha256(password.encode()).hexdigest()
 
-def verify_password(stored_hash: str, provided_password: str) -> tuple[bool, bool]:
+def verify_password(stored_hash: str, provided_password: str) -> Tuple[bool, bool]:
     """
     Retorna (valido, precisa_upgrade).
     - Se já for bcrypt: verifica com passlib e indica upgrade se necessário.
@@ -86,15 +99,29 @@ def verify_password(stored_hash: str, provided_password: str) -> tuple[bool, boo
 # =========================
 # CONFIGURAÇÃO DA PÁGINA
 # =========================
-st.set_page_config(
-    # Exemplo: no início da função main() ou logo após set_page_config
+# Chame set_page_config apenas uma vez e antes de qualquer outro st.* call
+try:
+    st.set_page_config(
+        page_title="Frotas Vamos SLA",
+        page_icon="logo_sidebar.png" if os.path.exists(resource_path("logo_sidebar.png")) else "🚛",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+except Exception:
+    # st.set_page_config pode lançar se já tiver sido chamado; ignoramos nesse caso
+    pass
+
+# Aplicar background e CSS via ui_helpers (garante compatibilidade com Azure)
+try:
     set_background_png(resource_path("background.png"))
+except Exception:
+    # fallback silencioso
+    pass
+
+try:
     inject_login_css()
-    page_title="Frotas Vamos SLA",
-    page_icon="logo_sidebar.png" if os.path.exists("logo_sidebar.png") else "🚛",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+except Exception:
+    pass
 
 # =========================
 # POLÍTICA DE SENHA
@@ -102,8 +129,8 @@ st.set_page_config(
 PASSWORD_MIN_LEN = 10
 SPECIAL_CHARS = r"!@#$%^&*()_+\-=\[\]{};':\",.<>/?\\|`~"
 
-def validate_password_policy(password: str, username: str = "", email: str = ""):
-    errors = []
+def validate_password_policy(password: str, username: str = "", email: str = "") -> Tuple[bool, List[str]]:
+    errors: List[str] = []
     if len(password) < PASSWORD_MIN_LEN:
         errors.append(f"Senha deve ter pelo menos {PASSWORD_MIN_LEN} caracteres.")
     if not re.search(r"[A-Z]", password):
@@ -152,13 +179,13 @@ def get_app_base_url():
 # =========================
 # EMAIL / SMTP
 # =========================
-def smtp_available():
+def smtp_available() -> bool:
     host = get_secret("EMAIL_HOST", "")
     user = get_secret("EMAIL_USERNAME", "")
     password = get_secret("EMAIL_PASSWORD", "")
     return bool(host and user and password)
 
-def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label: str = "", cta_url: str = "", footer: str = ""):
+def build_email_html(title: str, subtitle: str, body_lines: List[str], cta_label: str = "", cta_url: str = "", footer: str = "") -> str:
     primary = "#2563eb"
     brand = "#0d1117"
     text = "#e5e7eb"
@@ -213,7 +240,7 @@ def build_email_html(title: str, subtitle: str, body_lines: list[str], cta_label
   </body>
 </html>"""
 
-def send_email(dest_email: str, subject: str, body_plain: str, body_html: str | None = None):
+def send_email(dest_email: str, subject: str, body_plain: str, body_html: Optional[str] = None) -> bool:
     host = get_secret("EMAIL_HOST", "")
     port = int(get_secret("EMAIL_PORT", 587))
     user = get_secret("EMAIL_USERNAME", "")
@@ -247,7 +274,7 @@ def send_email(dest_email: str, subject: str, body_plain: str, body_html: str | 
         st.code(f"Para: {dest_email}\nAssunto: {subject}\n\n{body_plain}", language="text")
         return False
 
-def send_reset_email(dest_email: str, reset_link: str):
+def send_reset_email(dest_email: str, reset_link: str) -> bool:
     subject = "Redefinição de senha - Frotas Vamos SLA"
     plain = f"""Olá,
 
@@ -268,7 +295,7 @@ Se você não solicitou, ignore este e-mail.
     )
     return send_email(dest_email, subject, plain, html)
 
-def send_approved_email(dest_email: str, base_url: str):
+def send_approved_email(dest_email: str, base_url: str) -> bool:
     subject = "Conta aprovada - Frotas Vamos SLA"
     plain = f"""Olá,
 
@@ -287,7 +314,7 @@ Bom trabalho!
     )
     return send_email(dest_email, subject, plain, html)
 
-def send_invite_to_set_password(dest_email: str, reset_link: str):
+def send_invite_to_set_password(dest_email: str, reset_link: str) -> bool:
     subject = "Sua conta foi aprovada - Defina sua senha"
     plain = f"""Olá,
 
@@ -308,49 +335,28 @@ Bom trabalho!
     return send_email(dest_email, subject, plain, html)
 
 # =========================
-# ESTILOS (UI) + BG
+# ESTILOS (UI) + BG (interno)
 # =========================
 @st.cache_data
-def load_background_image():
-    """Load and cache background.png as base64-encoded data URI."""
-    try:
-        if os.path.exists("background.png"):
-            with open("background.png", "rb") as f:
-                img_bytes = f.read()
-            return base64.b64encode(img_bytes).decode("utf-8")
-    except Exception:
-        pass
-    return None
-
-# ==== Helpers de Imagem (com cache) ====
-import os, base64
-import streamlit as st
-
-@st.cache_data(show_spinner=False)
-def load_image_b64(path: str) -> str | None:
+def load_image_b64(path: str) -> Optional[str]:
     """Lê um arquivo binário (imagem) e retorna base64 (string) com cache."""
     try:
-        if os.path.exists(path):
-            with open(path, "rb") as f:
+        p = path
+        if not os.path.isabs(p):
+            p = resource_path(p)
+        if os.path.exists(p):
+            with open(p, "rb") as f:
                 return base64.b64encode(f.read()).decode("utf-8")
     except Exception:
         pass
     return None
 
-@st.cache_data(show_spinner=False)
-def load_background_image() -> str | None:
-    """Retorna o base64 de background.png se existir."""
+@st.cache_data
+def load_background_image_b64() -> Optional[str]:
     return load_image_b64("background.png")
 
-@st.cache_data(show_spinner=False)
-def load_logo_image() -> tuple[str, str] | None:
-    """
-    Tenta carregar o logo da raiz do projeto na ordem:
-    - fleetvamossla.png
-    - logo.jpg
-    - logo.png
-    Retorna (mime, base64) ou None.
-    """
+@st.cache_data
+def load_logo_image_b64() -> Optional[Tuple[str, str]]:
     candidates = [("image/png", "fleetvamossla.png"),
                   ("image/jpeg", "logo.jpg"),
                   ("image/png", "logo.png")]
@@ -360,16 +366,13 @@ def load_logo_image() -> tuple[str, str] | None:
             return (mime, b64)
     return None
 
-# =========================
-# ESTILOS (UI) + BG
-# =========================
 def aplicar_estilos():
     """
     Injeta tema corporativo global e aplica o background com overlay.
     Não altera a lógica do app; apenas estilização.
     """
     # Background
-    img_b64 = load_background_image()
+    img_b64 = load_background_image_b64()
     if img_b64:
         background_css = f"""
         html, body {{
@@ -394,8 +397,9 @@ def aplicar_estilos():
 
     # Logo (selo de marca fixo, opcional)
     logo_rule = ""
-    if (logo := load_logo_image()):
-        mime, logo_b64 = logo
+    logo_loaded = load_logo_image_b64()
+    if logo_loaded:
+        mime, logo_b64 = logo_loaded
         logo_rule = f"""
         .brand-badge {{
           position: fixed;
@@ -608,17 +612,6 @@ def aplicar_estilos():
     if logo_rule:
         st.markdown("<div class='brand-badge' aria-hidden='true'></div>", unsafe_allow_html=True)
 
-# (Opcional) você pode chamar aplicar_estilos() cedo no app, após set_page_config, para garantir tema global.
-# Exemplo seguro:
-# try:
-#     st.set_page_config(page_title="Frotas Vamos SLA", layout="wide", initial_sidebar_state="expanded")
-# except Exception:
-#     pass
-# try:
-#     aplicar_estilos()
-# except Exception:
-#     pass
-
 # =========================
 # AUTENTICAÇÃO E USUÁRIOS
 # =========================
@@ -631,7 +624,7 @@ REQUIRED_USER_COLUMNS = [
 SUPERADMIN_USERNAME = "lucas.sureira"
 
 @st.cache_data
-def load_user_db():
+def load_user_db() -> pd.DataFrame:
     # Senha inicial do superadmin vem de st.secrets (se existir).
     tmp_pwd = (get_secret("SUPERADMIN_DEFAULT_PASSWORD", "") or "").strip()
     admin_defaults = {
@@ -649,7 +642,7 @@ def load_user_db():
         "force_password_reset": "" if tmp_pwd else "1",
     }
 
-    def recreate_df():
+    def recreate_df() -> pd.DataFrame:
         df_new = pd.DataFrame([admin_defaults])
         df_new.to_csv(USERS_PATH, index=False)
         return df_new
@@ -684,7 +677,7 @@ def load_user_db():
     df.to_csv(USERS_PATH, index=False)
     return df
 
-def save_user_db(df_users):
+def save_user_db(df_users: pd.DataFrame):
     for col in REQUIRED_USER_COLUMNS:
         if col not in df_users.columns:
             df_users[col] = ""
@@ -706,23 +699,23 @@ def is_password_expired(row) -> bool:
 # FUNÇÕES AUXILIARES COMUNS
 # =========================
 @st.cache_data
-def carregar_base():
+def carregar_base() -> Optional[pd.DataFrame]:
     try:
-        return pd.read_excel("Base De Clientes Faturamento.xlsx")
+        return pd.read_excel(resource_path("Base De Clientes Faturamento.xlsx"))
     except FileNotFoundError:
         return None
 
-def formatar_moeda(valor):
+def formatar_moeda(valor: float) -> str:
     return f"R${valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-def moeda_para_float(valor_str):
+def moeda_para_float(valor_str) -> float:
     if isinstance(valor_str, (int, float)):
         return float(valor_str)
     if isinstance(valor_str, str):
         valor_str = valor_str.replace("R$", "").replace(".", "").replace(",", ".").strip()
         try:
             return float(valor_str)
-        except:
+        except Exception:
             return 0.0
     return 0.0
 
@@ -737,7 +730,7 @@ def calcular_cenario_comparativo(cliente, placa, entrada, saida, feriados, servi
     sla_dias = sla_dict.get(servico, 0)
     excedente = max(0, dias_uteis - sla_dias)
     desconto = (mensalidade / 30) * excedente if excedente > 0 else 0
-    total_pecas = sum(float(p["valor"]) for p in pecas)
+    total_pecas = sum(float(p["valor"]) for p in pecas) if isinstance(pecas, list) else 0.0
     total_final = (mensalidade - desconto) + total_pecas
     return {
         "Cliente": cliente, "Placa": placa,
@@ -752,7 +745,7 @@ def calcular_cenario_comparativo(cliente, placa, entrada, saida, feriados, servi
         "Detalhe Peças": pecas
     }
 
-def gerar_pdf_comparativo(df_cenarios, melhor_cenario):
+def gerar_pdf_comparativo(df_cenarios: pd.DataFrame, melhor_cenario: dict):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=30, rightMargin=30, topMargin=30, bottomMargin=30)
     elementos, styles = [], getSampleStyleSheet()
@@ -854,9 +847,12 @@ def renderizar_sidebar():
     with st.sidebar:
         st.markdown("<div class='sidebar-center'>", unsafe_allow_html=True)
         try:
-            st.image("logo_sidebar.png", width=100)
+            st.image(resource_path("logo_sidebar.png"), width=100)
         except Exception:
-            pass
+            try:
+                st.image(resource_path("logo.png"), width=100)
+            except Exception:
+                pass
         st.header("Menu de Navegação")
 
         if user_is_admin():
@@ -877,7 +873,11 @@ def renderizar_sidebar():
 if "tela" not in st.session_state:
     st.session_state.tela = "login"
 
-aplicar_estilos()
+# Aplica tema + background extra (aplicar_estilos usa imagens locais via resource_path)
+try:
+    aplicar_estilos()
+except Exception:
+    pass
 
 # Token reset via URL
 qp = get_query_params()
@@ -890,6 +890,12 @@ if incoming_token and not st.session_state.get("ignore_reset_qp"):
 # TELAS
 # =========================
 if st.session_state.tela == "login":
+    # Exibe logo (se existir) acima do título
+    try:
+        show_logo(resource_path("logo.png"), width=140)
+    except Exception:
+        pass
+
     st.markdown('<h1 class="login-title">Frotas Vamos SLA</h1>', unsafe_allow_html=True)
     st.markdown('<div class="login-subtitle">Acesso restrito | Soluções inteligentes para frotas</div>', unsafe_allow_html=True)
 
@@ -1764,3 +1770,5 @@ else:
                             st.warning("Nenhuma peça foi selecionada.")
 
     st.markdown("</div>", unsafe_allow_html=True)
+
+# Fim do arquivo
