@@ -790,7 +790,10 @@ elif st.session_state.tela == "register":
                 save_user_db(df)
                 st.success("✅ Cadastro enviado! Aguarde aprovação do administrador para acessar o sistema.")
 
+# === Substituir por este bloco (forgot_password -> reset_password) ===
+
 elif st.session_state.tela == "forgot_password":
+    aplicar_estilos_app()
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     st.title("🔐 Esqueci minha senha")
     st.write("Informe seu e-mail cadastrado para enviar um link de redefinição de senha (válido por 30 minutos).")
@@ -798,7 +801,8 @@ elif st.session_state.tela == "forgot_password":
     colb1, colb2 = st.columns(2)
     enviar = colb1.button("Enviar link", type="primary", use_container_width=True)
     if colb2.button("⬅️ Voltar ao login", use_container_width=True):
-        ir_para_login(); st.rerun()
+        ir_para_login()
+        safe_rerun()
 
     if enviar and email.strip():
         df = load_user_db()
@@ -824,7 +828,13 @@ elif st.session_state.tela == "forgot_password":
 
                 if send_reset_email(email.strip(), reset_link):
                     st.success("Enviamos um link para seu e-mail. Verifique sua caixa de entrada (e o SPAM).")
-                  elif st.session_state.tela == "reset_password":
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+# --- TELA DE RESETAR SENHA ---
+elif st.session_state.tela == "reset_password":
+    aplicar_estilos_app()
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     st.title("🔁 Redefinir senha")
     token = st.session_state.get("incoming_reset_token", "")
@@ -841,7 +851,7 @@ elif st.session_state.tela == "forgot_password":
         st.session_state.incoming_reset_token = ""
         clear_all_query_params()
         ir_para_login()
-        st.rerun()
+        safe_rerun()
 
     if confirmar:
         if not token.strip():
@@ -869,27 +879,26 @@ elif st.session_state.tela == "forgot_password":
                     ok, errs = validate_password_policy(new_pass, username=username, email=email)
                     if not ok:
                         st.error("Regras de senha não atendidas:\n- " + "\n- ".join(errs))
-                        st.stop()
+                    else:
+                        _same, _ = verify_password(df.loc[idx, "password"], new_pass)
+                        if _same:
+                            st.error("A nova senha não pode ser igual à senha atual.")
+                        else:
+                            df.loc[idx, "password"] = hash_password(new_pass)
+                            df.loc[idx, "reset_token"] = ""
+                            df.loc[idx, "reset_expires_at"] = ""
+                            df.loc[idx, "last_password_change"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                            df.loc[idx, "force_password_reset"] = ""
+                            save_user_db(df)
+                            st.success("Senha redefinida com sucesso! Faça login novamente.")
+                            if st.button("Ir para login", type="primary"):
+                                st.session_state.ignore_reset_qp = True
+                                st.session_state.incoming_reset_token = ""
+                                clear_all_query_params()
+                                ir_para_login()
+                                safe_rerun()
 
-                    _same, _ = verify_password(df.loc[idx, "password"], new_pass)
-                    if _same:
-                        st.error("A nova senha não pode ser igual à senha atual.")
-                        st.stop()
-
-                    df.loc[idx, "password"] = hash_password(new_pass)
-                    df.loc[idx, "reset_token"] = ""
-                    df.loc[idx, "reset_expires_at"] = ""
-                    df.loc[idx, "last_password_change"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-                    df.loc[idx, "force_password_reset"] = ""
-                    save_user_db(df)
-
-                    st.success("Senha redefinida com sucesso! Faça login novamente.")
-                    if st.button("Ir para login", type="primary"):
-                        st.session_state.ignore_reset_qp = True
-                        st.session_state.incoming_reset_token = ""
-                        clear_all_query_params()
-                        ir_para_login()
-                        st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
 
 elif st.session_state.tela == "force_change_password":
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
