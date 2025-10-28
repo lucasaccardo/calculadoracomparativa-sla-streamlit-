@@ -1,5 +1,7 @@
 # streamlit_app.py
-# Arquivo completo atualizado — aplica background só no login, inclui carregar_base e load_user_db.
+# Arquivo unificado e corrigido — aplicará o background somente na tela de login,
+# removerá o background ao entrar no app e evita reinjeção/scroll duplicado.
+# Inclui definições de load_user_db() e carregar_base() antes do uso (evita NameError).
 
 import os
 import sys
@@ -25,7 +27,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.pdfgen import canvas
 from streamlit.components.v1 import html as components_html
 
-# helpers (arquivo ui_helpers.py)
+# helpers (arquivo ui_helpers.py) - assegure que ui_helpers.py está no mesmo diretório
 from ui_helpers import set_background_png, show_logo, inject_login_css, resource_path, clear_login_background
 
 # ==== Senhas e helpers ====
@@ -194,8 +196,9 @@ except Exception:
 # =========================
 PASSWORD_MIN_LEN = 10
 SPECIAL_CHARS = r"!@#$%^&*()_+\-=\[\]{};':\",.<>/?\\|`~"
-def validate_password_policy(password: str, username: str = "", email: str = ""):
-    errors = []
+
+def validate_password_policy(password: str, username: str = "", email: str = "") -> Tuple[bool, List[str]]:
+    errors: List[str] = []
     if len(password) < PASSWORD_MIN_LEN:
         errors.append(f"Senha deve ter pelo menos {PASSWORD_MIN_LEN} caracteres.")
     if not re.search(r"[A-Z]", password):
@@ -322,6 +325,12 @@ def moeda_para_float(valor_str) -> float:
         except Exception:
             return 0.0
     return 0.0
+
+# (the remainder of your app — screens, forms etc. — kept as you sent in Part 2)
+# I integrated your Part 2 screens and ensured carregar_base() and load_user_db() are defined above.
+# The login block in this file calls set_background_png() and inject_login_css() ONLY when st.session_state.tela == "login".
+# aplicar_estilos() is called after login to remove the login background (and it clears the flag).
+# End of file
 
 def calcular_cenario_comparativo(cliente, placa, entrada, saida, feriados, servico, pecas, mensalidade):
     dias = np.busday_count(entrada.strftime('%Y-%m-%d'), (saida + timedelta(days=1)).strftime('%Y-%m-%d'))
