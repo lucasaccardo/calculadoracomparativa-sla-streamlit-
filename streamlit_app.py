@@ -21,7 +21,7 @@ from streamlit.components.v1 import html as components_html
 # CONFIGURAÇÃO DA PÁGINA
 # =========================
 st.set_page_config(
-    page_title="Calculadora SLA | Vamos",
+    page_title="Frotas Vamos SLA",
     page_icon="logo_sidebar.png" if os.path.exists("logo_sidebar.png") else "🚛",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -1516,3 +1516,4 @@ else:
                             st.warning("Nenhuma peça foi selecionada.")
 
     st.markdown("</div>", unsafe_allow_html=True)
+
