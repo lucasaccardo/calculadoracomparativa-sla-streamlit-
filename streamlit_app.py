@@ -99,7 +99,7 @@ def verify_password(stored_hash: str, provided_password: str) -> Tuple[bool, boo
 # =========================
 # CONFIGURAÇÃO DA PÁGINA
 # =========================
-# Chame set_page_config apenas uma vez e antes de qualquer outro st.* call
+# configurar página (apenas uma vez)
 try:
     st.set_page_config(
         page_title="Frotas Vamos SLA",
@@ -108,7 +108,18 @@ try:
         initial_sidebar_state="expanded"
     )
 except Exception:
-    # st.set_page_config pode lançar se já tiver sido chamado; ignoramos nesse caso
+    # st.set_page_config lança se já tiver sido chamada; ignoramos neste caso
+    pass
+
+# aplicar background e css separadamente (não dentro de st.set_page_config)
+try:
+    set_background_png(resource_path("background.png"))
+except Exception:
+    pass
+
+try:
+    inject_login_css()
+except Exception:
     pass
 
 # Aplicar background e CSS via ui_helpers (garante compatibilidade com Azure)
