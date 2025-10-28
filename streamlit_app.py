@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import streamlit as st
+from ui_helpers import set_background_png, show_logo, inject_login_css, resource_path
 from datetime import datetime, timedelta
 from io import BytesIO
 from passlib.context import CryptContext
@@ -85,7 +87,10 @@ def verify_password(stored_hash: str, provided_password: str) -> tuple[bool, boo
 # CONFIGURAÇÃO DA PÁGINA
 # =========================
 st.set_page_config(
-    page_title="Calculadora SLA | Vamos",
+    # Exemplo: no início da função main() ou logo após set_page_config
+    set_background_png(resource_path("background.png"))
+    inject_login_css()
+    page_title="Frotas Vamos SLA",
     page_icon="logo_sidebar.png" if os.path.exists("logo_sidebar.png") else "🚛",
     layout="wide",
     initial_sidebar_state="expanded"
