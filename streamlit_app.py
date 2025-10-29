@@ -687,8 +687,8 @@ if st.session_state.tela == "login":
     .login-wrapper { width:100%; max-width:920px; margin:0 auto; box-sizing:border-box; display:flex; align-items:center; justify-content:center; padding:24px 0; }
     
     /* <<< MUDANÇA 1: CARD DIMINUÍDO >>> */
-    .login-card { width:80px; max-width:calc(100% - 48px); padding: 24px 22px 22px 22px; border-radius:12px; background: rgba(6,8,12,0.88); box-shadow:0 18px 40px rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.04); color:#E5E7EB; position:relative; z-index:2; }
-    
+    /* <<< MUDANÇA: CARD DIMINUÍDO BASTANTE >>> */
+    .login-card { width:320px; max-width:calc(100% - 48px); padding: 24px 22px; border-radius:12px; background: rgba(6,8,12,0.88); box-shadow:0 18px 40px rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.04); color:#E5E7EB; position:relative; z-index:2; }    
     .brand-title { text-align:center; font-weight:700; font-size:22px; color:#E5E7EB; margin-bottom:6px; }
     .brand-subtitle { text-align:center; color: rgba(255,255,255,0.78); font-size:13px; margin-bottom:14px; }
 
