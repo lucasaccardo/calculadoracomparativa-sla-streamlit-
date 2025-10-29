@@ -57,10 +57,11 @@ def resource_path(filename: str) -> str:
 # ---------------------------
 # Login background helpers
 # ---------------------------
+# Substitua a função set_login_background atual por esta versão (mais simples e segura)
 def set_login_background(png_path: str):
     """
-    Inject login background using base64. Adds an identifiable style tag 'login-bg-style'.
-    Returns True if injected, False otherwise.
+    Simples e segura: aplica background diretamente na camada principal do app,
+    evita pseudo-elementos que podem causar problemas de layout/scroll.
     """
     try:
         path = png_path if os.path.isabs(png_path) else resource_path(png_path)
@@ -68,33 +69,64 @@ def set_login_background(png_path: str):
             return False
         with open(path, "rb") as f:
             b64 = base64.b64encode(f.read()).decode()
+        # Aplica o background apenas na camada do app (não altera sidebar container)
         css = f"""
         <style id="login-bg-style">
-        html, body, .stApp {{
-            background: transparent !important;
+        /* Background aplicado apenas ao contêiner principal do Streamlit */
+        [data-testid="stAppViewContainer"] {{
+            background-image: url("data:image/png;base64,{b64}") !important;
+            background-size: cover !important;
+            background-position: center top !important;
+            background-repeat: no-repeat !important;
+            background-attachment: fixed !important;
         }}
-        html body::before {{
-            content: "";
-            position: fixed;
-            inset: 0;
-            z-index: -1;
-            background-image: url("data:image/png;base64,{b64}");
-            background-size: cover;
-            background-repeat: no-repeat;
-            background-position: center top;
-            opacity: 1;
-            pointer-events: none;
+        /* Garante que o conteúdo do login esteja visível e centralizado */
+        .login-wrapper {{
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            min-height:calc(100vh - 40px);
+            padding: 24px;
+            box-sizing: border-box;
         }}
+        .login-card {{
+            width: 480px;
+            max-width: calc(100% - 32px);
+            padding: 22px;
+            border-radius: 12px;
+            background: rgba(6,8,12,0.80);
+            box-shadow: 0 12px 36px rgba(0,0,0,0.45);
+            border: 1px solid rgba(255,255,255,0.04);
+            color: #E5E7EB;
+            z-index: 10;
+            position: relative;
+        }}
+        /* Small safeguard: do not touch sidebar container transform/width */
+        [data-testid="stSidebar"] {{}}
         </style>
         """
         st.markdown(css, unsafe_allow_html=True)
-        try:
-            st.session_state["login_bg_applied"] = True
-        except Exception:
-            pass
+        st.session_state["login_bg_applied"] = True
         return True
     except Exception:
         return False
+
+# Use esta função para remover o background (também mais simples)
+def clear_login_background():
+    try:
+        # Remove o estilo adicionando um CSS que sobrescreve a imagem de fundo do container
+        css = """
+        <style id="login-bg-clear">
+        [data-testid="stAppViewContainer"] { background-image: none !important; background: transparent !important; }
+        </style>
+        """
+        st.markdown(css, unsafe_allow_html=True)
+    except Exception:
+        pass
+    try:
+        st.session_state["login_bg_applied"] = False
+    except Exception:
+        pass
 
 def clear_login_background():
     """
@@ -747,12 +779,11 @@ if incoming_token and not st.session_state.get("ignore_reset_qp"):
 if st.session_state.tela == "login":
     # inject login-specific CSS (minimal; do not change sidebar container width/transform)
     st.markdown("""
-    <style id="login-card-style">
-    .login-wrapper { display:flex; align-items:center; justify-content:center; min-height:90vh; padding: 32px; }
-    .login-card { width: 480px; max-width: calc(100% - 32px); padding: 22px; border-radius: 12px; background: rgba(10,12,16,0.75); box-shadow: 0 12px 36px rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.04); color: #E5E7EB; }
+    <style id="login-card-minimal">
+    .login-wrapper { display:flex; align-items:center; justify-content:center; min-height:calc(100vh - 40px); padding: 24px; box-sizing: border-box; }
+    .login-card { width: 480px; max-width: calc(100% - 32px); padding: 22px; border-radius: 12px; background: rgba(6,8,12,0.80); box-shadow: 0 12px 36px rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.04); color: #E5E7EB; z-index: 10; position: relative; }
     .brand-title { text-align:center; font-weight:700; font-size:20px; color:#E5E7EB; margin-bottom:4px; }
-    .brand-subtitle { text-align:center; color: rgba(255,255,255,0.7); font-size:13px; margin-bottom:14px;}
-    .login-links { display:flex; gap:12px; justify-content:center; margin-top:14px; }
+    .brand-subtitle { text-align:center; color: rgba(255,255,255,0.75); font-size:13px; margin-bottom:14px;}
     </style>
     """, unsafe_allow_html=True)
 
