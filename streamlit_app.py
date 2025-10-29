@@ -712,8 +712,7 @@ if st.session_state.tela == "login":
 
     # wrapper e card — sem quebras extras que empurrem o conteúdo
     st.markdown('<div class="login-wrapper">', unsafe_allow_html=True)
-    st.markdown('<div class="login-card">', unsafe_allow_html=True)
-
+    
     # <<< MUDANÇA 3: LOGO MOVIDO PARA DENTRO DO CARD E CENTRALIZADO >>>
     st.markdown("<div style='text-align: center; margin-bottom: 12px;'>", unsafe_allow_html=True)
     show_logo_file("logo.png", width=140)
