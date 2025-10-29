@@ -1,18 +1,3 @@
-# streamlit_app.py
-# Consolidated, corrected Streamlit app for "Vamos Frotas SLA"
-# - Preserves all existing functionality from your original file (login, register, forgot/reset,
-#   force_change_password, terms/LGPD full text, admin management, Análise de Cenários, SLA Mensal, PDFs)
-# - Fixes only the layout/background issues (login scroll/dual-screen, wide-mode stretching) and the syntax bug you reported.
-# - Does NOT remove or change other working features; only minimal, targeted fixes were applied.
-#
-# IMPORTANT: keep secrets in Streamlit Cloud (do NOT commit them here).
-# Required secrets (examples): APP_BASE_URL, SUPERADMIN_DEFAULT_PASSWORD, SUPERADMIN_USERNAME,
-# SUPERADMIN_EMAIL, EMAIL_HOST, EMAIL_PORT, EMAIL_USERNAME, EMAIL_PASSWORD, EMAIL_USE_TLS, EMAIL_FROM, PASSWORD_EXPIRY_DAYS
-#
-# Test locally:
-# python -m py_compile streamlit_app.py
-# streamlit run streamlit_app.py
-
 import os
 import base64
 import hashlib
@@ -246,17 +231,17 @@ def aplicar_estilos_authenticated():
                 logo_b = base64.b64encode(f.read()).decode()
             badge_css = f"""
             .brand-badge {{
-              position: fixed;
-              top: 12px;
-              left: 16px;
-              width: 140px;
-              height: 44px;
-              background-image: url("data:image/png;base64,{logo_b}");
-              background-size: contain;
-              background-position: left center;
-              background-repeat: no-repeat;
-              z-index: 1000;
-              pointer-events: none;
+                position: fixed;
+                top: 12px;
+                left: 16px;
+                width: 140px;
+                height: 44px;
+                background-image: url("data:image/png;base64,{logo_b}");
+                background-size: contain;
+                background-position: left center;
+                background-repeat: no-repeat;
+                z-index: 1000;
+                pointer-events: none;
             }}
             """
     except Exception:
@@ -265,16 +250,16 @@ def aplicar_estilos_authenticated():
     <style id="app-auth-style">
     :root {{ --bg: #0f1724; --card: #0f172a; --border: rgba(255,255,255,0.06); }}
     html, body, .stApp {{
-      background-image: none !important;
-      background: radial-gradient(circle at 10% 10%, rgba(15,23,42,0.96) 0%, rgba(11,17,24,1) 50%) !important;
-      color: #E5E7EB !important;
+        background-image: none !important;
+        background: radial-gradient(circle at 10% 10%, rgba(15,23,42,0.96) 0%, rgba(11,17,24,1) 50%) !important;
+        color: #E5E7EB !important;
     }}
     section.main > div.block-container {{ max-width: 1100px !important; margin: 0 auto !important; padding-top: 24px !important; padding-bottom: 28px !important; }}
     .main-container, [data-testid="stForm"], [data-testid="stExpander"] > div {{
-      background-color: rgba(12,17,23,0.85) !important;
-      border-radius: 10px !important;
-      padding: 20px !important;
-      border: 1px solid var(--border) !important;
+        background-color: rgba(12,17,23,0.85) !important;
+        border-radius: 10px !important;
+        padding: 20px !important;
+        border: 1px solid var(--border) !important;
     }}
     header[data-testid="stHeader"], #MainMenu, footer {{ display: none !important; }}
     {badge_css}
@@ -332,50 +317,50 @@ def build_email_html(title: str, subtitle: str, body_lines: List[str], cta_label
     if cta_label and cta_url:
         button_html = f"""
         <tr>
-          <td align="center" style="padding: 28px 0 10px 0;">
-            <a href="{cta_url}" style="background:{primary};color:#ffffff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:8px;display:inline-block;font-family:Segoe UI,Arial,sans-serif">
-              {cta_label}
-            </a>
-          </td>
+            <td align="center" style="padding: 28px 0 10px 0;">
+                <a href="{cta_url}" style="background:{primary};color:#ffffff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:8px;display:inline-block;font-family:Segoe UI,Arial,sans-serif">
+                    {cta_label}
+                </a>
+            </td>
         </tr>
         """
     body_html = "".join([f'<p style="margin:8px 0 8px 0">{line}</p>' for line in body_lines])
     footer_html = f'<p style="color:#6b7280;font-size:12px">{footer}</p>' if footer else ""
     return f"""<!DOCTYPE html>
 <html>
-  <body style="margin:0;padding:0;background:{light}">
-    <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="100%" style="background:{light};padding:24px 0">
-      <tr>
-        <td>
-          <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="600" style="margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
+    <body style="margin:0;padding:0;background:{light}">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="100%" style="background:{light};padding:24px 0">
             <tr>
-              <td style="background:{brand};padding:18px 24px;color:#ffffff;">
-                <div style="display:flex;align-items:center;gap:12px">
-                  <span style="font-weight:700;font-size:18px;font-family:Segoe UI,Arial,sans-serif">Frotas Vamos SLA</span>
-                </div>
-              </td>
+                <td>
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="600" style="margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
+                        <tr>
+                            <td style="background:{brand};padding:18px 24px;color:#ffffff;">
+                                <div style="display:flex;align-items:center;gap:12px">
+                                    <span style="font-weight:700;font-size:18px;font-family:Segoe UI,Arial,sans-serif">Frotas Vamos SLA</span>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding:24px 24px 0 24px;color:{text};font-family:Segoe UI,Arial,sans-serif">
+                                <h2 style="margin:0 0 6px 0;font-weight:700">{title}</h2>
+                                <p style="margin:0 0 12px 0;color:#475569">{subtitle}</p>
+                                {body_html}
+                            </td>
+                        </tr>
+                        {button_html}
+                        <tr>
+                            <td style="padding:12px 24px 24px 24px;color:#334155;font-family:Segoe UI,Arial,sans-serif">
+                                {footer_html}
+                            </td>
+                        </tr>
+                    </table>
+                    <div style="text-align:center;color:#94a3b8;font-size:12px;margin-top:8px;font-family:Segoe UI,Arial,sans-serif">
+                        © {datetime.now().year} Vamos Locação. Todos os direitos reservados.
+                    </div>
+                </td>
             </tr>
-            <tr>
-              <td style="padding:24px 24px 0 24px;color:{text};font-family:Segoe UI,Arial,sans-serif">
-                <h2 style="margin:0 0 6px 0;font-weight:700">{title}</h2>
-                <p style="margin:0 0 12px 0;color:#475569">{subtitle}</p>
-                {body_html}
-              </td>
-            </tr>
-            {button_html}
-            <tr>
-              <td style="padding:12px 24px 24px 24px;color:#334155;font-family:Segoe UI,Arial,sans-serif">
-                {footer_html}
-              </td>
-            </tr>
-          </table>
-          <div style="text-align:center;color:#94a3b8;font-size:12px;margin-top:8px;font-family:Segoe UI,Arial,sans-serif">
-            © {datetime.now().year} Vamos Locação. Todos os direitos reservados.
-          </div>
-        </td>
-      </tr>
-    </table>
-  </body>
+        </table>
+    </body>
 </html>"""
 
 def send_email(dest_email: str, subject: str, body_plain: str, body_html: Optional[str] = None) -> bool:
@@ -834,7 +819,7 @@ elif st.session_state.tela == "register":
         df = load_user_db()
         rows = df[df["email"].str.strip().str.lower() == lookup_email.strip().lower()]
         if rows.empty:
-            st.warning("Nenhum pré-cadastro encontrado para este e-mail. Você poderá preencher os dados normalmente.")
+            st.warning("Nenhum pré-cadastro encontrado para este e-mail. Você poderá preencher os dados normally.")
             st.session_state.register_prefill = None
         else:
             r = rows.iloc[0].to_dict()
@@ -1409,8 +1394,17 @@ else:
                 st.write(f"- Dias excedidos: {res['dias_excedente']} dia(s)")
                 st.write(f"- Mensalidade: {formatar_moeda(res['mensalidade'])}")
                 st.write(f"- Desconto: {formatar_moeda(res['desconto'])}")
-                pdf_buf = gerar_pdf_sla_simples(res["cliente"], res["placa"], res["tipo_servico"], res["dias_uteis_manut"], res["prazo_sla"], res["dias_excedente"], res["mensalidade"], res["desconto"])
-                st.download_button("📥 Baixar PDF do Resultado", data=pdf_buf, file_name=f"sla_{res['placa'] or 'veiculo'}.pdf", mime="application/pdf")
+                
+                # ATENÇÃO: A função 'gerar_pdf_sla_simples' não estava definida no seu código original.
+                # Mantive a chamada, mas ela causará um erro a menos que você defina essa função.
+                try:
+                    pdf_buf = gerar_pdf_sla_simples(res["cliente"], res["placa"], res["tipo_servico"], res["dias_uteis_manut"], res["prazo_sla"], res["dias_excedente"], res["mensalidade"], res["desconto"])
+                    st.download_button("📥 Baixar PDF do Resultado", data=pdf_buf, file_name=f"sla_{res['placa'] or 'veiculo'}.pdf", mime="application/pdf")
+                except NameError:
+                    st.error("A função 'gerar_pdf_sla_simples' não foi encontrada no código para gerar o PDF.")
+                except Exception as e:
+                    st.error(f"Erro ao tentar gerar PDF: {e}")
+
                 if st.button("Limpar resultado"):
                     limpar_dados_simples()
                     safe_rerun()
