@@ -21,6 +21,12 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.pdfgen import canvas
 from streamlit.components.v1 import html as components_html
 
+st.markdown("""
+<style>
+header[data-testid="stHeader"] {display: none !important;}
+</style>
+""", unsafe_allow_html=True)
+
 # =========================
 # Resource helpers
 # =========================
