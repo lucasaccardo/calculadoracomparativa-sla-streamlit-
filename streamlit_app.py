@@ -1,3 +1,18 @@
+# Full consolidated streamlit_app.py — complete version (merged, fixed)
+# - Preserves all original functionality sent by the user (login, register, forgot/reset,
+#   force_change_password, terms/LGPD full text, admin, Análise de Cenários, SLA Mensal, PDFs)
+# - Fixes: login background applied only to .login-wrapper::before, single clear_login_background,
+#   safe_rerun wrapper (st.experimental_rerun), protections (pecas None), resource_path, users.csv fallback,
+#   no secrets in file (read from st.secrets)
+#
+# IMPORTANT: Do NOT commit secrets. Put them in Streamlit Cloud secrets.
+# Required secrets: APP_BASE_URL, SUPERADMIN_DEFAULT_PASSWORD, SUPERADMIN_USERNAME, SUPERADMIN_EMAIL,
+# EMAIL_HOST, EMAIL_PORT, EMAIL_USERNAME, EMAIL_PASSWORD, EMAIL_USE_TLS, EMAIL_FROM, PASSWORD_EXPIRY_DAYS
+#
+# Test locally:
+# python -m py_compile streamlit_app.py
+# streamlit run streamlit_app.py
+
 import os
 import base64
 import hashlib
@@ -51,7 +66,7 @@ def set_login_background(png_path: str):
             b64 = base64.b64encode(f.read()).decode()
         css = f"""
         <style id="login-bg-style">
-        .login-wrapper {{ position: relative; z-index: 0; min-height: 100vh; }}
+        .login-wrapper {{ position: relative; z-index: 0; min-height: 72vh; }}
         .login-wrapper::before {{
             content: "";
             position: fixed;
@@ -655,7 +670,7 @@ if incoming_token and not st.session_state.get("ignore_reset_qp"):
 if st.session_state.tela == "login":
     st.markdown("""
     <style id="login-card-minimal">
-    .login-wrapper { display:flex; align-items:center; justify-content:center; min-height:100vh; padding: 28px; box-sizing: border-box; }
+    .login-wrapper { display:flex; align-items:center; justify-content:center; min-height:72vh; padding: 28px; box-sizing: border-box; }
     .login-card { width: 480px; max-width: calc(100% - 48px); padding: 22px; border-radius: 12px; background: rgba(6,8,12,0.86); box-shadow: 0 18px 40px rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.04); color: #E5E7EB; position: relative; z-index: 2; }
     .brand-title { text-align:center; font-weight:700; font-size:22px; color:#E5E7EB; margin-bottom:6px; }
     .brand-subtitle { text-align:center; color: rgba(255,255,255,0.78); font-size:13px; margin-bottom:14px; }
@@ -669,6 +684,7 @@ if st.session_state.tela == "login":
     with cols_top[1]:
         show_logo_file(resource_path("logo.png"), width=140)
 
+    st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('<div class="login-wrapper">', unsafe_allow_html=True)
     st.markdown('<div class="login-card">', unsafe_allow_html=True)
 
@@ -1179,24 +1195,8 @@ else:
                 st.write(f"- Dias excedidos: {res['dias_excedente']} dia(s)")
                 st.write(f"- Mensalidade: {formatar_moeda(res['mensalidade'])}")
                 st.write(f"- Desconto: {formatar_moeda(res['desconto'])}")
-
-                pdf_buf = gerar_pdf_sla_simples(
-                    res["cliente"],
-                    res["placa"],
-                    res["tipo_servico"],
-                    res["dias_uteis_manut"],
-                    res["prazo_sla"],
-                    res["dias_excedente"],
-                    res["mensalidade"],
-                    res["desconto"]
-                )
-                st.download_button(
-                    "📥 Baixar PDF do Resultado",
-                    data=pdf_buf,
-                    file_name=f"sla_{res['placa'] or 'veiculo'}.pdf",
-                    mime="application/pdf"
-                )
-
+                pdf_buf = gerar_pdf_sla_simples(res["cliente"], res["placa"], res["tipo_servico"], res["dias_uteis_manut"], res["prazo_sla"], res["dias_excedente"], res["mensalidade"], res["desconto"])
+                st.download_button("📥 Baixar PDF do Resultado", data=pdf_buf, file_name=f"sla_{res['placa'] or 'veiculo'}.pdf", mime="application/pdf")
                 if st.button("Limpar resultado"):
                     limpar_dados_simples()
                     safe_rerun()
