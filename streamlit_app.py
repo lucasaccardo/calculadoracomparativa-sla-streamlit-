@@ -51,7 +51,7 @@ def set_login_background(png_path: str):
         with open(path, "rb") as f:
             b64 = base64.b64encode(f.read()).decode()
 
-        # <<< CORREÇÃO 1: CSS SIMPLIFICADO AQUI >>>
+        # <<< CORREÇÃO 1: CSS SIMPLIFICADO AQUI (REMOVIDO CONFLITO) >>>
         css = f"""
         <style id="login-bg-fixed">
         /* Reset possible app backgrounds and remove extra margins */
@@ -100,14 +100,12 @@ def clear_login_background():
     except Exception:
         pass
 
-# <<< CORREÇÃO 2: FUNÇÃO show_logo_file ALTERADA >>>
+# <<< CORREÇÃO 2: FUNÇÃO REVERTIDA PARA ORIGINAL (FUNCIONAVA) >>>
 def show_logo_file(path: str, width: int = 140):
     try:
         p = path if os.path.isabs(path) else resource_path(path)
         if os.path.exists(p):
-            # Correção: Ler o arquivo como bytes e passar os bytes para st.image
-            with open(p, "rb") as f:
-                st.image(f.read(), width=width)
+            st.image(p, width=width)
             return True
     except Exception:
         pass
