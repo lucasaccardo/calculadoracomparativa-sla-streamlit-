@@ -51,35 +51,11 @@ def set_login_background(png_path: str):
         with open(path, "rb") as f:
             b64 = base64.b64encode(f.read()).decode()
 
+        # <<< CORREÇÃO 1: CSS SIMPLIFICADO AQUI >>>
         css = f"""
         <style id="login-bg-fixed">
         /* Reset possible app backgrounds and remove extra margins */
         html, body, .stApp {{ background: transparent !important; margin:0; padding:0; height:100%; }}
-
-        /* Constrain the main container so Wide mode doesn't stretch vertically */
-        section.main > div.block-container {{
-            max-width: 1100px !important;
-            margin: 0 auto !important;
-            padding: 0 20px !important;
-            min-height: 100vh !important;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-sizing: border-box;
-        }}
-
-        /* The login wrapper is the flex child centered vertically; it does NOT add height */
-        .login-wrapper {{
-            width: 100%;
-            max-width: 920px;
-            box-sizing: border-box;
-            position: relative;
-            z-index: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 24px 0;
-        }}
 
         /* Fixed pseudo-element background (doesn't influence layout/height) */
         .login-wrapper::before {{
@@ -95,19 +71,10 @@ def set_login_background(png_path: str):
             transform: translateZ(0);
             opacity: 1;
         }}
-
-        /* Login card sits above background */
-        .login-card {{
-            position: relative;
-            z-index: 2;
-            width: 520px;
-            max-width: calc(100% - 48px);
-        }}
-
-        /* Keep sidebar untouched so the collapse/close X keeps working */
-        [data-testid="stSidebar"] {{ position: relative; z-index: 9999; }}
         </style>
         """
+        # <<< FIM DA CORREÇÃO 1 >>>
+
         st.markdown(css, unsafe_allow_html=True)
         st.session_state["login_bg_applied"] = True
         return True
@@ -133,15 +100,19 @@ def clear_login_background():
     except Exception:
         pass
 
+# <<< CORREÇÃO 2: FUNÇÃO show_logo_file ALTERADA >>>
 def show_logo_file(path: str, width: int = 140):
     try:
         p = path if os.path.isabs(path) else resource_path(path)
         if os.path.exists(p):
-            st.image(p, width=width)
+            # Correção: Ler o arquivo como bytes e passar os bytes para st.image
+            with open(p, "rb") as f:
+                st.image(f.read(), width=width)
             return True
     except Exception:
         pass
     return False
+# <<< FIM DA CORREÇÃO 2 >>>
 
 # =========================
 # Utilities & password helpers
@@ -1394,7 +1365,7 @@ else:
                 st.write(f"- Dias excedidos: {res['dias_excedente']} dia(s)")
                 st.write(f"- Mensalidade: {formatar_moeda(res['mensalidade'])}")
                 st.write(f"- Desconto: {formatar_moeda(res['desconto'])}")
-                
+
                 # ATENÇÃO: A função 'gerar_pdf_sla_simples' não estava definida no seu código original.
                 # Mantive a chamada, mas ela causará um erro a menos que você defina essa função.
                 try:
