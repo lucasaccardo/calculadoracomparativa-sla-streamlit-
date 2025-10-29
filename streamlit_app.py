@@ -56,9 +56,8 @@ def resource_path(filename: str) -> str:
 # =========================
 def set_login_background(png_path: str):
     """
-    Apply background only to the .login-wrapper via ::before pseudo-element (fixed),
-    avoid layout shifts and preserve sidebar behavior. Also constrain main container width
-    so Wide mode does not stretch the UI.
+    Background for login only: fixed pseudo-element + force block-container to behave as viewport
+    so the login is centered and there is no extra scroll/duplicated view.
     """
     try:
         path = png_path if os.path.isabs(png_path) else resource_path(png_path)
@@ -68,26 +67,36 @@ def set_login_background(png_path: str):
             b64 = base64.b64encode(f.read()).decode()
 
         css = f"""
-        <style id="login-bg-style">
-        /* Ensure app background is transparent so our fixed pseudo-element shows correctly */
-        html, body, .stApp {{ background: transparent !important; }}
+        <style id="login-bg-fixed">
+        /* Reset possible app backgrounds and remove extra margins */
+        html, body, .stApp {{ background: transparent !important; margin:0; padding:0; height:100%; }}
 
-        /* Limit main container width even in Wide mode to avoid stretched layout */
-        section.main > div.block-container {{ max-width: 920px !important; margin: 0 auto !important; padding-top: 28px !important; }}
-
-        /* Wrapper occupies viewport and centers content without affecting document flow */
-        .login-wrapper {{
-            position: relative;
-            z-index: 0;
-            min-height: calc(100vh - 20px);
+        /* Constrain the main container so Wide mode doesn't stretch vertically */
+        section.main > div.block-container {{
+            max-width: 1100px !important;
+            margin: 0 auto !important;
+            padding: 0 20px !important;
+            min-height: 100vh !important;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
             box-sizing: border-box;
         }}
 
-        /* Fixed pseudo-element background so it doesn't push content or create extra height */
+        /* The login wrapper is the flex child centered vertically; it does NOT add height */
+        .login-wrapper {{
+            width: 100%;
+            max-width: 920px;
+            box-sizing: border-box;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 0;
+        }}
+
+        /* Fixed pseudo-element background (doesn't influence layout/height) */
         .login-wrapper::before {{
             content: "";
             position: fixed;
@@ -102,7 +111,7 @@ def set_login_background(png_path: str):
             opacity: 1;
         }}
 
-        /* Keep login card above background */
+        /* Login card sits above background */
         .login-card {{
             position: relative;
             z-index: 2;
@@ -110,7 +119,7 @@ def set_login_background(png_path: str):
             max-width: calc(100% - 48px);
         }}
 
-        /* Do not alter sidebar positioning - preserve collapse X */
+        /* Keep sidebar untouched so the collapse/close X keeps working */
         [data-testid="stSidebar"] {{ position: relative; z-index: 9999; }}
         </style>
         """
@@ -714,37 +723,49 @@ if incoming_token and not st.session_state.get("ignore_reset_qp"):
 # SCREENS
 # =========================
 if st.session_state.tela == "login":
-    # Inject safe login CSS (compatible with Wide mode)
+    # CSS seguro para a tela de login (não empurra o layout, funciona com Wide mode)
     st.markdown("""
     <style id="login-card-safe">
-    .login-wrapper { min-height:calc(100vh - 20px); display:flex; align-items:center; justify-content:center; padding:24px; box-sizing:border-box; }
+    /* Limita a largura do container principal mesmo em Wide mode */
+    section.main > div.block-container { max-width: 920px !important; margin: 0 auto !important; padding-top: 0 !important; padding-bottom: 0 !important; }
+
+    /* Wrapper e card visual — centraliza verticalmente sem criar altura extra */
+    .login-wrapper { width:100%; max-width:920px; margin:0 auto; box-sizing:border-box; display:flex; align-items:center; justify-content:center; padding:24px 0; }
     .login-card { width:520px; max-width:calc(100% - 48px); padding:22px; border-radius:12px; background: rgba(6,8,12,0.88); box-shadow:0 18px 40px rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.04); color:#E5E7EB; position:relative; z-index:2; }
     .brand-title { text-align:center; font-weight:700; font-size:22px; color:#E5E7EB; margin-bottom:6px; }
     .brand-subtitle { text-align:center; color: rgba(255,255,255,0.78); font-size:13px; margin-bottom:14px; }
-    section.main > div.block-container { max-width: 920px !important; margin: 0 auto !important; }
+
+    /* Garante que o app view não tenha outro background que empurre o conteúdo */
+    html, body, .stApp { background: transparent !important; margin: 0; padding: 0; height: 100%; }
+
+    /* Mantém o sidebar intacto (preserva o X de fechar) */
+    [data-testid="stSidebar"] { position: relative; z-index: 9999; }
     </style>
     """, unsafe_allow_html=True)
 
+    # Aplica background do login (usa pseudo-element ::before — definido em set_login_background)
     if not st.session_state.get("login_bg_applied"):
         set_login_background(resource_path("background.png"))
 
-    # show logo above card (center column)
+    # Logo centralizado acima do card
     cols_top = st.columns([1, 2, 1])
     with cols_top[1]:
         show_logo_file(resource_path("logo.png"), width=140)
 
-    # NOTE: removed any extra st.markdown("<br>") here to avoid pushing the card down
+    # wrapper e card — sem quebras extras que empurrem o conteúdo
     st.markdown('<div class="login-wrapper">', unsafe_allow_html=True)
     st.markdown('<div class="login-card">', unsafe_allow_html=True)
 
     st.markdown("<div class='brand-title'>Frotas Vamos SLA</div>", unsafe_allow_html=True)
     st.markdown("<div class='brand-subtitle'>Acesso restrito | Soluções inteligentes para frotas</div>", unsafe_allow_html=True)
 
+    # Formulário de login
     with st.form("login_form"):
         username = st.text_input("Usuário", placeholder="Usuário", label_visibility="collapsed")
         password = st.text_input("Senha", type="password", placeholder="Senha", label_visibility="collapsed")
         submit_login = st.form_submit_button("Entrar", use_container_width=True)
 
+    # Ações auxiliares abaixo do form
     c1, c2 = st.columns(2)
     with c1:
         if st.button("Criar cadastro"):
@@ -753,9 +774,11 @@ if st.session_state.tela == "login":
         if st.button("Esqueci minha senha"):
             ir_para_forgot(); safe_rerun()
 
+    # Fecha card e wrapper
     st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
+    # Tratamento do submit
     if submit_login:
         df_users = load_user_db()
         user_data = df_users[df_users["username"] == username]
@@ -775,6 +798,7 @@ if st.session_state.tela == "login":
                         save_user_db(df_users)
                 except Exception:
                     pass
+
                 if row.get("status", "") != "aprovado":
                     st.warning("⏳ Seu cadastro ainda está pendente de aprovação pelo administrador.")
                 else:
