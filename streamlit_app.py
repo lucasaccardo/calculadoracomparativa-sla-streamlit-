@@ -730,12 +730,12 @@ if st.session_state.tela == "login":
 
     # Aplica background do login (usa pseudo-element ::before — definido em set_login_background)
     if not st.session_state.get("login_bg_applied"):
-        set_login_background(resource_path("background.png"))
+        set_login_background("background.png")
 
     # Logo centralizado acima do card
     cols_top = st.columns([1, 2, 1])
     with cols_top[1]:
-        show_logo_file(resource_path("logo.png"), width=140)
+        show_logo_file("logo.png", width=140)
 
     # wrapper e card — sem quebras extras que empurrem o conteúdo
     st.markdown('<div class="login-wrapper">', unsafe_allow_html=True)
