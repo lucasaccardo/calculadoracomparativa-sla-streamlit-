@@ -114,10 +114,19 @@ def show_logo_file(path: str, width: int = 140):
         p = path if os.path.isabs(path) else resource_path(path)
         if os.path.exists(p):
             st.image(p, width=width)
+            # Adiciona CSS para remover botão de expandir imagem do Streamlit
+            st.markdown("""
+            <style>
+            button[title="Expandir imagem"], button[title="Expand image"], button[aria-label="Expandir imagem"], button[aria-label="Expand image"] {
+                display: none !important;
+            }
+            </style>
+            """, unsafe_allow_html=True)
             return True
     except Exception:
         pass
     return False
+    
 # <<< FIM DA CORREÇÃO 2 >>>
 
 # =========================
