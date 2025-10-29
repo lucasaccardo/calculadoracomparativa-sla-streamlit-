@@ -1175,12 +1175,28 @@ else:
             else:
                 st.write(f"- Status: {res['status']}")
                 st.write(f"- Dias úteis da manutenção: {res['dias_uteis_manut']} dia(s)")
-                st.write(f("- Prazo SLA: {res['prazo_sla']} dia(s)")
+                st.write(f"- Prazo SLA: {res['prazo_sla']} dia(s)")
                 st.write(f"- Dias excedidos: {res['dias_excedente']} dia(s)")
                 st.write(f"- Mensalidade: {formatar_moeda(res['mensalidade'])}")
                 st.write(f"- Desconto: {formatar_moeda(res['desconto'])}")
-                pdf_buf = gerar_pdf_sla_simples(res["cliente"], res["placa"], res["tipo_servico"], res["dias_uteis_manut"], res["prazo_sla"], res["dias_excedente"], res["mensalidade"], res["desconto"])
-                st.download_button("📥 Baixar PDF do Resultado", data=pdf_buf, file_name=f"sla_{res['placa'] or 'veiculo'}.pdf", mime="application/pdf")
+
+                pdf_buf = gerar_pdf_sla_simples(
+                    res["cliente"],
+                    res["placa"],
+                    res["tipo_servico"],
+                    res["dias_uteis_manut"],
+                    res["prazo_sla"],
+                    res["dias_excedente"],
+                    res["mensalidade"],
+                    res["desconto"]
+                )
+                st.download_button(
+                    "📥 Baixar PDF do Resultado",
+                    data=pdf_buf,
+                    file_name=f"sla_{res['placa'] or 'veiculo'}.pdf",
+                    mime="application/pdf"
+                )
+
                 if st.button("Limpar resultado"):
                     limpar_dados_simples()
                     safe_rerun()
