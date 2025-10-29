@@ -28,15 +28,6 @@ footer {display: none !important;}
 #MainMenu {display: none !important;}
 </style>
 """, unsafe_allow_html=True)
-
-st.markdown("""
-<style>
-/* Remove o botão de expandir imagem do Streamlit */
-button[title="Expandir imagem"], button[title="Expand image"], button[aria-label="Expandir imagem"], button[aria-label="Expand image"] {
-    display: none !important;
-}
-</style>
-""", unsafe_allow_html=True)
 # =========================
 # Resource helpers
 # =========================
