@@ -24,6 +24,8 @@ from streamlit.components.v1 import html as components_html
 st.markdown("""
 <style>
 header[data-testid="stHeader"] {display: none !important;}
+footer {display: none !important;}
+#MainMenu {display: none !important;}
 </style>
 """, unsafe_allow_html=True)
 
