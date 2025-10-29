@@ -685,7 +685,10 @@ if st.session_state.tela == "login":
 
     /* Wrapper e card visual — centraliza verticalmente sem criar altura extra */
     .login-wrapper { width:100%; max-width:920px; margin:0 auto; box-sizing:border-box; display:flex; align-items:center; justify-content:center; padding:24px 0; }
-    .login-card { width:520px; max-width:calc(100% - 48px); padding:22px; border-radius:12px; background: rgba(6,8,12,0.88); box-shadow:0 18px 40px rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.04); color:#E5E7EB; position:relative; z-index:2; }
+    
+    /* <<< MUDANÇA 1: CARD DIMINUÍDO >>> */
+    .login-card { width:440px; max-width:calc(100% - 48px); padding: 28px 22px 22px 22px; border-radius:12px; background: rgba(6,8,12,0.88); box-shadow:0 18px 40px rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.04); color:#E5E7EB; position:relative; z-index:2; }
+    
     .brand-title { text-align:center; font-weight:700; font-size:22px; color:#E5E7EB; margin-bottom:6px; }
     .brand-subtitle { text-align:center; color: rgba(255,255,255,0.78); font-size:13px; margin-bottom:14px; }
 
@@ -701,15 +704,21 @@ if st.session_state.tela == "login":
     if not st.session_state.get("login_bg_applied"):
         set_login_background("background.png")
 
-    # Logo centralizado acima do card
-    cols_top = st.columns([1, 2, 1])
-    with cols_top[1]:
-        show_logo_file("logo.png", width=140)
+    # <<< MUDANÇA 2: LOGO REMOVIDO DE FORA DO CARD >>>
+    # Logo centralizado acima do card (REMOVIDO DAQUI)
+    # cols_top = st.columns([1, 2, 1])
+    # with cols_top[1]:
+    #     show_logo_file("logo.png", width=140)
 
     # wrapper e card — sem quebras extras que empurrem o conteúdo
     st.markdown('<div class="login-wrapper">', unsafe_allow_html=True)
     st.markdown('<div class="login-card">', unsafe_allow_html=True)
 
+    # <<< MUDANÇA 3: LOGO MOVIDO PARA DENTRO DO CARD E CENTRALIZADO >>>
+    st.markdown("<div style='text-align: center; margin-bottom: 12px;'>", unsafe_allow_html=True)
+    show_logo_file("logo.png", width=140)
+    st.markdown("</div>", unsafe_allow_html=True)
+    
     st.markdown("<div class='brand-title'>Frotas Vamos SLA</div>", unsafe_allow_html=True)
     st.markdown("<div class='brand-subtitle'>Acesso restrito | Soluções inteligentes para frotas</div>", unsafe_allow_html=True)
 
