@@ -1,3 +1,5 @@
+# <<< MUDANÇA 1: MOVIDO st.set_page_config PARA O TOPO >>>
+# <<< E REMOVIDO st.markdown que estava antes >>>
 import os
 import base64
 import hashlib
@@ -21,13 +23,6 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.pdfgen import canvas
 from streamlit.components.v1 import html as components_html
 
-st.markdown("""
-<style>
-header[data-testid="stHeader"] {display: none !important;}
-footer {display: none !important;}
-#MainMenu {display: none !important;}
-</style>
-""", unsafe_allow_html=True)
 # =========================
 # Resource helpers
 # =========================
@@ -41,6 +36,29 @@ def resource_path(filename: str) -> str:
     except Exception:
         base = os.getcwd()
     return os.path.join(base, filename)
+
+# =========================
+# Page config (MOVIDO PARA CÁ)
+# =========================
+try:
+    st.set_page_config(
+        page_title="Frotas Vamos SLA",
+        page_icon=resource_path("logo.png") if os.path.exists(resource_path("logo.png")) else "🚛",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+    # Esconde header/footer/menu padrão do Streamlit (mantido aqui)
+    st.markdown("""
+    <style>
+    header[data-testid="stHeader"] {display: none !important;}
+    footer {display: none !important;}
+    #MainMenu {display: none !important;}
+    </style>
+    """, unsafe_allow_html=True)
+except Exception:
+    pass
+# <<< FIM DA MUDANÇA 1 >>>
+
 
 # =========================
 # Background helpers (login-only)
@@ -58,7 +76,7 @@ def set_login_background(png_path: str):
         with open(path, "rb") as f:
             b64 = base64.b64encode(f.read()).decode()
 
-        # <<< CORREÇÃO 1: CSS SIMPLIFICADO AQUI (REMOVIDO CONFLITO) >>>
+        # CSS simplificado que aplica apenas o background
         css = f"""
         <style id="login-bg-fixed">
         /* Reset possible app backgrounds and remove extra margins */
@@ -80,10 +98,9 @@ def set_login_background(png_path: str):
         }}
         </style>
         """
-        # <<< FIM DA CORREÇÃO 1 >>>
 
         st.markdown(css, unsafe_allow_html=True)
-        st.session_state["login_bg_applied"] = True
+        st.session_state["login_bg_applied"] = True # Mantém a flag caso precise dela no futuro
         return True
     except Exception:
         return False
@@ -107,7 +124,7 @@ def clear_login_background():
     except Exception:
         pass
 
-# <<< CORREÇÃO 2: FUNÇÃO REVERTIDA PARA ORIGINAL (FUNCIONAVA) >>>
+# Função original do show_logo_file (já estava correta)
 def show_logo_file(path: str, width: int = 140):
     try:
         p = path if os.path.isabs(path) else resource_path(path)
@@ -125,8 +142,6 @@ def show_logo_file(path: str, width: int = 140):
     except Exception:
         pass
     return False
-    
-# <<< FIM DA CORREÇÃO 2 >>>
 
 # =========================
 # Utilities & password helpers
@@ -191,18 +206,6 @@ def verify_password(stored_hash: str, provided_password: str) -> Tuple[bool, boo
     ok = (stored_hash == legacy)
     return ok, bool(ok)
 
-# =========================
-# Page config
-# =========================
-try:
-    st.set_page_config(
-        page_title="Frotas Vamos SLA",
-        page_icon=resource_path("logo.png") if os.path.exists(resource_path("logo.png")) else "🚛",
-        layout="wide",
-        initial_sidebar_state="expanded"
-    )
-except Exception:
-    pass
 
 # =========================
 # Authenticated theme (neutral)
@@ -246,7 +249,8 @@ def aplicar_estilos_authenticated():
         padding: 20px !important;
         border: 1px solid var(--border) !important;
     }}
-    header[data-testid="stHeader"], #MainMenu, footer {{ display: none !important; }}
+    /* Header/footer já estão ocultos pelo markdown global no topo */
+    /* header[data-testid="stHeader"], #MainMenu, footer {{ display: none !important; }} */
     {badge_css}
     </style>
     """
@@ -257,6 +261,9 @@ def aplicar_estilos_authenticated():
     except Exception:
         pass
     clear_login_background()
+
+# ... (Restante do código: Password policy, Email/SMTP helpers, Users DB, Base/Calculations/PDFs, Navigation, etc.) ...
+# ... (Nenhuma alteração nessas seções) ...
 
 # =========================
 # Password policy
@@ -661,11 +668,26 @@ def renderizar_sidebar():
     with st.sidebar:
         st.markdown("<div style='text-align:center;padding-top:8px'>", unsafe_allow_html=True)
         try:
-            if os.path.exists(resource_path("logo_sidebar.png")):
-                st.image(resource_path("logo_sidebar.png"), width=100)
+            # Tenta carregar logo_sidebar.png primeiro
+            sidebar_logo_path = resource_path("logo_sidebar.png")
+            if os.path.exists(sidebar_logo_path):
+                st.image(sidebar_logo_path, width=100)
+            # Se não existir, tenta carregar logo.png
             elif os.path.exists(resource_path("logo.png")):
                 st.image(resource_path("logo.png"), width=100)
-        except Exception:
+            # Adiciona CSS para remover botão de expandir imagem do Streamlit na sidebar
+            st.markdown("""
+            <style>
+            .css-17l3k35 { /* Seletor pode precisar de ajuste dependendo da versão do Streamlit */
+                display: none !important;
+            }
+            button[title="Expandir imagem"], button[title="Expand image"], button[aria-label="Expandir imagem"], button[aria-label="Expand image"] {
+                display: none !important;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+        except Exception as e:
+            # st.error(f"Erro ao carregar logo da sidebar: {e}") # Descomente para depurar
             pass
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -676,6 +698,7 @@ def renderizar_sidebar():
         if st.session_state.tela in ("calc_comparativa", "calc_simples"):
             st.button("🔄 Limpar Cálculo", on_click=limpar_dados_comparativos, use_container_width=True)
         st.button("🚪 Sair (Logout)", on_click=logout, type="secondary", use_container_width=True)
+
 
 # =========================
 # Initial state & routing
@@ -693,47 +716,42 @@ if incoming_token and not st.session_state.get("ignore_reset_qp"):
 # SCREENS
 # =========================
 if st.session_state.tela == "login":
-    # CSS seguro para a tela de login (não empurra o layout, funciona com Wide mode)
+    # CSS seguro para a tela de login
     st.markdown("""
     <style id="login-card-safe">
     /* Limita a largura do container principal mesmo em Wide mode */
-    section.main > div.block-container { max-width: 920px !important; margin: 0 auto !important; padding-top: 0 !important; padding-bottom: 0 !important; }
+    section.main > div.block-container { max-width: 920px !important; margin: 0 auto !important; padding-top: 0 !important; padding-bottom: 0 !important; min-height: 100vh; display: flex; align-items: center; justify-content: center; } /* Adicionado flexbox para centralizar verticalmente */
 
-    /* Wrapper e card visual — centraliza verticalmente sem criar altura extra */
+    /* Wrapper */
     .login-wrapper { width:100%; max-width:920px; margin:0 auto; box-sizing:border-box; display:flex; align-items:center; justify-content:center; padding:24px 0; }
-    
-    /* <<< MUDANÇA 1: CARD DIMINUÍDO >>> */
-    /* <<< MUDANÇA: CARD DIMINUÍDO BASTANTE >>> */
-    .login-card { width:320px; max-width:calc(100% - 48px); padding: 24px 22px; border-radius:12px; background: rgba(6,8,12,0.88); box-shadow:0 18px 40px rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.04); color:#E5E7EB; position:relative; z-index:2; }    
+
+    /* <<< MUDANÇA 3: CARD DIMINUÍDO AINDA MAIS >>> */
+    .login-card { width:300px; max-width:calc(100% - 48px); padding: 24px 22px; border-radius:12px; background: rgba(6,8,12,0.88); box-shadow:0 18px 40px rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.04); color:#E5E7EB; position:relative; z-index:2; }
+
     .brand-title { text-align:center; font-weight:700; font-size:22px; color:#E5E7EB; margin-bottom:6px; }
     .brand-subtitle { text-align:center; color: rgba(255,255,255,0.78); font-size:13px; margin-bottom:14px; }
 
     /* Garante que o app view não tenha outro background que empurre o conteúdo */
     html, body, .stApp { background: transparent !important; margin: 0; padding: 0; height: 100%; }
 
-    /* Mantém o sidebar intacto (preserva o X de fechar) */
+    /* Mantém o sidebar intacto */
     [data-testid="stSidebar"] { position: relative; z-index: 9999; }
     </style>
     """, unsafe_allow_html=True)
 
-    # Aplica background do login (usa pseudo-element ::before — definido em set_login_background)
-    if not st.session_state.get("login_bg_applied"):
-        set_login_background("background.png")
+    # <<< MUDANÇA 2: REMOVIDA CONDIÇÃO PARA CHAMAR set_login_background >>>
+    # Aplica background do login SEMPRE que a tela de login for renderizada
+    set_login_background("background.png")
 
-    # <<< MUDANÇA 2: LOGO REMOVIDO DE FORA DO CARD >>>
-    # Logo centralizado acima do card (REMOVIDO DAQUI)
-    # cols_top = st.columns([1, 2, 1])
-    # with cols_top[1]:
-    #     show_logo_file("logo.png", width=140)
-
-    # wrapper e card — sem quebras extras que empurrem o conteúdo
+    # wrapper e card
     st.markdown('<div class="login-wrapper">', unsafe_allow_html=True)
-    
-    # <<< MUDANÇA 3: LOGO MOVIDO PARA DENTRO DO CARD E CENTRALIZADO >>>
+    st.markdown('<div class="login-card">', unsafe_allow_html=True) # Container do card
+
+    # Logo centralizado DENTRO do card
     st.markdown("<div style='text-align: center; margin-bottom: 12px;'>", unsafe_allow_html=True)
     show_logo_file("logo.png", width=140)
     st.markdown("</div>", unsafe_allow_html=True)
-    
+
     st.markdown("<div class='brand-title'>Frotas Vamos SLA</div>", unsafe_allow_html=True)
     st.markdown("<div class='brand-subtitle'>Acesso restrito | Soluções inteligentes para frotas</div>", unsafe_allow_html=True)
 
@@ -743,7 +761,7 @@ if st.session_state.tela == "login":
         password = st.text_input("Senha", type="password", placeholder="Senha", label_visibility="collapsed")
         submit_login = st.form_submit_button("Entrar", use_container_width=True)
 
-    # Ações auxiliares abaixo do form
+    # Ações auxiliares
     c1, c2 = st.columns(2)
     with c1:
         if st.button("Criar cadastro"):
@@ -753,8 +771,8 @@ if st.session_state.tela == "login":
             ir_para_forgot(); safe_rerun()
 
     # Fecha card e wrapper
-    st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True) # Fecha login-card
+    st.markdown("</div>", unsafe_allow_html=True) # Fecha login-wrapper
 
     # Tratamento do submit
     if submit_login:
@@ -780,26 +798,27 @@ if st.session_state.tela == "login":
                 if row.get("status", "") != "aprovado":
                     st.warning("⏳ Seu cadastro ainda está pendente de aprovação pelo administrador.")
                 else:
-                    clear_login_background()
-                    aplicar_estilos_authenticated()
+                    # Login bem-sucedido: remove background do login e aplica estilo autenticado
+                    clear_login_background() # Garante que o background específico do login suma
+                    aplicar_estilos_authenticated() # Aplica o novo estilo/background
                     st.session_state.logado = True
                     st.session_state.username = row["username"]
                     st.session_state.role = row.get("role", "user")
                     st.session_state.email = row.get("email", "")
+                    # Redireciona para tela correta pós-login
                     if not str(row.get("accepted_terms_on", "")).strip():
                         st.session_state.tela = "terms_consent"
-                        safe_rerun()
                     elif is_password_expired(row) or str(row.get("force_password_reset", "")).strip():
                         st.session_state.tela = "force_change_password"
-                        safe_rerun()
                     else:
                         st.session_state.tela = "home"
-                        safe_rerun()
+                    safe_rerun() # Roda o script novamente para ir para a nova tela
 
 # ---------------------------
 # Register
 # ---------------------------
 elif st.session_state.tela == "register":
+    # ... (código inalterado) ...
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     st.title("🆕 Criar cadastro")
     st.info("Se a sua empresa já realizou um pré-cadastro, informe seu e-mail para pré-preencher os dados.")
@@ -892,6 +911,7 @@ elif st.session_state.tela == "register":
 # Screens: Forgot/Reset/Force/Terms
 # =========================
 elif st.session_state.tela == "forgot_password":
+    # ... (código inalterado) ...
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     st.title("🔐 Esqueci minha senha")
     st.write("Informe seu e-mail cadastrado para enviar um link de redefinição de senha (válido por 30 minutos).")
@@ -921,6 +941,7 @@ elif st.session_state.tela == "forgot_password":
                     st.success("Enviamos um link para seu e-mail. Verifique sua caixa de entrada (e o SPAM).")
 
 elif st.session_state.tela == "reset_password":
+    # ... (código inalterado) ...
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     st.title("🔁 Redefinir senha")
     token = st.session_state.get("incoming_reset_token", "")
@@ -983,6 +1004,7 @@ elif st.session_state.tela == "reset_password":
                         safe_rerun()
 
 elif st.session_state.tela == "force_change_password":
+    # ... (código inalterado) ...
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     st.title("🔒 Alteração obrigatória de senha")
     st.warning("Sua senha expirou ou foi marcada para alteração. Defina uma nova senha para continuar.")
@@ -1023,6 +1045,7 @@ elif st.session_state.tela == "force_change_password":
 # Terms / LGPD (full)
 # =========================
 elif st.session_state.tela == "terms_consent":
+    # ... (código inalterado) ...
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     st.title("Termos e Condições de Uso e Política de Privacidade (LGPD)")
     st.info("Para seu primeiro acesso, é necessário ler e aceitar os termos de uso e a política de privacidade desta plataforma.")
@@ -1124,6 +1147,7 @@ else:
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
 
     if st.session_state.tela == "home":
+        # ... (código inalterado) ...
         st.title("🏠 Home")
         st.write(f"### Bem-vindo, {st.session_state.get('username','')}!")
         st.markdown("---")
@@ -1138,7 +1162,7 @@ else:
             st.button("Acessar SLA Mensal", on_click=ir_para_calc_simples, use_container_width=True)
 
     elif st.session_state.tela == "admin_users":
-        # Full admin UI restored
+        # ... (código inalterado) ...
         st.title("👤 Gerenciamento de Usuários")
         df_users = load_user_db()
 
@@ -1312,6 +1336,7 @@ else:
 
     # SLA Mensal screen
     elif st.session_state.tela == "calc_simples":
+        # ... (código inalterado) ...
         st.title("🖩 SLA Mensal")
         df_base = carregar_base()
         mensalidade = 0.0
@@ -1404,6 +1429,7 @@ else:
 
     # Análise de Cenários screen
     elif st.session_state.tela == "calc_comparativa":
+        # ... (código inalterado) ...
         st.title("📊 Análise de Cenários")
         if "cenarios" not in st.session_state:
             st.session_state.cenarios = []
