@@ -1782,24 +1782,24 @@ else:
                     st.success("Ticket fechado!")
                     safe_rerun()
         # Exibir tickets fechados (opcional)
-        fechados = df[df["status"] == "fechado"]
-        if not fechados.empty:
-            with st.expander("Ver tickets fechados"):
-                for _, row in fechados.sort_values("data_resposta", ascending=False).iterrows():
-                    st.markdown(f"""
-                    <div style="border:1px solid #888;padding:8px;border-radius:8px;margin-bottom:6px;">
-                    <b>ID:</b> {row['id']}<br>
-                    <b>Usuário:</b> {row['full_name']}<br>
-                    <b>Assunto:</b> {row['assunto']}<br>
-                    <b>Data:</b> {row['data_criacao']}<br>
-                    <b>Descrição:</b> {row['descricao']}<br>
-                    <b>Resposta:</b> {row['resposta']}<br>
-                    <b>Respondido em:</b> {row['data_resposta']}
-                    </div>
-                    """, unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-                        else:
-                            st.warning("Nenhuma peça foi selecionada.")
+fechados = df[df["status"] == "fechado"]
+if not fechados.empty:
+    with st.expander("Ver tickets fechados"):
+        for _, row in fechados.sort_values("data_resposta", ascending=False).iterrows():
+            st.markdown(f"""
+            <div style="border:1px solid #888;padding:8px;border-radius:8px;margin-bottom:6px;">
+            <b>ID:</b> {row['id']}<br>
+            <b>Usuário:</b> {row['full_name']}<br>
+            <b>Assunto:</b> {row['assunto']}<br>
+            <b>Data:</b> {row['data_criacao']}<br>
+            <b>Descrição:</b> {row['descricao']}<br>
+            <b>Resposta:</b> {row['resposta']}<br>
+            <b>Respondido em:</b> {row['data_resposta']}
+            </div>
+            """, unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+else:
+    st.warning("Nenhuma peça foi selecionada.")
 
     # Safety fallback: if tela value isn't matched
     else:
