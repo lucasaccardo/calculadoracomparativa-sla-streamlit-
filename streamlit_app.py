@@ -588,6 +588,33 @@ def is_password_expired(row) -> bool:
         return datetime.utcnow() > (last_dt + timedelta(days=expiry_days))
     except Exception:
         return True
+        
+# ... Funções de usuário (load_user_db, save_user_db, etc.)
+
+# === BLOCO DE TICKETS ===
+TICKETS_PATH = os.path.join(os.path.dirname(__file__), "tickets.csv") if "__file__" in globals() else os.path.join(os.getcwd(), "tickets.csv")
+TICKET_COLUMNS = ["id", "username", "full_name", "email", "assunto", "descricao", "status", "resposta", "data_criacao", "data_resposta"]
+
+@st.cache_data
+def load_tickets():
+    if not os.path.exists(TICKETS_PATH) or os.path.getsize(TICKETS_PATH) == 0:
+        df = pd.DataFrame(columns=TICKET_COLUMNS)
+        df.to_csv(TICKETS_PATH, index=False)
+        return df
+    return pd.read_csv(TICKETS_PATH, dtype=str).fillna("")
+
+def save_tickets(df):
+    df = df[TICKET_COLUMNS]
+    df.to_csv(TICKETS_PATH, index=False)
+    st.cache_data.clear()
+# === FIM DO BLOCO DE TICKETS ===
+
+# ... depois disso, vêm as telas:
+if st.session_state.tela == "login":
+    ...
+elif st.session_state.tela == "register":
+    ...
+# etc.
 
 # =========================
 # Base / calculations / PDFs
@@ -775,7 +802,9 @@ def renderizar_sidebar():
         if st.session_state.tela in ("calc_comparativa", "calc_simples"):
             st.button("🔄 Limpar Cálculo", on_click=limpar_dados_comparativos, use_container_width=True)
         st.button("🚪 Sair (Logout)", on_click=logout, type="secondary", use_container_width=True)
-
+        st.button("💬 Abrir Ticket", on_click=lambda: st.session_state.update({"tela": "tickets"}), use_container_width=True)
+        if user_is_superadmin():
+            st.button("📋 Gerenciar Tickets", on_click=lambda: st.session_state.update({"tela": "admin_tickets"}), use_container_width=True)
 
 # =========================
 # Initial state & routing
@@ -1657,6 +1686,118 @@ else:
                             nomes_para_remover = [item.split(' - ')[0] for item in pecas_para_remover]
                             st.session_state.pecas_atuais = [p for p in st.session_state.pecas_atuais if p['nome'] not in nomes_para_remover]
                             safe_rerun()
+                # =========================
+    # Tela: Abrir Ticket (usuário comum)
+    # =========================
+    elif st.session_state.tela == "tickets":
+        aplicar_estilos_authenticated()
+        renderizar_sidebar()
+        st.markdown("<div class='main-container'>", unsafe_allow_html=True)
+        st.title("💬 Abrir Ticket de Suporte")
+        st.info("Use este canal para reportar erros, dúvidas ou sugerir melhorias.")
+
+        # Formulário para abrir ticket
+        with st.form("abrir_ticket"):
+            assunto = st.text_input("Assunto")
+            descricao = st.text_area("Descreva o problema ou sugestão")
+            enviar = st.form_submit_button("Enviar Ticket", type="primary")
+        if enviar:
+            if not assunto.strip() or not descricao.strip():
+                st.error("Preencha todos os campos.")
+            else:
+                df = load_tickets()
+                novo_id = str(int(df["id"].max())+1) if not df.empty else "1"
+                now = datetime.now().strftime("%Y-%m-%d %H:%M")
+                novo = {
+                    "id": novo_id,
+                    "username": st.session_state.get("username"),
+                    "full_name": st.session_state.get("full_name"),
+                    "email": st.session_state.get("email"),
+                    "assunto": assunto.strip(),
+                    "descricao": descricao.strip(),
+                    "status": "aberto",
+                    "resposta": "",
+                    "data_criacao": now,
+                    "data_resposta": ""
+                }
+                df = pd.concat([df, pd.DataFrame([novo])], ignore_index=True)
+                save_tickets(df)
+                st.success("Ticket enviado com sucesso!")
+                safe_rerun()
+
+        # Listar tickets do usuário
+        df = load_tickets()
+        meus = df[df["username"] == st.session_state.get("username")]
+        if not meus.empty:
+            st.markdown("### Meus Tickets")
+            for _, row in meus.sort_values("data_criacao", ascending=False).iterrows():
+                st.markdown(f"""
+                <div style="border:1px solid #444;padding:10px;border-radius:8px;margin-bottom:8px;">
+                <b>Assunto:</b> {row['assunto']}<br>
+                <b>Status:</b> {row['status'].capitalize()}<br>
+                <b>Data:</b> {row['data_criacao']}<br>
+                <b>Descrição:</b> {row['descricao']}<br>
+                <b>Resposta:</b> {row['resposta'] if row['resposta'] else '<i>Aguardando resposta</i>'}
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("Você ainda não abriu nenhum ticket.")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # =========================
+    # Tela: Gerenciar Tickets (superadmin)
+    # =========================
+    elif st.session_state.tela == "admin_tickets":
+        if not user_is_superadmin():
+            st.error("Acesso negado."); ir_para_home(); safe_rerun(); st.stop()
+        aplicar_estilos_authenticated()
+        renderizar_sidebar()
+        st.markdown("<div class='main-container'>", unsafe_allow_html=True)
+        st.title("📋 Gerenciar Tickets de Suporte")
+        df = load_tickets()
+        abertos = df[df["status"] == "aberto"]
+        if abertos.empty:
+            st.info("Nenhum ticket aberto.")
+        else:
+            for idx, row in abertos.sort_values("data_criacao").iterrows():
+                st.markdown(f"""
+                <div style="border:1px solid #444;padding:10px;border-radius:8px;margin-bottom:8px;">
+                <b>ID:</b> {row['id']}<br>
+                <b>Usuário:</b> {row['full_name']} ({row['username']})<br>
+                <b>Email:</b> {row['email']}<br>
+                <b>Assunto:</b> {row['assunto']}<br>
+                <b>Data:</b> {row['data_criacao']}<br>
+                <b>Descrição:</b> {row['descricao']}<br>
+                """, unsafe_allow_html=True)
+                with st.form(f"responder_{row['id']}"):
+                    resposta = st.text_area("Resposta", value=row['resposta'])
+                    col1, col2 = st.columns(2)
+                    responder = col1.form_submit_button("Responder e Fechar", type="primary")
+                    ignorar = col2.form_submit_button("Ignorar (Fechar sem resposta)")
+                if responder or ignorar:
+                    df.loc[df["id"] == row["id"], "resposta"] = resposta if responder else "Ticket fechado sem resposta."
+                    df.loc[df["id"] == row["id"], "status"] = "fechado"
+                    df.loc[df["id"] == row["id"], "data_resposta"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+                    save_tickets(df)
+                    st.success("Ticket fechado!")
+                    safe_rerun()
+        # Exibir tickets fechados (opcional)
+        fechados = df[df["status"] == "fechado"]
+        if not fechados.empty:
+            with st.expander("Ver tickets fechados"):
+                for _, row in fechados.sort_values("data_resposta", ascending=False).iterrows():
+                    st.markdown(f"""
+                    <div style="border:1px solid #888;padding:8px;border-radius:8px;margin-bottom:6px;">
+                    <b>ID:</b> {row['id']}<br>
+                    <b>Usuário:</b> {row['full_name']}<br>
+                    <b>Assunto:</b> {row['assunto']}<br>
+                    <b>Data:</b> {row['data_criacao']}<br>
+                    <b>Descrição:</b> {row['descricao']}<br>
+                    <b>Resposta:</b> {row['resposta']}<br>
+                    <b>Respondido em:</b> {row['data_resposta']}
+                    </div>
+                    """, unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
                         else:
                             st.warning("Nenhuma peça foi selecionada.")
 
