@@ -49,7 +49,8 @@ try:
         layout="wide",
         initial_sidebar_state="expanded"
     )
-    # <<< CORREÇÃO DO ERRO 'Bad message format': O st.markdown global FOI REMOVIDO DAQUI >>>
+    # Esconde header/footer/menu padrão do Streamlit (mantido aqui)
+    # <<< O st.markdown FOI REMOVIDO DAQUI PARA CORRIGIR O ERRO 'Bad message format' >>>
 except Exception:
     pass
 # <<< FIM DA MUDANÇA 1 >>>
@@ -100,17 +101,16 @@ def set_login_background(png_path: str):
     except Exception:
         return False
 
-# <<< CORREÇÃO DO FUNDO BRANCO >>>
 def clear_login_background():
     """
     Remove/hide login background pseudo-element and clear flag.
-    NÃO mexe no background principal do .stApp
+    (CORRIGIDO para não afetar o fundo do app autenticado)
     """
     try:
         css = """
         <style id="login-bg-clear">
         .login-wrapper::before { display: none !important; opacity: 0 !important; }
-        /* A REGRA QUE DEFINIA O FUNDO COMO TRANSPARENTE FOI REMOVIDA DAQUI */
+        /* A regra 'html, body, .stApp' foi removida daqui para corrigir o fundo branco */
         </style>
         """
         st.markdown(css, unsafe_allow_html=True)
@@ -120,7 +120,6 @@ def clear_login_background():
         st.session_state["login_bg_applied"] = False
     except Exception:
         pass
-# <<< FIM DA CORREÇÃO DO FUNDO BRANCO >>>
 
 # Função original do show_logo_file (já estava correta)
 def show_logo_file(path: str, width: int = 140):
@@ -246,20 +245,53 @@ def validate_password_policy(password: str, username: str = "", email: str = "")
 # =========================
 def smtp_available(): # ... (code preserved)
     host = st.secrets.get("EMAIL_HOST", ""); user = st.secrets.get("EMAIL_USERNAME", ""); pwd = st.secrets.get("EMAIL_PASSWORD", ""); return bool(host and user and pwd)
+
 def build_email_html(title: str, subtitle: str, body_lines: List[str], cta_label: str = "", cta_url: str = "", footer: str = "") -> str: # ... (code preserved, ensure full HTML is here)
     primary="#2563EB"; brand="#0d1117"; text="#0b1f2a"; light="#f6f8fa"; button_html="";
     if cta_label and cta_url: button_html=f'<tr><td align="center" style="padding: 28px 0 10px 0;"><a href="{cta_url}" style="background:{primary};color:#ffffff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:8px;display:inline-block;font-family:Segoe UI,Arial,sans-serif">{cta_label}</a></td></tr>'
     body_html="".join([f'<p style="margin:8px 0 8px 0">{line}</p>' for line in body_lines]); footer_html=f'<p style="color:#6b7280;font-size:12px">{footer}</p>' if footer else ""
     # Ensure the full HTML template is included below
     return f"""<!DOCTYPE html><html><body style="margin:0;padding:0;background:{light}"><table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="100%" style="background:{light};padding:24px 0"><tr><td><table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="600" style="margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb"><tr><td style="background:{brand};padding:18px 24px;color:#ffffff;"><div style="display:flex;align-items:center;gap:12px"><span style="font-weight:700;font-size:18px;font-family:Segoe UI,Arial,sans-serif">Frotas Vamos SLA</span></div></td></tr><tr><td style="padding:24px 24px 0 24px;color:{text};font-family:Segoe UI,Arial,sans-serif"><h2 style="margin:0 0 6px 0;font-weight:700">{title}</h2><p style="margin:0 0 12px 0;color:#475569">{subtitle}</p>{body_html}</td></tr>{button_html}<tr><td style="padding:12px 24px 24px 24px;color:#334155;font-family:Segoe UI,Arial,sans-serif">{footer_html}</td></tr></table><div style="text-align:center;color:#94a3b8;font-size:12px;margin-top:8px;font-family:Segoe UI,Arial,sans-serif">© {datetime.now().year} Vamos Locação. Todos os direitos reservados.</div></td></tr></table></body></html>"""
-def send_email(dest_email: str, subject: str, body_plain: str, body_html: Optional[str] = None) -> bool: # ... (code preserved)
-    host=st.secrets.get("EMAIL_HOST", ""); port=int(st.secrets.get("EMAIL_PORT", 587) or 587); user=st.secrets.get("EMAIL_USERNAME", ""); password=st.secrets.get("EMAIL_PASSWORD", ""); use_tls=str(st.secrets.get("EMAIL_USE_TLS", "True")).lower() in ("1", "true", "yes"); sender=st.secrets.get("EMAIL_FROM", user or "no-reply@example.com")
-    if not host or not user or not password: st.warning("SMTP not configured."); st.code(f"Simulated email...\nTo:{dest_email}\nSubject:{subject}\n\n{body_plain}"); return False
-    try: msg=EmailMessage(); msg["Subject"]=subject; msg["From"]=sender; msg["To"]=dest_email; msg.set_content(body_plain);
-    if body_html: msg.add_alternative(body_html, subtype="html"); server=smtplib.SMTP(host, port, timeout=20); server.ehlo();
-    if use_tls: server.starttls(); server.ehlo();
-    if user and password: server.login(user, password); server.send_message(msg); server.quit(); return True
-    except Exception as e: try: st.error(f"Email failed: {e}"); except Exception: print("Email failed:", e); st.code(f"Failed email...\nTo:{dest_email}\nSubject:{subject}\n\n{body_plain}"); return False
+
+# <<< CORREÇÃO DO SYNTAXERROR: Bloco try/except restaurado >>>
+def send_email(dest_email: str, subject: str, body_plain: str, body_html: Optional[str] = None) -> bool:
+    host = st.secrets.get("EMAIL_HOST", "")
+    port = int(st.secrets.get("EMAIL_PORT", 587) or 587)
+    user = st.secrets.get("EMAIL_USERNAME", "")
+    password = st.secrets.get("EMAIL_PASSWORD", "")
+    use_tls = str(st.secrets.get("EMAIL_USE_TLS", "True")).lower() in ("1", "true", "yes")
+    sender = st.secrets.get("EMAIL_FROM", user or "no-reply@example.com")
+    if not host or not user or not password:
+        st.warning("Configurações de e-mail não definidas em st.secrets. Exibindo conteúdo (teste).")
+        st.code(f"Simulated email to: {dest_email}\nSubject: {subject}\n\n{body_plain}", language="text")
+        return False
+    try:
+        msg = EmailMessage()
+        msg["Subject"] = subject
+        msg["From"] = sender
+        msg["To"] = dest_email
+        msg.set_content(body_plain)
+        if body_html:
+            msg.add_alternative(body_html, subtype="html")
+        server = smtplib.SMTP(host, port, timeout=20)
+        server.ehlo()
+        if use_tls:
+            server.starttls()
+            server.ehlo()
+        if user and password:
+            server.login(user, password)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        try:
+            st.error(f"Falha ao enviar e-mail: {e}")
+        except Exception:
+            print("Falha ao enviar e-mail:", e)
+        st.code(f"Para: {dest_email}\nAssunto: {subject}\n\n{body_plain}", language="text")
+        return False
+# <<< FIM DA CORREÇÃO DO SYNTAXERROR >>>
+
 def send_reset_email(dest_email: str, reset_link: str) -> bool: # ... (code preserved)
     subject="Redefinição de senha - Frotas Vamos SLA"; plain=f"Olá,\n\nLink (30 min):\n{reset_link}\n..."; html=build_email_html(title="Redefinição de senha", subtitle="Solicitação recebida.", body_lines=["Link válido 30 min."], cta_label="Redefinir senha", cta_url=reset_link, footer="Não responda."); return send_email(dest_email, subject, plain, html)
 def send_approved_email(dest_email: str, base_url: str) -> bool: # ... (code preserved)
@@ -478,7 +510,7 @@ elif st.session_state.tela == "register":
     aplicar_estilos_authenticated() # Aplica o tema padrão
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     st.title("🆕 Criar cadastro")
-    st.info("Se a sua empresa já realizou um pré-cadastro, informe seu e-mail para pré-preencher os dados.")
+    st.info("Se a sua empresa já realizou un pré-cadastro, informe seu e-mail para pré-preencher os dados.")
     if "register_prefill" not in st.session_state:
         st.session_state.register_prefill = None
     with st.form("lookup_email_form"):
@@ -836,6 +868,7 @@ else:
 
     elif st.session_state.tela == "admin_users":
         # Full admin UI
+        if not user_is_admin(): st.error("Acesso negado."); ir_para_home(); safe_rerun(); st.stop()
         st.title("👤 Gerenciamento de Usuários")
         df_users = load_user_db()
 
