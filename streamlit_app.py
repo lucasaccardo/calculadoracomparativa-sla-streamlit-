@@ -755,49 +755,71 @@ if incoming_token and not st.session_state.get("ignore_reset_qp"):
 # SCREENS
 # =========================
 if st.session_state.tela == "login":
-    # CSS seguro para a tela de login
+    # 1. CSS refinado para centralizar e profissionalizar o card
     st.markdown("""
-    <style id="login-card-safe">
-    /* Limita a largura do container principal mesmo em Wide mode */
-    section.main > div.block-container { max-width: 920px !important; margin: 0 auto !important; padding-top: 0 !important; padding-bottom: 0 !important; min-height: 100vh; display: flex; align-items: center; justify-content: center; } /* Adicionado flexbox para centralizar verticalmente */
-
-    /* Wrapper */
-    .login-wrapper { width:100%; max-width:920px; margin:0 auto; box-sizing:border-box; display:flex; align-items:center; justify-content:center; padding:24px 0; }
-
-    /* <<< MUDANÇA: CARD DIMINUÍDO PARA 400px >>> */
-    .login-card { width:400px; max-width:calc(100% - 48px); padding: 24px 22px; border-radius:12px; background: rgba(6,8,12,0.88); box-shadow:0 18px 40px rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.04); color:#E5E7EB; position:relative; z-index:2; }
-
-    .brand-title { text-align:center; font-weight:700; font-size:22px; color:#E5E7EB; margin-bottom:6px; }
-    .brand-subtitle { text-align:center; color: rgba(255,255,255,0.78); font-size:13px; margin-bottom:14px; }
-
-    /* Garante que o app view não tenha outro background que empurre o conteúdo */
-    html, body, .stApp { background: transparent !important; margin: 0; padding: 0; height: 100%; }
-
-    /* Mantém o sidebar intacto */
-    [data-testid="stSidebar"] { position: relative; z-index: 9999; }
-    
-    /* <<< CORREÇÃO DO ERRO 'Bad message format': CSS DE OCULTAR MENU MOVIDO PARA CÁ >>> */
-    header[data-testid="stHeader"] {display: none !important;}
-    footer {display: none !important;}
-    #MainMenu {display: none !important;}
+    <style>
+    section.main > div.block-container {
+        max-width: 100vw !important;
+        min-height: 100vh !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    .login-card {
+        width: 400px;
+        max-width: 95vw;
+        padding: 32px 28px 24px 28px;
+        border-radius: 16px;
+        background: rgba(18, 22, 34, 0.98);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+        border: 1px solid rgba(255,255,255,0.08);
+        color: #E5E7EB;
+        position: relative;
+        z-index: 2;
+    }
+    .brand-title {
+        text-align:center;
+        font-weight:700;
+        font-size:22px;
+        color:#E5E7EB;
+        margin-bottom:6px;
+    }
+    .brand-subtitle {
+        text-align:center;
+        color: rgba(255,255,255,0.78);
+        font-size:13px;
+        margin-bottom:14px;
+    }
+    /* Remove header/footer/menu do Streamlit */
+    header[data-testid="stHeader"], footer, #MainMenu {
+        display: none !important;
+    }
+    html, body, .stApp {
+        background: transparent !important;
+        margin: 0;
+        padding: 0;
+        height: 100%;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-    # Aplica background do login SEMPRE que a tela de login for renderizada
-    set_login_background(resource_path("background.png")) # Usa resource_path aqui
+    # 2. Aplica o background do login (ajuste o nome do arquivo se necessário)
+    set_login_background(resource_path("background.png"))
 
-    # <<< MUDANÇA: Bloco cols_top REMOVIDO daqui para corrigir "mancha preta" >>>
+    # 3. Estrutura do card de login
+    st.markdown('<div class="login-wrapper">', unsafe_allow_html=True)
+    st.markdown('<div class="login-card">', unsafe_allow_html=True)
 
-    # wrapper e card
-    st.markdown('<div class="login-wrapper">', unsafe_allow_html=True) # Wrapper agora centraliza
-    st.markdown('<div class="login-card">', unsafe_allow_html=True) # Container do card
-
-    # Logo centralizado DENTRO do card
+    # Logo centralizado
     st.markdown("<div style='text-align: center; margin-bottom: 12px;'>", unsafe_allow_html=True)
-    show_logo_file(resource_path("logo.png"), width=140) # Usa resource_path aqui
+    show_logo_file(resource_path("logo.png"), width=140)
     st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown("<div class'brand-title'>Frotas Vamos SLA</div>", unsafe_allow_html=True)
+    # Título e subtítulo
+    st.markdown("<div class='brand-title'>Frotas Vamos SLA</div>", unsafe_allow_html=True)
     st.markdown("<div class='brand-subtitle'>Acesso restrito | Soluções inteligentes para frotas</div>", unsafe_allow_html=True)
 
     # Formulário de login
@@ -819,7 +841,7 @@ if st.session_state.tela == "login":
     st.markdown("</div>", unsafe_allow_html=True) # Fecha login-card
     st.markdown("</div>", unsafe_allow_html=True) # Fecha login-wrapper
 
-    # Tratamento do submit
+    # Lógica do submit (mantém igual ao seu código original)
     if submit_login:
         df_users = load_user_db()
         user_data = df_users[df_users["username"] == username]
@@ -844,8 +866,8 @@ if st.session_state.tela == "login":
                     st.warning("⏳ Seu cadastro ainda está pendente de aprovação pelo administrador.")
                 else:
                     # Login bem-sucedido: remove background do login e aplica estilo autenticado
-                    clear_login_background() # Garante que o background específico do login suma
-                    aplicar_estilos_authenticated() # Aplica o novo estilo/background
+                    clear_login_background()
+                    aplicar_estilos_authenticated()
                     st.session_state.logado = True
                     st.session_state.username = row["username"]
                     st.session_state.role = row.get("role", "user")
@@ -857,7 +879,7 @@ if st.session_state.tela == "login":
                         st.session_state.tela = "force_change_password"
                     else:
                         st.session_state.tela = "home"
-                    safe_rerun() # Roda o script novamente para ir para a nova tela
+                    safe_rerun()
 
 # ---------------------------
 # Register
