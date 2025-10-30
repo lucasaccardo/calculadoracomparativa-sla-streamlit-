@@ -850,12 +850,12 @@ if st.session_state.tela == "login":
         submit_login = st.form_submit_button("Entrar", use_container_width=True)
 
     # Ações auxiliares
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("Criar cadastro"):
+    col1, col2, col3, col4, col5 = st.columns([1, 2, 2, 2, 1])
+    with col2:
+        if st.button("Criar cadastro", use_container_width=True):
             ir_para_register(); safe_rerun()
-    with c2:
-        if st.button("Esqueci minha senha"):
+    with col4:
+        if st.button("Esqueci minha senha", use_container_width=True):
             ir_para_forgot(); safe_rerun()
 
     # Fecha card e wrapper
