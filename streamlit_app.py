@@ -1719,66 +1719,62 @@ else:
     # =========================
     # Tela: Gerenciar Tickets (superadmin)
     # =========================
-    elif st.session_state.tela == "admin_tickets":
-        if not user_is_superadmin():
-            st.error("Acesso negado."); ir_para_home(); safe_rerun(); st.stop()
-        aplicar_estilos_authenticated()
-        renderizar_sidebar()
-        st.markdown("<div class='main-container'>", unsafe_allow_html=True)
-        st.title("📋 Gerenciar Tickets de Suporte")
-        df = load_tickets()
-        abertos = df[df["status"] == "aberto"]
-        if abertos.empty:
-            st.info("Nenhum ticket aberto.")
-        else:
-            for idx, row in abertos.sort_values("data_criacao").iterrows():
+elif st.session_state.tela == "admin_tickets":
+    if not user_is_superadmin():
+        st.error("Acesso negado."); ir_para_home(); safe_rerun(); st.stop()
+    aplicar_estilos_authenticated()
+    renderizar_sidebar()
+    st.markdown("<div class='main-container'>", unsafe_allow_html=True)
+    st.title("📋 Gerenciar Tickets de Suporte")
+    df = load_tickets()
+
+    # Tickets abertos
+    abertos = df[df["status"] == "aberto"]
+    if abertos.empty:
+        st.info("Nenhum ticket aberto.")
+    else:
+        for idx, row in abertos.sort_values("data_criacao").iterrows():
+            st.markdown(f"""
+            <div style="border:1px solid #444;padding:10px;border-radius:8px;margin-bottom:8px;">
+            <b>ID:</b> {row['id']}<br>
+            <b>Usuário:</b> {row['full_name']} ({row['username']})<br>
+            <b>Email:</b> {row['email']}<br>
+            <b>Assunto:</b> {row['assunto']}<br>
+            <b>Data:</b> {row['data_criacao']}<br>
+            <b>Descrição:</b> {row['descricao']}<br>
+            """, unsafe_allow_html=True)
+            with st.form(f"responder_{row['id']}"):
+                resposta = st.text_area("Resposta", value=row['resposta'])
+                col1, col2 = st.columns(2)
+                responder = col1.form_submit_button("Responder e Fechar", type="primary")
+                ignorar = col2.form_submit_button("Ignorar (Fechar sem resposta)")
+            if responder or ignorar:
+                df.loc[df["id"] == row["id"], "resposta"] = resposta if responder else "Ticket fechado sem resposta."
+                df.loc[df["id"] == row["id"], "status"] = "fechado"
+                df.loc[df["id"] == row["id"], "data_resposta"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+                save_tickets(df)
+                st.success("Ticket fechado!")
+                safe_rerun()
+
+    # Tickets fechados
+    fechados = df[df["status"] == "fechado"]
+    if not fechados.empty:
+        with st.expander("Ver tickets fechados"):
+            for _, row in fechados.sort_values("data_resposta", ascending=False).iterrows():
                 st.markdown(f"""
-                <div style="border:1px solid #444;padding:10px;border-radius:8px;margin-bottom:8px;">
+                <div style="border:1px solid #888;padding:8px;border-radius:8px;margin-bottom:6px;">
                 <b>ID:</b> {row['id']}<br>
-                <b>Usuário:</b> {row['full_name']} ({row['username']})<br>
-                <b>Email:</b> {row['email']}<br>
+                <b>Usuário:</b> {row['full_name']}<br>
                 <b>Assunto:</b> {row['assunto']}<br>
                 <b>Data:</b> {row['data_criacao']}<br>
                 <b>Descrição:</b> {row['descricao']}<br>
+                <b>Resposta:</b> {row['resposta']}<br>
+                <b>Respondido em:</b> {row['data_resposta']}
+                </div>
                 """, unsafe_allow_html=True)
-                with st.form(f"responder_{row['id']}"):
-                    resposta = st.text_area("Resposta", value=row['resposta'])
-                    col1, col2 = st.columns(2)
-                    responder = col1.form_submit_button("Responder e Fechar", type="primary")
-                    ignorar = col2.form_submit_button("Ignorar (Fechar sem resposta)")
-                if responder or ignorar:
-                    df.loc[df["id"] == row["id"], "resposta"] = resposta if responder else "Ticket fechado sem resposta."
-                    df.loc[df["id"] == row["id"], "status"] = "fechado"
-                    df.loc[df["id"] == row["id"], "data_resposta"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-                    save_tickets(df)
-                    st.success("Ticket fechado!")
-                    safe_rerun()
-
-        fechados = df[df["status"] == "fechado"]
-        if not fechados.empty:
-            with st.expander("Ver tickets fechados"):
-                for _, row in fechados.sort_values("data_resposta", ascending=False).iterrows():
-                    st.markdown(f"""
-                        <div style="border:1px solid #888;padding:8px;border-radius:8px;margin-bottom:6px;">
-                        <b>ID:</b> {row['id']}<br>
-                        <b>Usuário:</b> {row['full_name']}<br>
-                        <b>Assunto:</b> {row['assunto']}<br>
-                        <b>Data:</b> {row['data_criacao']}<br>
-                        <b>Descrição:</b> {row['descricao']}<br>
-                        <b>Resposta:</b> {row['resposta']}<br>
-                        <b>Respondido em:</b> {row['data_resposta']}
-                        </div>
-                    """, unsafe_allow_html=True)
-        # <<< CORREÇÃO DE INDENTAÇÃO: Esta linha estava fora do 'elif' >>>
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    # Safety fallback: if tela value isn't matched
     else:
-        st.markdown("<div class='main-container'>", unsafe_allow_html=True)
-        st.error("Tela não encontrada ou ainda não implementada.")
-        if st.button("Voltar para Home"):
-            ir_para_home()
-            safe_rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.warning("Nenhum ticket fechado encontrado.")
 
+    st.markdown("</div>", unsafe_allow_html=True)
+    
 # End of file
