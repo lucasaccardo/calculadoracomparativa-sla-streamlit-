@@ -751,6 +751,8 @@ if incoming_token and not st.session_state.get("ignore_reset_qp"):
     st.session_state.incoming_reset_token = incoming_token
     st.session_state.tela = "reset_password"
 
+# ... [IMPORTS E FUNÇÕES AUXILIARES IGUAIS AO SEU CÓDIGO] ...
+
 # =========================
 # SCREENS
 # =========================
@@ -838,7 +840,7 @@ if st.session_state.tela == "login":
         password = st.text_input("Senha", type="password", placeholder="Senha", label_visibility="collapsed")
         submit_login = st.form_submit_button("Entrar", use_container_width=True)
 
-    # Ações auxiliares
+    # Ações auxiliares (dentro do card)
     c1, c2 = st.columns(2)
     with c1:
         if st.button("Criar cadastro"):
@@ -890,7 +892,6 @@ if st.session_state.tela == "login":
                     else:
                         st.session_state.tela = "home"
                     safe_rerun()
-
 
 # =========================
 # Screens: Forgot/Reset/Force/Terms
