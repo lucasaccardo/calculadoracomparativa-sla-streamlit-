@@ -768,6 +768,16 @@ if st.session_state.tela == "login":
         padding: 0 !important;
         margin: 0 !important;
     }
+    .login-wrapper {
+        width: 100vw;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        margin: 0;
+        padding: 0;
+    }
     .login-card {
         width: 400px;
         max-width: 95vw;
@@ -806,7 +816,7 @@ if st.session_state.tela == "login":
     </style>
     """, unsafe_allow_html=True)
 
-    # 2. Aplica o background do login (ajuste o nome do arquivo se necessário)
+    # 2. Aplica o background do login
     set_login_background(resource_path("background.png"))
 
     # 3. Estrutura do card de login
@@ -880,102 +890,6 @@ if st.session_state.tela == "login":
                     else:
                         st.session_state.tela = "home"
                     safe_rerun()
-
-# ---------------------------
-# Register
-# ---------------------------
-elif st.session_state.tela == "register":
-    aplicar_estilos_authenticated() # Aplica o tema padrão
-    st.markdown("<div class='main-container'>", unsafe_allow_html=True)
-    st.title("🆕 Criar cadastro")
-    st.info("Se a sua empresa já realizou um pré-cadastro, informe seu e-mail para pré-preencher os dados.")
-    if "register_prefill" not in st.session_state:
-        st.session_state.register_prefill = None
-    with st.form("lookup_email_form"):
-        lookup_email = st.text_input("E-mail corporativo para localizar pré-cadastro")
-        lookup_submit = st.form_submit_button("Buscar pré-cadastro")
-    if lookup_submit and lookup_email.strip():
-        df = load_user_db()
-        rows = df[df["email"].str.strip().str.lower() == lookup_email.strip().lower()]
-        if rows.empty:
-            st.warning("Nenhum pré-cadastro encontrado para este e-mail. Você poderá preencher os dados normally.")
-            st.session_state.register_prefill = None
-        else:
-            r = rows.iloc[0].to_dict()
-            st.session_state.register_prefill = r
-            st.success("Pré-cadastro encontrado! Os campos abaixo foram preenchidos automaticamente.")
-    pre = st.session_state.register_prefill
-    lock_username = bool(pre and pre.get("username"))
-    lock_fullname = bool(pre and pre.get("full_name"))
-    lock_matricula = bool(pre and pre.get("matricula"))
-    lock_email = bool(pre and pre.get("email"))
-    with st.form("register_form", clear_on_submit=False):
-        col1, col2 = st.columns(2)
-        username = col1.text_input("Usuário (login)", value=(pre.get("username") if pre else ""), disabled=lock_username)
-        full_name = col2.text_input("Nome completo", value=(pre.get("full_name") if pre else ""), disabled=lock_fullname)
-        col3, col4 = st.columns(2)
-        matricula = col3.text_input("Matrícula", value=(pre.get("matricula") if pre else ""), disabled=lock_matricula)
-        email = col4.text_input("E-mail corporativo", value=(pre.get("email") if pre else lookup_email or ""), disabled=lock_email)
-        col5, col6 = st.columns(2)
-        password = col5.text_input("Senha", type="password", help="Mín 10, com maiúscula, minúscula, número e especial.")
-        password2 = col6.text_input("Confirmar senha", type="password")
-        submit_reg = st.form_submit_button("Enviar cadastro", type="primary", use_container_width=True)
-    st.button("⬅️ Voltar ao login", on_click=ir_para_login)
-    if submit_reg:
-        df = load_user_db()
-        # Coleta dados dos inputs ou do prefill
-        uname = (username or (pre.get("username") if pre else "")).strip()
-        fname = (full_name or (pre.get("full_name") if pre else "")).strip()
-        mail = (email or (pre.get("email") if pre else "")).strip()
-        mat = (matricula or (pre.get("matricula") if pre else "")).strip()
-
-        if not all([uname, fname, mail, password.strip(), password2.strip()]):
-            st.error("Preencha todos os campos obrigatórios.")
-        elif password != password2:
-            st.error("As senhas não conferem.")
-        else:
-            valid, errs = validate_password_policy(password, username=uname, email=mail)
-            if not valid:
-                st.error("Regras de senha não atendidas:\n- " + "\n- ".join(errs))
-            else:
-                # Verifica se o email já existe
-                idxs = df.index[df["email"].str.strip().str.lower() == mail.lower()]
-                if len(idxs) > 0:
-                    idx = idxs[0]
-                    # Se já existe (pré-cadastro), atualiza os campos
-                    if not df.loc[idx, "username"]: # Se não tinha username, define agora
-                        if (uname in df["username"].values) and (df.loc[idx, "username"] != uname):
-                            st.error("Nome de usuário já existe."); st.stop()
-                        df.loc[idx, "username"] = uname
-                    if not df.loc[idx, "full_name"]: df.loc[idx, "full_name"] = fname
-                    if not df.loc[idx, "matricula"]: df.loc[idx, "matricula"] = mat
-                    df.loc[idx, "password"] = hash_password(password)
-                    if df.loc[idx, "status"] == "": df.loc[idx, "status"] = "pendente"
-                    df.loc[idx, "last_password_change"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-                    df.loc[idx, "force_password_reset"] = ""
-                    save_user_db(df)
-                    st.success("Cadastro atualizado! Aguarde aprovação (se pendente).")
-                else:
-                    # Se não existe, cria novo (mas verifica username)
-                    if uname in df["username"].values:
-                        st.error("Nome de usuário já existe."); st.stop()
-                    
-                    new_user = {col: "" for col in REQUIRED_USER_COLUMNS} # Garante todas as colunas
-                    new_user.update({
-                        "username": uname,
-                        "password": hash_password(password),
-                        "role": "user",
-                        "full_name": fname,
-                        "matricula": mat,
-                        "email": mail,
-                        "status": "pendente",
-                        "last_password_change": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-                        "force_password_reset": ""
-                    })
-                    df = pd.concat([df, pd.DataFrame([new_user])], ignore_index=True)
-                    save_user_db(df)
-                    st.success("✅ Cadastro enviado! Aguarde aprovação.")
-    st.markdown("</div>", unsafe_allow_html=True) # Fecha main-container
 
 
 # =========================
