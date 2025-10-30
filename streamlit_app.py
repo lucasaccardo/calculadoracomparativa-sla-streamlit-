@@ -827,7 +827,6 @@ if st.session_state.tela == "login":
     
     # wrapper e card
     st.markdown('<div class="login-wrapper">', unsafe_allow_html=True) # Wrapper agora centraliza
-    st.markdown('<div class="login-card">', unsafe_allow_html=True) # Container do card
 
     # Logo centralizado DENTRO do card
     st.markdown("<div style='text-align: center; margin-bottom: 12px;'>", unsafe_allow_html=True)
