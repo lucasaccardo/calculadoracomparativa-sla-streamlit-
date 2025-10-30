@@ -49,7 +49,16 @@ try:
         layout="wide",
         initial_sidebar_state="expanded"
     )
-
+    # Esconde header/footer/menu padrão do Streamlit (mantido aqui)
+    st.markdown("""
+    <style>
+    header[data-testid="stHeader"] {display: none !important;}
+    footer {display: none !important;}
+    #MainMenu {display: none !important;}
+    </style>
+    """, unsafe_allow_html=True)
+except Exception:
+    pass
 # <<< FIM DA MUDANÇA 1 >>>
 
 
