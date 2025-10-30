@@ -23,7 +23,27 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.pdfgen import canvas
 from streamlit.components.v1 import html as components_html
+import streamlit as st
+import base64
 
+def get_base64_of_bin_file(bin_file):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
+
+logo_path = "logo_vamos.png"  # ajuste se o nome for diferente
+base64_logo = get_base64_of_bin_file(logo_path)
+
+st.markdown(
+    f"""
+    <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 10px;">
+        <img src="data:image/png;base64,{base64_logo}" alt="Logo Vamos" style="width: 120px;"/>
+        <h1 style='text-align: center; margin-top: 10px;'>Frotas Vamos SLA</h1>
+        <p style='text-align: center;'>| Soluções inteligentes para frotas |</p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 # Adicione esta função no topo do seu streamlit_app.py
 
 def get_query_params():
@@ -43,7 +63,7 @@ def get_query_params():
         except Exception:
             # Retorna vazio se ambos falharem
             return {}
-            
+
 # =========================
 # Resource helpers
 # =========================
