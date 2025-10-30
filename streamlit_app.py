@@ -888,6 +888,7 @@ if st.session_state.tela == "login":
                     st.session_state.username = row["username"]
                     st.session_state.role = row.get("role", "user")
                     st.session_state.email = row.get("email", "")
+                    st.session_state.full_name = row.get("full_name", "")
                     # Redireciona para tela correta pós-login
                     if not str(row.get("accepted_terms_on", "")).strip():
                         st.session_state.tela = "terms_consent"
@@ -1248,7 +1249,7 @@ else:
 
     if st.session_state.tela == "home":
         st.title("🏠 Home")
-        st.write(f"### Bem-vindo, {st.session_state.get('username','')}!")
+        st.write(f"### Bem-vindo, {st.session_state.get('full_name', st.session_state.get('username',''))}!")
         st.markdown("---")
         col1, col2 = st.columns(2)
         with col1:
