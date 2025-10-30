@@ -142,6 +142,13 @@ def clear_login_background():
     except Exception:
         pass
 
+# <<< NOVA FUNÇÃO ADICIONADA CONFORME SOLICITADO >>>
+def limpar_todos_backgrounds():
+    # Remove todos os estilos de fundo possíveis (sobrescrevendo com tags vazias)
+    st.markdown('<style id="login-bg-fixed"></style>', unsafe_allow_html=True)
+    st.markdown('<style id="app-auth-style"></style>', unsafe_allow_html=True)
+    st.markdown('<style id="login-bg-clear"></style>', unsafe_allow_html=True)
+
 # Função original do show_logo_file (já estava correta)
 def show_logo_file(path: str, width: int = 140):
     try:
@@ -792,6 +799,9 @@ if st.session_state.get('__do_logout'):
 # SCREENS
 # =========================
 if st.session_state.tela == "login":
+    limpar_todos_backgrounds()  # <<< ADICIONADO CONFORME SOLICITADO
+    set_login_background(resource_path("background.png"))  # <<< MOVIDO PARA CIMA
+    
     # CSS seguro para a tela de login
     st.markdown("""
     <style id="login-card-safe">
@@ -821,12 +831,13 @@ if st.session_state.tela == "login":
     """, unsafe_allow_html=True)
 
     # Aplica background do login SEMPRE que a tela de login for renderizada
-    set_login_background(resource_path("background.png")) # Usa resource_path aqui
+    # set_login_background(resource_path("background.png")) # <<< MOVIDO PARA CIMA
     
     # <<< CORREÇÃO "MANCHA PRETA": Bloco cols_top REMOVIDO daqui >>>
     
     # wrapper e card
     st.markdown('<div class="login-wrapper">', unsafe_allow_html=True) # Wrapper agora centraliza
+    st.markdown('<div class="login-card">', unsafe_allow_html=True) # Container do card
 
     # Logo centralizado DENTRO do card
     st.markdown("<div style='text-align: center; margin-bottom: 12px;'>", unsafe_allow_html=True)
@@ -880,8 +891,9 @@ if st.session_state.tela == "login":
                     st.warning("⏳ Seu cadastro ainda está pendente de aprovação pelo administrador.")
                 else:
                     # Login bem-sucedido: remove background do login e aplica estilo autenticado
-                    clear_login_background() # Garante que o background específico do login suma
-                    aplicar_estilos_authenticated() # Aplica o novo estilo/background
+                    # A limpeza agora é feita no 'else' principal
+                    # clear_login_background() 
+                    # aplicar_estilos_authenticated() # É chamado no 'else' principal
                     st.session_state.logado = True
                     st.session_state.username = row["username"]
                     st.session_state.role = row.get("role", "user")
@@ -900,6 +912,7 @@ if st.session_state.tela == "login":
 # Register
 # ---------------------------
 elif st.session_state.tela == "register":
+    limpar_todos_backgrounds()  # <<< ADICIONADO CONFORME SOLICITADO (implícito, pois está no 'else')
     aplicar_estilos_authenticated() # Aplica o tema padrão
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     st.title("🆕 Sign up")
@@ -997,6 +1010,7 @@ elif st.session_state.tela == "register":
 # Screens: Forgot/Reset/Force/Terms
 # =========================
 elif st.session_state.tela == "forgot_password":
+    limpar_todos_backgrounds()  # <<< ADICIONADO CONFORME SOLICITADO (implícito, pois está no 'else')
     aplicar_estilos_authenticated()
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     st.title("🔐 Reset Password")
@@ -1029,6 +1043,7 @@ elif st.session_state.tela == "forgot_password":
 
 
 elif st.session_state.tela == "reset_password":
+    limpar_todos_backgrounds()  # <<< ADICIONADO CONFORME SOLICITADO (implícito, pois está no 'else')
     aplicar_estilos_authenticated()
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     st.title("🔁 Redefinir senha")
@@ -1092,6 +1107,7 @@ elif st.session_state.tela == "reset_password":
 
 
 elif st.session_state.tela == "force_change_password":
+    limpar_todos_backgrounds()  # <<< ADICIONADO CONFORME SOLICITADO (implícito, pois está no 'else')
     aplicar_estilos_authenticated()
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     st.title("🔒 Alteração obrigatória de senha")
@@ -1135,6 +1151,7 @@ elif st.session_state.tela == "force_change_password":
 # Terms / LGPD (full)
 # =========================
 elif st.session_state.tela == "terms_consent":
+    limpar_todos_backgrounds()  # <<< ADICIONADO CONFORME SOLICITADO (implícito, pois está no 'else')
     aplicar_estilos_authenticated()
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     st.title("Termos e Condições de Uso e Política de Privacidade (LGPD)")
@@ -1241,6 +1258,7 @@ else:
         safe_rerun()
         st.stop() # Interrompe a renderização
         
+    limpar_todos_backgrounds()  # <<< ADICIONADO CONFORME SOLICITADO
     aplicar_estilos_authenticated() # Aplica tema
     renderizar_sidebar()
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
@@ -1468,7 +1486,7 @@ else:
                     mensalidade = moeda_para_float(hit.iloc[0]["VALOR MENSALIDADE"])
                     st.success(f"Cliente: {cliente} | Mensalidade: {formatar_moeda(mensalidade)}")
                 else:
-                    st.warning("Placa não encontrada na base. Preencha os dados manually abaixo.")
+                    st.warning("Placa não encontrada na base. Preencha os dados manualmente abaixo.")
             cliente = st.text_input("Cliente (caso não tenha sido localizado)", value=cliente)
             mensalidade = st.number_input("Mensalidade (R$)", min_value=0.0, step=0.01, format="%.2f", value=float(mensalidade) if mensalidade else 0.0)
             st.subheader("2) Período e Serviço")
