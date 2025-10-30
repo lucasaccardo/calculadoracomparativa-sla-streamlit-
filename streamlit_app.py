@@ -847,7 +847,7 @@ if st.session_state.tela == "login":
     with st.form("login_form"):
         username = st.text_input("Usuário", placeholder="Usuário", label_visibility="collapsed")
         password = st.text_input("Senha", type="password", placeholder="Senha", label_visibility="collapsed")
-        submit_login = st.form_submit_button("Entrar", use_container_width=True)
+        submit_login = st.form_submit_button("Login", use_container_width=True)
 
     # Ações auxiliares
     col1, col2, col3, col4, col5 = st.columns([1, 2, 2, 2, 1])
@@ -855,7 +855,7 @@ if st.session_state.tela == "login":
         if st.button("Criar cadastro", use_container_width=True):
             ir_para_register(); safe_rerun()
     with col4:
-        if st.button("Esqueci minha senha", use_container_width=True):
+        if st.button("Reset Password", use_container_width=True):
             ir_para_forgot(); safe_rerun()
 
     # Fecha card e wrapper
@@ -1006,7 +1006,7 @@ elif st.session_state.tela == "register":
 elif st.session_state.tela == "forgot_password":
     aplicar_estilos_authenticated()
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
-    st.title("🔐 Esqueci minha senha")
+    st.title("🔐 Reset Password")
     st.write("Informe seu e-mail cadastrado para enviar um link de redefinição de senha (válido por 30 minutos).")
     email = st.text_input("E-mail")
     colb1, colb2 = st.columns(2)
