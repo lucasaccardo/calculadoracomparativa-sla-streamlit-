@@ -841,7 +841,7 @@ if st.session_state.tela == "login":
     show_logo_file(resource_path("logo.png"), width=140) # Usa resource_path aqui
     st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("<div class='brand-title'>Frotas Vamos SLA</div>", unsafe_allow_html=True)
-    st.markdown("<div class='brand-subtitle'>Acesso restrito | Soluções inteligentes para frotas</div>", unsafe_allow_html=True)
+    st.markdown("<div class='brand-subtitle'>| Soluções inteligentes para frotas |</div>", unsafe_allow_html=True)
 
     # Formulário de login
     with st.form("login_form"):
