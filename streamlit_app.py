@@ -17,7 +17,7 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 from passlib.context import CryptContext
-# Import do PIL (Image) adicionado para a função show_logo_file
+# Import do PIL (Image)
 from PIL import Image 
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
@@ -49,8 +49,7 @@ try:
         layout="wide",
         initial_sidebar_state="expanded"
     )
-    # Esconde header/footer/menu padrão do Streamlit (mantido aqui)
-    # <<< ERRO DE SESSION_INFO CORRIGIDO: O st.markdown FOI REMOVIDO DAQUI >>>
+    # <<< CORREÇÃO DO ERRO 'Bad message format': O st.markdown global FOI REMOVIDO DAQUI >>>
 except Exception:
     pass
 # <<< FIM DA MUDANÇA 1 >>>
@@ -121,8 +120,7 @@ def clear_login_background():
         st.session_state["login_bg_applied"] = False
     except Exception:
         pass
-# <<< FIM DA CORREÇÃO >>>
-
+# <<< FIM DA CORREÇÃO DO FUNDO BRANCO >>>
 
 # Função original do show_logo_file (já estava correta)
 def show_logo_file(path: str, width: int = 140):
@@ -204,11 +202,15 @@ def aplicar_estilos_authenticated():
     # Main CSS for authenticated area
     css = f"""<style id="app-auth-style">
     :root {{ --bg: #0f1724; --card: #0f172a; --border: rgba(255,255,255,0.06); }}
-    html, body, .stApp {{ background-image: none !important; background: radial-gradient(circle at 10% 10%, rgba(15,23,42,0.96) 0%, rgba(11,17,24,1) 50%) !important; color: #E5E7EB !important; }}
+    html, body, .stApp {{ 
+        background-image: none !important; 
+        background: radial-gradient(circle at 10% 10%, rgba(15,23,42,0.96) 0%, rgba(11,17,24,1) 50%) !important; 
+        color: #E5E7EB !important; 
+    }}
     section.main > div.block-container {{ max-width: 1100px !important; margin: 0 auto !important; padding-top: 24px !important; padding-bottom: 28px !important; }}
     .main-container, [data-testid="stForm"], [data-testid="stExpander"] > div {{ background-color: rgba(12,17,23,0.85) !important; border-radius: 10px !important; padding: 20px !important; border: 1px solid var(--border) !important; }}
     
-    /* <<< CORREÇÃO SESSION_INFO: CSS MOVIDO PARA CÁ >>> */
+    /* <<< CORREÇÃO DO ERRO 'Bad message format': CSS DE OCULTAR MENU MOVIDO PARA CÁ >>> */
     header[data-testid="stHeader"] {{display: none !important;}}
     footer {{display: none !important;}}
     #MainMenu {{display: none !important;}}
@@ -386,7 +388,7 @@ if st.session_state.tela == "login":
     /* Mantém o sidebar intacto */
     [data-testid="stSidebar"] { position: relative; z-index: 9999; }
     
-    /* <<< CORREÇÃO SESSION_INFO: CSS MOVIDO PARA CÁ >>> */
+    /* <<< CORREÇÃO DO ERRO 'Bad message format': CSS DE OCULTAR MENU MOVIDO PARA CÁ >>> */
     header[data-testid="stHeader"] {display: none !important;}
     footer {display: none !important;}
     #MainMenu {display: none !important;}
@@ -399,7 +401,7 @@ if st.session_state.tela == "login":
     set_login_background(resource_path("background.png")) # Usa resource_path aqui
 
     # <<< MUDANÇA 1: REMOVIDO Bloco cols_top que exibia a logo antes do wrapper >>>
-
+    
     # wrapper e card
     st.markdown('<div class="login-wrapper">', unsafe_allow_html=True) # Wrapper agora centraliza
     st.markdown('<div class="login-card">', unsafe_allow_html=True) # Container do card
@@ -1040,7 +1042,7 @@ else:
                     mensalidade = moeda_para_float(hit.iloc[0]["VALOR MENSALIDADE"])
                     st.success(f"Cliente: {cliente} | Mensalidade: {formatar_moeda(mensalidade)}")
                 else:
-                    st.warning("Placa não encontrada na base. Preencha os dados manually abaixo.")
+                    st.warning("Placa não encontrada na base. Preencha os dados manualmente abaixo.")
             cliente = st.text_input("Cliente (caso não tenha sido localizado)", value=cliente)
             mensalidade = st.number_input("Mensalidade (R$)", min_value=0.0, step=0.01, format="%.2f", value=float(mensalidade) if mensalidade else 0.0)
             st.subheader("2) Período e Serviço")
