@@ -1801,13 +1801,16 @@ if not fechados.empty:
 else:
     st.warning("Nenhuma peça foi selecionada.")
 
-    # Safety fallback: if tela value isn't matched
-    else:
-        st.markdown("<div class='main-container'>", unsafe_allow_html=True)
-        st.error("Tela não encontrada ou ainda não implementada.")
-        if st.button("Voltar para Home"):
-            ir_para_home()
-            safe_rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
+# (Aqui termina o bloco de tickets fechados)
+# O bloco abaixo deve estar no nível do if/elif principal de seleção de tela, não dentro do else acima
+
+# Safety fallback: if tela value isn't matched
+else:
+    st.markdown("<div class='main-container'>", unsafe_allow_html=True)
+    st.error("Tela não encontrada ou ainda não implementada.")
+    if st.button("Voltar para Home"):
+        ir_para_home()
+        safe_rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # End of file
