@@ -1,4 +1,4 @@
-# <<< MUDANÇA 1: MOVIDO st.set_page_config PARA O TOPO >>>
+# <<< MUDANÇA 1: MOVIDO st.set_page_config PARA O TOPO >>
 # <<< E REMOVIDO st.markdown que estava antes >>>
 import os
 import base64
