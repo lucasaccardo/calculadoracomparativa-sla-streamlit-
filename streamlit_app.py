@@ -1248,7 +1248,7 @@ else:
 
     if st.session_state.tela == "home":
         st.title("🏠 Home")
-        st.write(f"### Bem-vindo, {st.session_state.get('name','')}!")
+        st.write(f"### Bem-vindo, {st.session_state.get('full_name','')}!")
         st.markdown("---")
         col1, col2 = st.columns(2)
         with col1:
