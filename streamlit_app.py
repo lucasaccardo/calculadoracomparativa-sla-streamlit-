@@ -17,7 +17,7 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 from passlib.context import CryptContext
-from PIL import Image # <--- ADICIONADO DE VOLTA
+from PIL import Image # <--- Import do PIL (Image)
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
@@ -48,8 +48,7 @@ try:
         layout="wide",
         initial_sidebar_state="expanded"
     )
-    # Esconde header/footer/menu padrão do Streamlit (mantido aqui)
-    # <<< O st.markdown FOI REMOVIDO DAQUI PARA CORRIGIR O ERRO 'Bad message format' >>>
+    # <<< CORREÇÃO ERRO 'Bad message format': O st.markdown FOI REMOVIDO DAQUI >>>
 except Exception:
     pass
 # <<< FIM DA MUDANÇA 1 >>>
@@ -91,10 +90,11 @@ def set_login_background(png_path: str):
             transform: translateZ(0);
             opacity: 1;
         }}
+        
+        /* <<< CORREÇÃO (DIMINUIR CARD): Bloco .login-card removido daqui >>> */
 
-        /* <<< CORREÇÃO 2: REGRA DO .login-card REMOVIDA DAQUI >>> */
-        /* (Isso impedia que a sua regra de 300px funcionasse) */
-
+        /* Do not alter sidebar positioning - preserve collapse X */
+        [data-testid="stSidebar"] {{ position: relative; z-index: 9999; }}
         </style>
         """
 
@@ -104,17 +104,16 @@ def set_login_background(png_path: str):
     except Exception:
         return False
 
-# <<< CORREÇÃO 3: CORRIGIDA LÓGICA DO FUNDO BRANCO >>>
+# <<< CORREÇÃO (FUNDO BRANCO): Regra 'html, body, .stApp' removida daqui >>>
 def clear_login_background():
     """
     Remove/hide login background pseudo-element and clear flag.
-    NÃO mexe no background principal do .stApp
     """
     try:
         css = """
         <style id="login-bg-clear">
-        .login-wrapper::before { display: none !important; opacity: 0 !important; }
-        /* A REGRA QUE DEFINIA O FUNDO COMO TRANSPARENTE FOI REMOVIDA DAQUI */
+        .login-wrapper::before { display: none !important; }
+        /* html, body, .stApp { background-image: none !important; background: transparent !important; } */
         </style>
         """
         st.markdown(css, unsafe_allow_html=True)
@@ -260,9 +259,7 @@ def aplicar_estilos_authenticated():
     }}
     
     /* <<< CORREÇÃO DO ERRO 'Bad message format': CSS DE OCULTAR MENU MOVIDO PARA CÁ >>> */
-    header[data-testid="stHeader"] {{display: none !important;}}
-    footer {{display: none !important;}}
-    #MainMenu {{display: none !important;}}
+    header[data-testid="stHeader"], #MainMenu, footer {{ display: none !important; }}
 
     {badge_css}
     </style>
@@ -365,6 +362,7 @@ def build_email_html(title: str, subtitle: str, body_lines: List[str], cta_label
     </body>
 </html>"""
 
+# <<< CORREÇÃO DO SYNTAXERROR: Bloco try/except restaurado >>>
 def send_email(dest_email: str, subject: str, body_plain: str, body_html: Optional[str] = None) -> bool:
     host = st.secrets.get("EMAIL_HOST", "")
     port = int(st.secrets.get("EMAIL_PORT", 587) or 587)
@@ -376,7 +374,6 @@ def send_email(dest_email: str, subject: str, body_plain: str, body_html: Option
         st.warning("Configurações de e-mail não definidas em st.secrets. Exibindo conteúdo (teste).")
         st.code(f"Simulated email to: {dest_email}\nSubject: {subject}\n\n{body_plain}", language="text")
         return False
-    # <<< CORREÇÃO DO SYNTAXERROR: Bloco try/except restaurado >>>
     try:
         msg = EmailMessage()
         msg["Subject"] = subject
@@ -402,7 +399,7 @@ def send_email(dest_email: str, subject: str, body_plain: str, body_html: Option
             print("Falha ao enviar e-mail:", e)
         st.code(f"Para: {dest_email}\nAssunto: {subject}\n\n{body_plain}", language="text")
         return False
-    # <<< FIM DA CORREÇÃO DO SYNTAXERROR >>>
+# <<< FIM DA CORREÇÃO DO SYNTAXERROR >>>
 
 def send_reset_email(dest_email: str, reset_link: str) -> bool:
     subject = "Redefinição de senha - Frotas Vamos SLA"
@@ -668,6 +665,7 @@ def gerar_pdf_sla_simples(cliente, placa, tipo_servico, dias_uteis_manut, prazo_
     c.showPage(); c.save(); buffer.seek(0); return buffer
 # <<< FIM DA CORREÇÃO >>>
 
+
 # =========================
 # Navigation helpers & sidebar
 # =========================
@@ -751,88 +749,52 @@ if incoming_token and not st.session_state.get("ignore_reset_qp"):
     st.session_state.incoming_reset_token = incoming_token
     st.session_state.tela = "reset_password"
 
-# ... [IMPORTS E FUNÇÕES AUXILIARES IGUAIS AO SEU CÓDIGO] ...
-
 # =========================
 # SCREENS
 # =========================
 if st.session_state.tela == "login":
-    # 1. CSS refinado para centralizar e profissionalizar o card
+    # CSS seguro para a tela de login
     st.markdown("""
-    <style>
-    section.main > div.block-container {
-        max-width: 100vw !important;
-        min-height: 100vh !important;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: transparent !important;
-        padding: 0 !important;
-        margin: 0 !important;
-    }
-    .login-wrapper {
-        width: 100vw;
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: transparent;
-        margin: 0;
-        padding: 0;
-        position: relative;
-        z-index: 1;
-    }
-    .login-card {
-        width: 400px;
-        max-width: 95vw;
-        padding: 32px 28px 24px 28px;
-        border-radius: 16px;
-        background: rgba(18, 22, 34, 0.98);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.35);
-        border: 1px solid rgba(255,255,255,0.08);
-        color: #E5E7EB;
-        position: relative;
-        z-index: 2;
-    }
-    .brand-title {
-        text-align:center;
-        font-weight:700;
-        font-size:22px;
-        color:#E5E7EB;
-        margin-bottom:6px;
-    }
-    .brand-subtitle {
-        text-align:center;
-        color: rgba(255,255,255,0.78);
-        font-size:13px;
-        margin-bottom:14px;
-    }
-    /* Remove header/footer/menu do Streamlit */
-    header[data-testid="stHeader"], footer, #MainMenu {
-        display: none !important;
-    }
-    html, body, .stApp {
-        background: transparent !important;
-        margin: 0;
-        padding: 0;
-        height: 100%;
-    }
+    <style id="login-card-safe">
+    /* Limita a largura do container principal mesmo em Wide mode */
+    section.main > div.block-container { max-width: 920px !important; margin: 0 auto !important; padding-top: 0 !important; padding-bottom: 0 !important; min-height: 100vh; display: flex; align-items: center; justify-content: center; } /* Adicionado flexbox para centralizar verticalmente */
+
+    /* Wrapper */
+    .login-wrapper { width:100%; max-width:920px; margin:0 auto; box-sizing:border-box; display:flex; align-items:center; justify-content:center; padding:24px 0; }
+
+    /* <<< MUDANÇA: CARD DIMINUÍDO PARA 400px (era 300px, ajustei p/ caber) >>> */
+    .login-card { width:400px; max-width:calc(100% - 48px); padding: 24px 22px; border-radius:12px; background: rgba(6,8,12,0.88); box-shadow:0 18px 40px rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.04); color:#E5E7EB; position:relative; z-index:2; }
+
+    .brand-title { text-align:center; font-weight:700; font-size:22px; color:#E5E7EB; margin-bottom:6px; }
+    .brand-subtitle { text-align:center; color: rgba(255,255,255,0.78); font-size:13px; margin-bottom:14px; }
+
+    /* Garante que o app view não tenha outro background que empurre o conteúdo */
+    html, body, .stApp { background: transparent !important; margin: 0; padding: 0; height: 100%; }
+
+    /* Mantém o sidebar intacto */
+    [data-testid="stSidebar"] { position: relative; z-index: 9999; }
+    
+    /* <<< CORREÇÃO DO ERRO 'Bad message format': CSS DE OCULTAR MENU MOVIDO PARA CÁ >>> */
+    header[data-testid="stHeader"] {{display: none !important;}}
+    footer {{display: none !important;}}
+    #MainMenu {{display: none !important;}}
     </style>
     """, unsafe_allow_html=True)
 
-    # 2. Aplica o background do login
-    set_login_background(resource_path("background.png"))
+    # Aplica background do login SEMPRE que a tela de login for renderizada
+    set_login_background(resource_path("background.png")) # Usa resource_path aqui
 
-    # 3. Estrutura do card de login
-    st.markdown('<div class="login-wrapper">', unsafe_allow_html=True)
-    st.markdown('<div class="login-card">', unsafe_allow_html=True)
+    # <<< CORREÇÃO "MANCHA PRETA": Bloco cols_top REMOVIDO daqui >>>
+    
+    # wrapper e card
+    st.markdown('<div class="login-wrapper">', unsafe_allow_html=True) # Wrapper agora centraliza
+    st.markdown('<div class="login-card">', unsafe_allow_html=True) # Container do card
 
-    # Logo centralizado
+    # Logo centralizado DENTRO do card
     st.markdown("<div style='text-align: center; margin-bottom: 12px;'>", unsafe_allow_html=True)
-    show_logo_file(resource_path("logo.png"), width=140)
+    show_logo_file(resource_path("logo.png"), width=140) # Usa resource_path aqui
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # Título e subtítulo
     st.markdown("<div class='brand-title'>Frotas Vamos SLA</div>", unsafe_allow_html=True)
     st.markdown("<div class='brand-subtitle'>Acesso restrito | Soluções inteligentes para frotas</div>", unsafe_allow_html=True)
 
@@ -842,24 +804,21 @@ if st.session_state.tela == "login":
         password = st.text_input("Senha", type="password", placeholder="Senha", label_visibility="collapsed")
         submit_login = st.form_submit_button("Entrar", use_container_width=True)
 
-    # Ações auxiliares (dentro do card)
+    # Ações auxiliares
     c1, c2 = st.columns(2)
     with c1:
         if st.button("Criar cadastro"):
-            ir_para_register()
-            safe_rerun()
+            ir_para_register(); safe_rerun()
     with c2:
         if st.button("Esqueci minha senha"):
-            ir_para_forgot()
-            safe_rerun()
+            ir_para_forgot(); safe_rerun()
 
     # Fecha card e wrapper
-    st.markdown("</div>", unsafe_allow_html=True)  # Fecha login-card
-    st.markdown("</div>", unsafe_allow_html=True)  # Fecha login-wrapper
+    st.markdown("</div>", unsafe_allow_html=True) # Fecha login-card
+    st.markdown("</div>", unsafe_allow_html=True) # Fecha login-wrapper
 
-    # Lógica do submit (exemplo, adapte para sua lógica)
+    # Tratamento do submit
     if submit_login:
-        # Exemplo de lógica de autenticação:
         df_users = load_user_db()
         user_data = df_users[df_users["username"] == username]
         if user_data.empty:
@@ -870,7 +829,131 @@ if st.session_state.tela == "login":
             if not valid:
                 st.error("❌ Usuário ou senha incorretos.")
             else:
-               
+                try:
+                    if needs_up:
+                        idx = df_users.index[df_users["username"] == username][0]
+                        df_users.loc[idx, "password"] = hash_password(password)
+                        df_users.loc[idx, "last_password_change"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                        save_user_db(df_users)
+                except Exception:
+                    pass
+
+                if row.get("status", "") != "aprovado":
+                    st.warning("⏳ Seu cadastro ainda está pendente de aprovação pelo administrador.")
+                else:
+                    # Login bem-sucedido: remove background do login e aplica estilo autenticado
+                    clear_login_background() # Garante que o background específico do login suma
+                    aplicar_estilos_authenticated() # Aplica o novo estilo/background
+                    st.session_state.logado = True
+                    st.session_state.username = row["username"]
+                    st.session_state.role = row.get("role", "user")
+                    st.session_state.email = row.get("email", "")
+                    # Redireciona para tela correta pós-login
+                    if not str(row.get("accepted_terms_on", "")).strip():
+                        st.session_state.tela = "terms_consent"
+                    elif is_password_expired(row) or str(row.get("force_password_reset", "")).strip():
+                        st.session_state.tela = "force_change_password"
+                    else:
+                        st.session_state.tela = "home"
+                    safe_rerun() # Roda o script novamente para ir para a nova tela
+
+# ---------------------------
+# Register
+# ---------------------------
+elif st.session_state.tela == "register":
+    aplicar_estilos_authenticated() # Aplica o tema padrão
+    st.markdown("<div class='main-container'>", unsafe_allow_html=True)
+    st.title("🆕 Criar cadastro")
+    st.info("Se a sua empresa já realizou um pré-cadastro, informe seu e-mail para pré-preencher os dados.")
+    if "register_prefill" not in st.session_state:
+        st.session_state.register_prefill = None
+    with st.form("lookup_email_form"):
+        lookup_email = st.text_input("E-mail corporativo para localizar pré-cadastro")
+        lookup_submit = st.form_submit_button("Buscar pré-cadastro")
+    if lookup_submit and lookup_email.strip():
+        df = load_user_db()
+        rows = df[df["email"].str.strip().str.lower() == lookup_email.strip().lower()]
+        if rows.empty:
+            st.warning("Nenhum pré-cadastro encontrado para este e-mail. Você poderá preencher os dados normally.")
+            st.session_state.register_prefill = None
+        else:
+            r = rows.iloc[0].to_dict()
+            st.session_state.register_prefill = r
+            st.success("Pré-cadastro encontrado! Os campos abaixo foram preenchidos automaticamente.")
+    pre = st.session_state.register_prefill
+    lock_username = bool(pre and pre.get("username"))
+    lock_fullname = bool(pre and pre.get("full_name"))
+    lock_matricula = bool(pre and pre.get("matricula"))
+    lock_email = bool(pre and pre.get("email"))
+    with st.form("register_form", clear_on_submit=False):
+        col1, col2 = st.columns(2)
+        username = col1.text_input("Usuário (login)", value=(pre.get("username") if pre else ""), disabled=lock_username)
+        full_name = col2.text_input("Nome completo", value=(pre.get("full_name") if pre else ""), disabled=lock_fullname)
+        col3, col4 = st.columns(2)
+        matricula = col3.text_input("Matrícula", value=(pre.get("matricula") if pre else ""), disabled=lock_matricula)
+        email = col4.text_input("E-mail corporativo", value=(pre.get("email") if pre else lookup_email or ""), disabled=lock_email)
+        col5, col6 = st.columns(2)
+        password = col5.text_input("Senha", type="password", help="Mín 10, com maiúscula, minúscula, número e especial.")
+        password2 = col6.text_input("Confirmar senha", type="password")
+        submit_reg = st.form_submit_button("Enviar cadastro", type="primary", use_container_width=True)
+    st.button("⬅️ Voltar ao login", on_click=ir_para_login)
+    if submit_reg:
+        df = load_user_db()
+        # Coleta dados dos inputs ou do prefill
+        uname = (username or (pre.get("username") if pre else "")).strip()
+        fname = (full_name or (pre.get("full_name") if pre else "")).strip()
+        mail = (email or (pre.get("email") if pre else "")).strip()
+        mat = (matricula or (pre.get("matricula") if pre else "")).strip()
+
+        if not all([uname, fname, mail, password.strip(), password2.strip()]):
+            st.error("Preencha todos os campos obrigatórios.")
+        elif password != password2:
+            st.error("As senhas não conferem.")
+        else:
+            valid, errs = validate_password_policy(password, username=uname, email=mail)
+            if not valid:
+                st.error("Regras de senha não atendidas:\n- " + "\n- ".join(errs))
+            else:
+                # Verifica se o email já existe
+                idxs = df.index[df["email"].str.strip().str.lower() == mail.lower()]
+                if len(idxs) > 0:
+                    idx = idxs[0]
+                    # Se já existe (pré-cadastro), atualiza os campos
+                    if not df.loc[idx, "username"]: # Se não tinha username, define agora
+                        if (uname in df["username"].values) and (df.loc[idx, "username"] != uname):
+                            st.error("Nome de usuário já existe."); st.stop()
+                        df.loc[idx, "username"] = uname
+                    if not df.loc[idx, "full_name"]: df.loc[idx, "full_name"] = fname
+                    if not df.loc[idx, "matricula"]: df.loc[idx, "matricula"] = mat
+                    df.loc[idx, "password"] = hash_password(password)
+                    if df.loc[idx, "status"] == "": df.loc[idx, "status"] = "pendente"
+                    df.loc[idx, "last_password_change"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                    df.loc[idx, "force_password_reset"] = ""
+                    save_user_db(df)
+                    st.success("Cadastro atualizado! Aguarde aprovação (se pendente).")
+                else:
+                    # Se não existe, cria novo (mas verifica username)
+                    if uname in df["username"].values:
+                        st.error("Nome de usuário já existe."); st.stop()
+                    
+                    new_user = {col: "" for col in REQUIRED_USER_COLUMNS} # Garante todas as colunas
+                    new_user.update({
+                        "username": uname,
+                        "password": hash_password(password),
+                        "role": "user",
+                        "full_name": fname,
+                        "matricula": mat,
+                        "email": mail,
+                        "status": "pendente",
+                        "last_password_change": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                        "force_password_reset": ""
+                    })
+                    df = pd.concat([df, pd.DataFrame([new_user])], ignore_index=True)
+                    save_user_db(df)
+                    st.success("✅ Cadastro enviado! Aguarde aprovação.")
+    st.markdown("</div>", unsafe_allow_html=True) # Fecha main-container
+
+
 # =========================
 # Screens: Forgot/Reset/Force/Terms
 # =========================
@@ -1014,7 +1097,7 @@ elif st.session_state.tela == "force_change_password":
 # =========================
 elif st.session_state.tela == "terms_consent":
     aplicar_estilos_authenticated()
-    st.markdown("<div class'main-container'>", unsafe_allow_html=True)
+    st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     st.title("Termos e Condições de Uso e Política de Privacidade (LGPD)")
     st.info("Para seu primeiro acesso, é necessário ler e aceitar os termos de uso e a política de privacidade desta plataforma.")
     terms_html = dedent("""
@@ -1121,7 +1204,7 @@ else:
         
     aplicar_estilos_authenticated() # Aplica tema
     renderizar_sidebar()
-    st.markdown("<div class'main-container'>", unsafe_allow_html=True)
+    st.markdown("<div class='main-container'>", unsafe_allow_html=True)
 
     if st.session_state.tela == "home":
         st.title("🏠 Home")
@@ -1398,9 +1481,8 @@ else:
                 st.write(f"- Mensalidade: {formatar_moeda(res['mensalidade'])}")
                 st.write(f"- Desconto: {formatar_moeda(res['desconto'])}")
 
-                # Tenta gerar o PDF. Adiciona a função 'gerar_pdf_sla_simples' se estiver faltando.
+                # Tenta gerar o PDF.
                 try:
-                    # (Precisamos definir gerar_pdf_sla_simples se não estiver no código)
                     # Adicionada definição aqui para garantir que exista
                     def gerar_pdf_sla_simples(cliente, placa, tipo_servico, dias_uteis_manut, prazo_sla, dias_excedente, valor_mensalidade, desconto):
                         buffer = BytesIO()
@@ -1422,7 +1504,7 @@ else:
                     pdf_buf = gerar_pdf_sla_simples(res["cliente"], res["placa"], res["tipo_servico"], res["dias_uteis_manut"], res["prazo_sla"], res["dias_excedente"], res["mensalidade"], res["desconto"])
                     st.download_button("📥 Baixar PDF do Resultado", data=pdf_buf, file_name=f"sla_{res['placa'] or 'veiculo'}.pdf", mime="application/pdf")
                 
-                except NameError: # Se ainda assim falhar (improvável agora)
+                except NameError: 
                     st.error("A função 'gerar_pdf_sla_simples' não foi encontrada.")
                 except Exception as e:
                     st.error(f"Erro ao tentar gerar PDF: {e}")
