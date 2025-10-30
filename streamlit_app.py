@@ -769,7 +769,7 @@ def renderizar_sidebar():
         st.button("🚪 Sair (Logout)", on_click=logout, type="secondary", use_container_width=True)
         st.button("💬 Abrir Ticket", on_click=lambda: st.session_state.update({"tela": "tickets"}), use_container_width=True)
         if user_is_superadmin():
-        st.button("📋 Gerenciar Tickets", on_click=lambda: st.session_state.update({"tela": "admin_tickets"}), use_container_width=True)
+        # st.button("📋 Gerenciar Tickets", on_click=lambda: st.session_state.update({"tela": "admin_tickets"}), use_container_width=True)
 
 # =========================
 # Initial state & routing
