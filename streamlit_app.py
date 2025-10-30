@@ -846,19 +846,31 @@ if st.session_state.tela == "login":
     c1, c2 = st.columns(2)
     with c1:
         if st.button("Criar cadastro"):
-            ir_para_register(); safe_rerun()
+            ir_para_register()
+            safe_rerun()
     with c2:
         if st.button("Esqueci minha senha"):
-            ir_para_forgot(); safe_rerun()
+            ir_para_forgot()
+            safe_rerun()
 
     # Fecha card e wrapper
-    st.markdown("</div>", unsafe_allow_html=True) # Fecha login-card
-    st.markdown("</div>", unsafe_allow_html=True) # Fecha login-wrapper
+    st.markdown("</div>", unsafe_allow_html=True)  # Fecha login-card
+    st.markdown("</div>", unsafe_allow_html=True)  # Fecha login-wrapper
 
-    # Lógica do submit (mantém igual ao seu código original)
+    # Lógica do submit (exemplo, adapte para sua lógica)
     if submit_login:
-        # ... (restante igual)
-
+        # Exemplo de lógica de autenticação:
+        df_users = load_user_db()
+        user_data = df_users[df_users["username"] == username]
+        if user_data.empty:
+            st.error("❌ Usuário ou senha incorretos.")
+        else:
+            row = user_data.iloc[0]
+            valid, needs_up = verify_password(row["password"], password)
+            if not valid:
+                st.error("❌ Usuário ou senha incorretos.")
+            else:
+               
 # =========================
 # Screens: Forgot/Reset/Force/Terms
 # =========================
