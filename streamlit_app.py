@@ -73,6 +73,30 @@ except Exception:
     pass
 # <<< FIM DA MUDANÇA 1 >>>
 
+# Adicione este bloco após st.set_page_config()
+
+try:
+    st.markdown("""
+        <style>
+            /* Esconde o header do Streamlit (onde fica o menu "Share") */
+            header[data-testid="stHeader"] {
+                display: none !important;
+                visibility: hidden !important;
+            }
+            /* Esconde o rodapé "Made with Streamlit" */
+            footer {
+                display: none !important;
+                visibility: hidden !important;
+            }
+            /* Esconde o botão do menu principal (hambúrguer) */
+            #MainMenu {
+                display: none !important;
+                visibility: hidden !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+except Exception as e:
+    print(f"Erro ao injetar CSS global: {e}")
 
 # =========================
 # Background helpers (login-only)
