@@ -828,6 +828,15 @@ if st.session_state.tela == "login":
     # Aplica background do login SEMPRE que a tela de login for renderizada
     set_login_background(resource_path("background.png")) # Usa resource_path aqui
    
+    # wrapper e card
+    st.markdown('<div class="login-wrapper">', unsafe_allow_html=True) # Wrapper agora centraliza
+
+    # Logo centralizado DENTRO do card
+    st.markdown("<div style='text-align: center; margin-bottom: 12px;'>", unsafe_allow_html=True)
+    show_logo_file(resource_path("logo.png"), width=140) # Usa resource_path aqui
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("<div class='brand-title'>Frotas Vamos SLA</div>", unsafe_allow_html=True)
+    st.markdown("<div class='brand-subtitle'>Acesso restrito | Soluções inteligentes para frotas</div>", unsafe_allow_html=True)
 
     # Formulário de login
     with st.form("login_form"):
