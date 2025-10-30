@@ -1,4 +1,4 @@
-# <<< MUDANÇA 1: MOVIDO st.set_page_config PARA O TOPO >>
+# <<< MUDANÇA 1: MOVIDO st.set_page_config PARA O TOPO >>>
 # <<< E REMOVIDO st.markdown que estava antes >>>
 import os
 import base64
@@ -17,13 +17,14 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 from passlib.context import CryptContext
-from PIL import Image # <--- Import do PIL (Image)
+from PIL import Image # <--- ADICIONADO DE VOLTA
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.pdfgen import canvas
 from streamlit.components.v1 import html as components_html
 
+# <<< CORREÇÃO NameError: 'get_query_params' is not defined >>>
 def get_query_params():
     """
     Obtém os parâmetros da URL (query params) de forma compatível
@@ -41,6 +42,7 @@ def get_query_params():
         except Exception:
             # Retorna vazio se ambos falharem
             return {}
+# <<< FIM DA CORREÇÃO >>>
 
 # =========================
 # Resource helpers
@@ -63,7 +65,7 @@ try:
     st.set_page_config(
         page_title="Frotas Vamos SLA",
         page_icon=resource_path("logo.png") if os.path.exists(resource_path("logo.png")) else "🚛",
-        layout="centered",
+        layout="wide",
         initial_sidebar_state="expanded"
     )
     # <<< CORREÇÃO ERRO 'Bad message format': O st.markdown FOI REMOVIDO DAQUI >>>
@@ -71,30 +73,6 @@ except Exception:
     pass
 # <<< FIM DA MUDANÇA 1 >>>
 
-# Adicione este bloco após st.set_page_config()
-
-try:
-    st.markdown("""
-        <style>
-            /* Esconde o header do Streamlit (onde fica o menu "Share") */
-            header[data-testid="stHeader"] {
-                display: none !important;
-                visibility: hidden !important;
-            }
-            /* Esconde o rodapé "Made with Streamlit" */
-            footer {
-                display: none !important;
-                visibility: hidden !important;
-            }
-            /* Esconde o botão do menu principal (hambúrguer) */
-            #MainMenu {
-                display: none !important;
-                visibility: hidden !important;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-except Exception as e:
-    print(f"Erro ao injetar CSS global: {e}")
 
 # =========================
 # Background helpers (login-only)
@@ -132,7 +110,7 @@ def set_login_background(png_path: str):
             transform: translateZ(0);
             opacity: 1;
         }}
-        
+
         /* <<< CORREÇÃO (DIMINUIR CARD): Bloco .login-card removido daqui >>> */
 
         /* Do not alter sidebar positioning - preserve collapse X */
@@ -154,8 +132,8 @@ def clear_login_background():
     try:
         css = """
         <style id="login-bg-clear">
-        .login-wrapper::before { display: none !important; }
-        /* html, body, .stApp { background-image: none !important; background: transparent !important; } */
+        .login-wrapper::before { display: none !important; opacity: 0 !important; }
+        /* A REGRA QUE DEFINIA O FUNDO COMO TRANSPARENTE FOI REMOVIDA DAQUI */
         </style>
         """
         st.markdown(css, unsafe_allow_html=True)
@@ -203,15 +181,7 @@ def safe_rerun():
     except Exception:
         pass # Ignora outros erros
 
-def get_query_params():
-    try:
-        return dict(st.query_params)
-    except Exception:
-        try:
-            params = st.experimental_get_query_params()
-            return {k: (v[0] if isinstance(v, list) else v) for k, v in params.items()}
-        except Exception:
-            return {}
+# (get_query_params já foi movida para o topo)
 
 def clear_all_query_params():
     try:
@@ -589,8 +559,6 @@ def is_password_expired(row) -> bool:
     except Exception:
         return True
         
-# ... Funções de usuário (load_user_db, save_user_db, etc.)
-
 # === BLOCO DE TICKETS ===
 TICKETS_PATH = os.path.join(os.path.dirname(__file__), "tickets.csv") if "__file__" in globals() else os.path.join(os.getcwd(), "tickets.csv")
 TICKET_COLUMNS = ["id", "username", "full_name", "email", "assunto", "descricao", "status", "resposta", "data_criacao", "data_resposta"]
@@ -604,17 +572,14 @@ def load_tickets():
     return pd.read_csv(TICKETS_PATH, dtype=str).fillna("")
 
 def save_tickets(df):
+    # Assegura que todas as colunas existem antes de salvar
+    for col in TICKET_COLUMNS:
+        if col not in df.columns:
+            df[col] = ""
     df = df[TICKET_COLUMNS]
     df.to_csv(TICKETS_PATH, index=False)
     st.cache_data.clear()
 # === FIM DO BLOCO DE TICKETS ===
-
-# ... depois disso, vêm as telas:
-if st.session_state.tela == "login":
-    ...
-elif st.session_state.tela == "register":
-    ...
-# etc.
 
 # =========================
 # Base / calculations / PDFs
@@ -851,22 +816,26 @@ if st.session_state.tela == "login":
     [data-testid="stSidebar"] { position: relative; z-index: 9999; }
     
     /* <<< CORREÇÃO DO ERRO 'Bad message format': CSS DE OCULTAR MENU MOVIDO PARA CÁ >>> */
-    header[data-testid="stHeader"] {{display: none !important;}}
-    footer {{display: none !important;}}
-    #MainMenu {{display: none !important;}}
+    header[data-testid="stHeader"] {display: none !important;}
+    footer {display: none !important;}
+    #MainMenu {display: none !important;}
     </style>
     """, unsafe_allow_html=True)
 
     # Aplica background do login SEMPRE que a tela de login for renderizada
     set_login_background(resource_path("background.png")) # Usa resource_path aqui
-   
+    
+    # <<< CORREÇÃO "MANCHA PRETA": Bloco cols_top REMOVIDO daqui >>>
+    
     # wrapper e card
     st.markdown('<div class="login-wrapper">', unsafe_allow_html=True) # Wrapper agora centraliza
+    st.markdown('<div class="login-card">', unsafe_allow_html=True) # Container do card
 
     # Logo centralizado DENTRO do card
     st.markdown("<div style='text-align: center; margin-bottom: 12px;'>", unsafe_allow_html=True)
     show_logo_file(resource_path("logo.png"), width=140) # Usa resource_path aqui
     st.markdown("</div>", unsafe_allow_html=True)
+
     st.markdown("<div class='brand-title'>Frotas Vamos SLA</div>", unsafe_allow_html=True)
     st.markdown("<div class='brand-subtitle'>| Soluções inteligentes para frotas |</div>", unsafe_allow_html=True)
 
@@ -1686,7 +1655,10 @@ else:
                             nomes_para_remover = [item.split(' - ')[0] for item in pecas_para_remover]
                             st.session_state.pecas_atuais = [p for p in st.session_state.pecas_atuais if p['nome'] not in nomes_para_remover]
                             safe_rerun()
-                # =========================
+                        else:
+                            st.warning("Nenhuma peça foi selecionada.")
+
+    # =========================
     # Tela: Abrir Ticket (usuário comum)
     # =========================
     elif st.session_state.tela == "tickets":
@@ -1781,37 +1753,32 @@ else:
                     save_tickets(df)
                     st.success("Ticket fechado!")
                     safe_rerun()
-        if st.session_state.tela == "admin_tickets":
-    # ... (outros códigos da tela de admin_tickets)
 
-    fechados = df[df["status"] == "fechado"]
-    if not fechados.empty:
-        with st.expander("Ver tickets fechados"):
-            for _, row in fechados.sort_values("data_resposta", ascending=False).iterrows():
-                st.markdown(f"""
-                    <div style="border:1px solid #888;padding:8px;border-radius:8px;margin-bottom:6px;">
-                    <b>ID:</b> {row['id']}<br>
-                    <b>Usuário:</b> {row['full_name']}<br>
-                    <b>Assunto:</b> {row['assunto']}<br>
-                    <b>Data:</b> {row['data_criacao']}<br>
-                    <b>Descrição:</b> {row['descricao']}<br>
-                    <b>Resposta:</b> {row['resposta']}<br>
-                    <b>Respondido em:</b> {row['data_resposta']}
-                    </div>
-                """, unsafe_allow_html=True)
-            st.markdown("</div>", unsafe_allow_html=True)
+        fechados = df[df["status"] == "fechado"]
+        if not fechados.empty:
+            with st.expander("Ver tickets fechados"):
+                for _, row in fechados.sort_values("data_resposta", ascending=False).iterrows():
+                    st.markdown(f"""
+                        <div style="border:1px solid #888;padding:8px;border-radius:8px;margin-bottom:6px;">
+                        <b>ID:</b> {row['id']}<br>
+                        <b>Usuário:</b> {row['full_name']}<br>
+                        <b>Assunto:</b> {row['assunto']}<br>
+                        <b>Data:</b> {row['data_criacao']}<br>
+                        <b>Descrição:</b> {row['descricao']}<br>
+                        <b>Resposta:</b> {row['resposta']}<br>
+                        <b>Respondido em:</b> {row['data_resposta']}
+                        </div>
+                    """, unsafe_allow_html=True)
+        # <<< CORREÇÃO DE INDENTAÇÃO: Esta linha estava fora do 'elif' >>>
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # Safety fallback: if tela value isn't matched
     else:
-        st.warning("Nenhum ticket fechado encontrado.")
-
-# ... outros elif para outras telas
-
-else:
-    # Safety fallback: se nenhuma tela for encontrada
-    st.markdown("<div class='main-container'>", unsafe_allow_html=True)
-    st.error("Tela não encontrada ou ainda não implementada.")
-    if st.button("Voltar para Home"):
-        ir_para_home()
-        safe_rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("<div class='main-container'>", unsafe_allow_html=True)
+        st.error("Tela não encontrada ou ainda não implementada.")
+        if st.button("Voltar para Home"):
+            ir_para_home()
+            safe_rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # End of file
