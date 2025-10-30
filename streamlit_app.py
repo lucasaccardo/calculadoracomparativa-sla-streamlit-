@@ -735,9 +735,7 @@ def limpar_dados_simples():
         if key in st.session_state: del st.session_state[key]
 
 def logout():
-    for key in list(st.session_state.keys()):
-        del st.session_state[key]
-    safe_rerun()
+    st.session_state['__do_logout'] = True
 
 def user_is_admin():
     return st.session_state.get("role") in ("admin", "superadmin")
@@ -792,7 +790,14 @@ incoming_token = qp.get("reset_token") or qp.get("token") or ""
 if incoming_token and not st.session_state.get("ignore_reset_qp"):
     st.session_state.incoming_reset_token = incoming_token
     st.session_state.tela = "reset_password"
-
+    
+if st.session_state.get('__do_logout'):
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.session_state.tela = "login"
+    st.session_state['__do_logout'] = False
+    safe_rerun()
+    
 # =========================
 # SCREENS
 # =========================
