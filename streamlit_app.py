@@ -852,7 +852,7 @@ if st.session_state.tela == "login":
     # Ações auxiliares
     col1, col2, col3, col4, col5 = st.columns([1, 2, 2, 2, 1])
     with col2:
-        if st.button("Criar cadastro", use_container_width=True):
+        if st.button("Sign up", use_container_width=True):
             ir_para_register(); safe_rerun()
     with col4:
         if st.button("Reset Password", use_container_width=True):
@@ -909,7 +909,7 @@ if st.session_state.tela == "login":
 elif st.session_state.tela == "register":
     aplicar_estilos_authenticated() # Aplica o tema padrão
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
-    st.title("🆕 Criar cadastro")
+    st.title("🆕 Sign up")
     st.info("Se a sua empresa já realizou um pré-cadastro, informe seu e-mail para pré-preencher os dados.")
     if "register_prefill" not in st.session_state:
         st.session_state.register_prefill = None
