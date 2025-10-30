@@ -24,6 +24,26 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.pdfgen import canvas
 from streamlit.components.v1 import html as components_html
 
+# Adicione esta função no topo do seu streamlit_app.py
+
+def get_query_params():
+    """
+    Obtém os parâmetros da URL (query params) de forma compatível
+    com diferentes versões do Streamlit.
+    """
+    try:
+        # Tenta a forma moderna (st.query_params)
+        return dict(st.query_params)
+    except Exception:
+        try:
+            # Tenta a forma antiga (experimental_get_query_params)
+            params = st.experimental_get_query_params()
+            # Converte lista de valores para valor único
+            return {k: (v[0] if isinstance(v, list) else v) for k, v in params.items()}
+        except Exception:
+            # Retorna vazio se ambos falharem
+            return {}
+            
 # =========================
 # Resource helpers
 # =========================
@@ -45,7 +65,7 @@ try:
     st.set_page_config(
         page_title="Frotas Vamos SLA",
         page_icon=resource_path("logo.png") if os.path.exists(resource_path("logo.png")) else "🚛",
-        layout="wide",
+        layout="centered",
         initial_sidebar_state="expanded"
     )
     # <<< CORREÇÃO ERRO 'Bad message format': O st.markdown FOI REMOVIDO DAQUI >>>
