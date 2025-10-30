@@ -1781,31 +1781,32 @@ else:
                     save_tickets(df)
                     st.success("Ticket fechado!")
                     safe_rerun()
-        # Exibir tickets fechados (opcional)
-fechados = df[df["status"] == "fechado"]
-if not fechados.empty:
-    with st.expander("Ver tickets fechados"):
-        for _, row in fechados.sort_values("data_resposta", ascending=False).iterrows():
-            st.markdown(f"""
-            <div style="border:1px solid #888;padding:8px;border-radius:8px;margin-bottom:6px;">
-            <b>ID:</b> {row['id']}<br>
-            <b>Usuário:</b> {row['full_name']}<br>
-            <b>Assunto:</b> {row['assunto']}<br>
-            <b>Data:</b> {row['data_criacao']}<br>
-            <b>Descrição:</b> {row['descricao']}<br>
-            <b>Resposta:</b> {row['resposta']}<br>
-            <b>Respondido em:</b> {row['data_resposta']}
-            </div>
-            """, unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-else:
-    st.warning("Nenhuma peça foi selecionada.")
+        if st.session_state.tela == "admin_tickets":
+    # ... (outros códigos da tela de admin_tickets)
 
-# (Aqui termina o bloco de tickets fechados)
-# O bloco abaixo deve estar no nível do if/elif principal de seleção de tela, não dentro do else acima
+    fechados = df[df["status"] == "fechado"]
+    if not fechados.empty:
+        with st.expander("Ver tickets fechados"):
+            for _, row in fechados.sort_values("data_resposta", ascending=False).iterrows():
+                st.markdown(f"""
+                    <div style="border:1px solid #888;padding:8px;border-radius:8px;margin-bottom:6px;">
+                    <b>ID:</b> {row['id']}<br>
+                    <b>Usuário:</b> {row['full_name']}<br>
+                    <b>Assunto:</b> {row['assunto']}<br>
+                    <b>Data:</b> {row['data_criacao']}<br>
+                    <b>Descrição:</b> {row['descricao']}<br>
+                    <b>Resposta:</b> {row['resposta']}<br>
+                    <b>Respondido em:</b> {row['data_resposta']}
+                    </div>
+                """, unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+    else:
+        st.warning("Nenhum ticket fechado encontrado.")
 
-# Safety fallback: if tela value isn't matched
+# ... outros elif para outras telas
+
 else:
+    # Safety fallback: se nenhuma tela for encontrada
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     st.error("Tela não encontrada ou ainda não implementada.")
     if st.button("Voltar para Home"):
