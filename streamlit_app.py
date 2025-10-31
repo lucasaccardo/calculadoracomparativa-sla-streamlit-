@@ -63,7 +63,7 @@ try:
     st.set_page_config(
         page_title="Frotas Vamos SLA",
         page_icon=resource_path("logo.png") if os.path.exists(resource_path("logo.png")) else "🚛",
-        layout="wide",
+        layout="centered",
         initial_sidebar_state="expanded"
     )
     # <<< CORREÇÃO ERRO 'Bad message format': O st.markdown FOI REMOVIDO DAQUI >>>
