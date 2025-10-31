@@ -845,10 +845,10 @@ if st.session_state.tela == "login":
     # Ações auxiliares
     col1, col2, col3, col4, col5 = st.columns([1, 2, 2, 2, 1])
     with col2:
-        if st.button("Sign up", use_container_width=True):
+        if st.button("Sign up"):
             ir_para_register(); safe_rerun()
     with col4:
-        if st.button("Reset Password", use_container_width=True):
+        if st.button("Reset Password"):
             ir_para_forgot(); safe_rerun()
 
     # Fecha card e wrapper
